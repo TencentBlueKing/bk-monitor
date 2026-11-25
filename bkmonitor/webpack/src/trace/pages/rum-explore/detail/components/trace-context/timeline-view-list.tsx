@@ -35,7 +35,7 @@ import TimelineViewAxis from './timeline-view-axis';
 import TimelineViewHidden from './timeline-view-hidden';
 import TraceContextPanel from './trace-context-panel';
 
-import type { IRumTraceInfo } from '../../services';
+import type { IRumTraceInfo } from '../../../typings';
 import type {
   IRumTimelineCardItemVM,
   IRumTimelineSpanVM,

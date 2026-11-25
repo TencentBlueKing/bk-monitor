@@ -23,19 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, inject, onMounted, shallowRef, watch } from 'vue';
+import { defineComponent, shallowRef } from 'vue';
 import type { PropType } from 'vue';
 
 import { Exception } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import { TRACE_CONTEXT_ROW_OBSERVER_KEY } from '../../composables';
 import WaterfallChart from '../detail-sections/waterfall-chart';
 import TimelineFoldRow from './timeline-fold-row';
 import TimelineSpanRow from './timeline-span-row';
 import TimelineViewHeader from './timeline-view-header';
 
-import type { IRumTraceInfo } from '../../services';
+import type { IRumTraceInfo } from '../../../typings';
 import type { IRumTimelineItemVM, IRumTimelineSpanVM, IRumTimelineViewVM } from '../../typings';
 
 import './trace-context-panel.scss';
@@ -83,21 +82,6 @@ export default defineComponent({
 
     /** 瀑布图展开状态：收起时只隐藏 WaterfallChart，View 头部与 Span 时间线保持展示 */
     const expanded = shallowRef(true);
-
-    /** 行可见性注册由链路上下文抽屉提供，面板在列表渲染后整批同步 */
-    const observeRows = inject(TRACE_CONTEXT_ROW_OBSERVER_KEY);
-    const timelineRef = shallowRef<HTMLElement | null>(null);
-    const setTimelineRef = (el: unknown) => {
-      timelineRef.value = (el as HTMLElement) ?? null;
-    };
-
-    /** 首屏、展开折叠行与筛选都走这里：DOM 更新后按容器一次性同步行元素 */
-    function syncRows() {
-      if (timelineRef.value) observeRows?.(timelineRef.value);
-    }
-
-    onMounted(syncRows);
-    watch(() => props.items, syncRows, { flush: 'post' });
 
     function renderSkeleton() {
       return (
@@ -186,12 +170,7 @@ export default defineComponent({
             onViewClick={view => emit('viewClick', view)}
           />
           {expanded.value && props.view.waterfall ? <WaterfallChart data={props.view.waterfall} /> : null}
-          <div
-            ref={setTimelineRef}
-            class='trace-context-timeline'
-          >
-            {renderItems()}
-          </div>
+          <div class='trace-context-timeline'>{renderItems()}</div>
         </div>
       );
     }

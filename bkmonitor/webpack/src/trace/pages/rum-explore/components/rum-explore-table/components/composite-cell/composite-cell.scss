@@ -31,6 +31,17 @@
         gap: 2px;
         color: #7b8ba8;
       }
+
+      &:has(> .rum-composite-badges, > .rum-composite-actions) {
+        flex-wrap: wrap;
+        row-gap: 2px;
+
+        > .rum-composite-main {
+          // 给正文保留少量可读空间，有余量时再扩展到正文的实际宽度。
+          flex: 1 1 3em;
+          max-width: max-content;
+        }
+      }
     }
 
     .rum-composite-main {
@@ -70,24 +81,21 @@
     .rum-composite-badges,
     .rum-composite-badge,
     .rum-composite-actions {
-      display: inline-flex;
-      gap: 4px;
-      align-items: center;
+      display: contents;
+    }
+
+    .rum-composite-actions > .rum-composite-action {
+      height: 16px;
       white-space: nowrap;
     }
 
     .rum-composite-badges {
-      min-width: 0;
-
-      // max-width: 65%;
-      overflow: hidden;
-
       .rum-cell-badge {
         --rum-badge-opacity: 10%;
 
-        flex-shrink: 1;
+        flex-shrink: 0;
         gap: 2px;
-        height: 16px;
+        min-height: 16px;
         padding: 0 3px;
         font:
           500 10px / 16px 'PingFang SC',
@@ -97,6 +105,11 @@
         color: var(--rum-badge-color, var(--rum-badge-tint, #7b8ba8));
         background: color-mix(in srgb, var(--rum-badge-tint, #8f9fbd) var(--rum-badge-opacity), transparent);
         border-radius: 4px;
+
+        .rum-field-text--no-ellipsis {
+          overflow-wrap: anywhere;
+          white-space: normal;
+        }
 
         &.rum-badge-mono {
           font-family: 'Roboto Mono', Roboto-Mono, Menlo, Consolas, 'PingFang SC', 'Microsoft YaHei', monospace;
@@ -132,13 +145,9 @@
       }
     }
 
-    .rum-composite-badge,
-    .rum-field-badge-item {
-      min-width: 0;
-    }
-
     .rum-field-badge-item {
       display: inline-flex;
+      min-width: 0;
     }
 
     .rum-composite-badge-icon {
@@ -154,17 +163,12 @@
       }
     }
 
-    .rum-composite-actions,
-    .rum-composite-action {
-      flex-shrink: 0;
-    }
-
     .rum-composite-action {
       display: inline-flex;
+      flex-shrink: 0;
       gap: 6px;
       align-items: center;
       justify-content: center;
-      height: 18px;
       padding: 0;
       font:
         500 9px / normal Roboto,
@@ -174,7 +178,8 @@
       font-variation-settings: 'wdth' 100;
       color: #4681c5;
       letter-spacing: -0.36px;
-      cursor: default;
+      text-decoration: none;
+      cursor: pointer;
       background: #fff;
       border: 0;
       border-radius: 4px;
@@ -191,16 +196,21 @@
 
       &.is-icon-only {
         width: 18px;
+        height: 18px;
         color: #49576b;
         background: transparent;
 
-        &:hover {
-          background: #e5edff;
+        &:is(:hover, :focus-visible) {
+          color: #3974ff;
         }
 
         .rum-composite-action-icon {
           font-size: 12px;
         }
+      }
+
+      &:is(:hover, :focus-visible) {
+        background: #e5edff;
       }
     }
   }

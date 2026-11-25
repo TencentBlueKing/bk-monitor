@@ -30,25 +30,31 @@ import { mapSortKeys, resolveColumnLayout } from '../column-builder/column-layou
 import { buildRumColumnRenderer } from '../column-builder/column-renderer';
 
 import type { BaseTableColumn } from '../../../../trace-explore/components/trace-explore-table/typing';
-import type { IRumField, IRumSpanRecord, RumModeType } from '../../../typings';
+import type { FieldActions, IRumField, IRumSpanRecord, IRumTraceInfo, RumModeType } from '../../../typings';
 import type { FieldAnalysisSelection } from '../components/column-header/column-header';
-import type { FieldActions } from '../components/field-value/field-value';
 
 /** 列渲染器通过这些回调将用户操作交给表格。 */
 export interface RumColumnActions extends FieldActions {
+  /** 读取流式检索的命中结果，供复合列决定是否展示 Trace 入口。 */
+  getTraceInfo: (traceId: string) => IRumTraceInfo | undefined;
   /** 判断当前行和数组列是否对应已打开的抽屉。 */
   isActive: (rowId: string, fieldName: string) => boolean;
   /** 打开数组字段所属记录的抽屉。 */
   onEventsCellClick: (row: IRumSpanRecord, fieldName: string) => void;
   /** 打开表头分析并传递已解析的候选字段。 */
   onFieldAnalysis: (trigger: Element, selection: FieldAnalysisSelection) => void;
+  /** 用会话 ID 打开关联详情，来源行用于表格高亮。 */
+  onOpenSessionDetail: (row: IRumSpanRecord, sessionId: string) => void;
+  /** 用命中结果的业务和应用打开 Trace 详情。 */
+  onOpenTraceDetail: (trace: IRumTraceInfo) => void;
 }
 
 /**
- * 组装展示列及排序映射，保留表格列键和请求字段的各自语义。
+ * @description 组装展示列及排序映射，保留表格列键和请求字段的各自语义。
  * @param props 表格基础列和当前检索状态
  * @param getFields 读取完整字段索引
  * @param actions 表格业务回调
+ * @returns 当前行标识、展示列和排序转换方法
  */
 export const useRumColumns = (
   props: {

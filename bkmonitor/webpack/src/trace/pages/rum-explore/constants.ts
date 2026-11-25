@@ -436,13 +436,23 @@ export const RUM_STATUS_CODE_MAP = {
   },
 };
 
-/** attributes.outcome.type 列的状态图标与文案 */
-export const RUM_OUTCOME_TYPE_MAP: Record<string, { icon: string; label: string }> = {
-  success: { icon: 'icon-monitor icon-mc-check-fill outcome-type-icon-success', label: window.i18n.t('成功') },
-  warning: { icon: 'icon-monitor icon-mind-fill outcome-type-icon-warning', label: window.i18n.t('异常') },
-  error: { icon: 'icon-monitor icon-mc-close-fill outcome-type-icon-error', label: window.i18n.t('失败') },
-  timeout: { icon: 'icon-monitor icon-Long-Task outcome-type-icon-timeout', label: window.i18n.t('超时') },
-  abort: { icon: 'icon-monitor icon-mc-minus-plus outcome-type-icon-abort', label: window.i18n.t('中止') },
+/** attributes.outcome.type 列的状态图标与文案。 */
+export const RUM_OUTCOME_TYPE_MAP: Record<
+  string,
+  {
+    /** 图标的状态样式类。 */
+    className: string;
+    /** 字库中的具体字形类。 */
+    icon: string;
+    /** 字段枚举未提供别名时的备用文案。 */
+    label: string;
+  }
+> = {
+  success: { icon: 'icon-mc-check-fill', className: 'outcome-type-icon-success', label: window.i18n.t('成功') },
+  warning: { icon: 'icon-mind-fill', className: 'outcome-type-icon-warning', label: window.i18n.t('异常') },
+  error: { icon: 'icon-mc-close-fill', className: 'outcome-type-icon-error', label: window.i18n.t('失败') },
+  timeout: { icon: 'icon-Long-Task', className: 'outcome-type-icon-timeout', label: window.i18n.t('超时') },
+  abort: { icon: 'icon-mc-minus-plus', className: 'outcome-type-icon-abort', label: window.i18n.t('中止') },
 };
 
 /** attributes.http.response.status_code 列按状态码分组的展示配置 */

@@ -25,6 +25,7 @@
  */
 export * from './use-rum-active-row';
 export * from './use-rum-column-config';
+export * from './use-rum-detail-drawer';
 export * from './use-rum-events-drawer';
 export * from './use-rum-favorite';
 export * from './use-rum-field-values';

@@ -23,8 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent } from 'vue';
-import type { VNodeChild } from 'vue';
+import { type PropType, defineComponent, h } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
@@ -35,7 +34,6 @@ import {
   RUM_HTTP_STATUS_CODE_MAP,
   RUM_OUTCOME_TYPE_MAP,
   RUM_STATUS_CODE_MAP,
-  RUM_VIEW_LOADING_TYPE_ICONS,
   RumEllipsisModeEnum,
   RumHttpStatusCodeGroupEnum,
   SPAN_KIND_MAPS,
@@ -45,68 +43,33 @@ import {
 import { formatFieldValue } from '../../../../utils/array-field-formatter';
 import RumEllipsisText from '../../../ellipsis-text';
 import { hasFieldValue } from '../../column-builder/column-layout';
+import { STANDALONE_TAG_FIELDS } from '../../constants';
+import CellIcon from '../cell-icon/cell-icon';
 import CountValue, { resolveCountField } from './count-value';
 import { canOpenRecordDetail, isSpanName, spanNameHover } from './detail-value';
 import FieldTarget from './field-target';
 
-import type { IRumCountDrillDown, IRumField, IRumSpanRecord, RumModeType } from '../../../../typings';
-import type { IUsePopoverTools } from '@/pages/alarm-center/components/alarm-table/hooks/use-popover';
+import type {
+  BadgePresentation,
+  FieldActions,
+  FieldAppearance,
+  IRumField,
+  RumModeType,
+  SpanKindPrefixIcon,
+  ValueContext,
+} from '../../../../typings';
+import type { CellIconConfig } from '../cell-icon/cell-icon';
 
 import './field-value.scss';
 
-/** 表格传给字段值的详情、下钻和悬浮回调。 */
-export interface FieldActions {
-  /** 表格共用的悬浮层控制器。 */
-  hoverPopoverTools: Pick<IUsePopoverTools, 'clearPopoverTimer' | 'hidePopover' | 'showPopover'>;
-  /** 从计数字段切换视角和筛选条件。 */
-  onCountClick: (payload: IRumCountDrillDown) => void;
-  /** 打开当前行的记录详情。 */
-  onOpenDetail: (row: IRumSpanRecord) => void;
-}
-
-/** 字段在表格中的展示位置，影响标签样式和可用的点击动作。 */
-export type FieldPlacement = 'badge' | 'column' | 'item';
-
-/** 独立列和复合成员共用的字段渲染参数。 */
-interface ValueContext {
-  /** 用于枚举、单位和权限推导的字段元信息。 */
-  field?: IRumField;
-  /** 当前值所对应的真实字段名。 */
-  fieldName: string;
-  /** 当前字段在单元格中的展示位置。 */
-  placement: FieldPlacement;
-  /** 提供详情、下钻和按行确定单位的原始记录。 */
-  row: IRumSpanRecord;
-  /** 单元格菜单回溯原始记录所用的行标识。 */
-  rowId: string;
-  /** 未经展示格式化的原始字段值。 */
-  value: unknown;
-}
-
-const TAG_STYLES: Record<string, string> = {
-  'attributes.action.frustration.type': 'rum-badge-long-task',
-  'attributes.action.type': 'rum-badge-action',
-  'attributes.long_task.entry_type': 'rum-badge-long-task',
-  'attributes.resource.type': 'rum-badge-resource',
-  'attributes.view.loading_type': 'rum-badge-view',
-  'events.attributes.exception.type': 'rum-badge-error',
-};
-
-/** 字段独立成列时也需要渲染成标签的字段。 */
-const STANDALONE_TAG_FIELDS = new Set([
-  'status.code',
-  'attributes.http.request.method',
-  'attributes.http.response.status_code',
-]);
-
-/** 复合标签中按设计使用等宽字体的字段。 */
-const MONOSPACE_TAG_FIELDS = new Set([
-  'attributes.action.type',
-  'attributes.http.request.method',
-  'attributes.http.response.status_code',
-  'attributes.resource.type',
-  'events.attributes.exception.type',
-]);
+/** 用统一组件渲染已选择的字段或标签图标。 */
+const renderFieldIcon = (config: CellIconConfig | undefined, className?: string) =>
+  config ? (
+    <CellIcon
+      class={[className, config.className]}
+      icon={config.icon}
+    />
+  ) : null;
 
 export default defineComponent({
   name: 'RumFieldValue',
@@ -119,6 +82,8 @@ export default defineComponent({
     actions: { type: Object as PropType<FieldActions>, required: true },
     /** 单元格文本省略方式，默认 ...yz（开头省略） */
     ellipsisMode: { type: String as PropType<RumEllipsisModeType>, default: RumEllipsisModeEnum.START },
+    /** 仅在复合标签位置生效的样式类和图标规则。 */
+    badgePresentation: { type: Object as PropType<BadgePresentation>, default: undefined },
   },
   setup(props) {
     const { t } = useI18n();
@@ -148,10 +113,10 @@ export default defineComponent({
     if (!hasFieldValue(value)) return null;
 
     const badge = placement === 'badge';
+    const badgePresentation = badge ? this.badgePresentation : undefined;
+    const resolveBadgeIcon = badgePresentation?.resolveIcon;
     const tag = badge || (placement === 'column' && STANDALONE_TAG_FIELDS.has(fieldName));
-    const tagClasses = tag
-      ? ['rum-cell-badge', TAG_STYLES[fieldName], badge && MONOSPACE_TAG_FIELDS.has(fieldName) && 'rum-badge-mono']
-      : undefined;
+    const tagClasses = tag ? ['rum-cell-badge', badgePresentation?.className] : undefined;
     const spanName = !badge && isSpanName(this.mode, fieldName);
     const fullUrl = placement === 'item' && RUM_FULL_URL_FIELDS.has(fieldName);
     const target = { fieldName, rowId, searchable: !!field?.is_searched };
@@ -193,6 +158,7 @@ export default defineComponent({
               class={tagClasses}
               target={{ ...target, index }}
             >
+              {renderFieldIcon(resolveBadgeIcon?.(item), 'rum-composite-badge-icon')}
               {renderText(formatFieldValue(item, field))}
             </FieldTarget>
           </span>
@@ -200,7 +166,10 @@ export default defineComponent({
       );
     }
 
-    const { icon, text: fallbackText, style } = resolveFieldAppearance(fieldName, value, badge);
+    const { icon: fieldIcon, text: fallbackText, style } = resolveFieldAppearance(fieldName, value, badge);
+    const icon = resolveBadgeIcon
+      ? renderFieldIcon(resolveBadgeIcon(value), 'rum-composite-badge-icon')
+      : renderFieldIcon(fieldIcon);
     const vitalMetric = row['attributes.vital.metric'];
     const text =
       Array.isArray(value) && placement === 'item'
@@ -213,6 +182,7 @@ export default defineComponent({
     if (drillDown) {
       return (
         <CountValue
+          class={badgePresentation?.className}
           badge={badge}
           drillDown={drillDown}
           row={row}
@@ -220,6 +190,7 @@ export default defineComponent({
           value={value}
           onDrillDown={this.actions.onCountClick}
         >
+          {badge && icon}
           {placement === 'column' ? text : renderText(text)}
         </CountValue>
       );
@@ -256,87 +227,60 @@ const getRatingClass = (field: IRumField | undefined, value: unknown) => {
   return `rum-rating-value is-${rating.replace('_', '-')}`;
 };
 
+/** 将旧字库类串中的字形和样式类交给 CellIcon。 */
+const toFontIconConfig = (fontClasses: string, className: string): CellIconConfig | undefined => {
+  const [icon, ...styleClasses] = fontClasses
+    .trim()
+    .split(/\s+/)
+    .filter(name => name !== 'icon-monitor');
+  return icon ? { icon, className: [className, ...styleClasses].join(' ') } : undefined;
+};
+
+/** 只有无需表格上下文的 kind 图标回调才能直接用于 RUM 字段。 */
+const isContextFreeKindIcon = (
+  icon: SpanKindPrefixIcon | undefined
+): icon is () => ReturnType<Exclude<SpanKindPrefixIcon, string>> => typeof icon === 'function' && icon.length === 0;
+
 /** 为需要特殊呈现的字段补充图标、配色和备用文案。 */
-const resolveFieldAppearance = (fieldName: string, value: unknown, badge: boolean) => {
+const resolveFieldAppearance = (fieldName: string, value: unknown, badge: boolean): FieldAppearance => {
   switch (fieldName) {
     case SPAN_TYPE_FIELD: {
-      const meta = SPAN_TYPE_META[String(value)];
+      const { icon: source, fontIcon, label } = SPAN_TYPE_META[String(value)] ?? {};
+      if (source) {
+        return {
+          text: label,
+          icon: {
+            icon: () => h('img', { class: 'span-type-icon', alt: '', src: source }),
+          },
+        };
+      }
       return {
-        text: meta?.label,
-        icon: meta?.icon ? (
-          <img
-            class='span-type-icon'
-            alt=''
-            src={meta.icon}
-          />
-        ) : meta?.fontIcon ? (
-          <i
-            class={`${meta.fontIcon} span-type-font-icon`}
-            aria-hidden='true'
-          />
-        ) : null,
+        text: label,
+        icon: fontIcon ? toFontIconConfig(fontIcon, 'span-type-font-icon') : undefined,
       };
     }
     case 'kind': {
       const meta = SPAN_KIND_MAPS[Number(value)];
-      const icon = meta?.prefixIcon;
-      return {
-        text: meta?.alias,
-        icon:
-          typeof icon === 'function' ? (icon as () => VNodeChild)() : icon ? <i class={`prefix-icon ${icon}`} /> : null,
-      };
+      const prefixIcon = meta?.prefixIcon;
+      if (typeof prefixIcon === 'string') {
+        return { text: meta.alias, icon: toFontIconConfig(prefixIcon, 'prefix-icon') };
+      }
+      return { text: meta?.alias, icon: isContextFreeKindIcon(prefixIcon) ? { icon: prefixIcon } : undefined };
     }
     case 'attributes.outcome.type': {
       const meta = RUM_OUTCOME_TYPE_MAP[String(value)];
       return {
         text: meta?.label,
-        icon: meta ? (
-          <i
-            class={`prefix-icon ${meta.icon}`}
-            aria-hidden='true'
-          />
-        ) : null,
+        icon: meta?.icon ? { icon: meta.icon, className: `prefix-icon ${meta.className}` } : undefined,
       };
     }
     case 'attributes.resource.cache.hit':
       return value === true || value === 'true'
         ? {
             text: 'HIT',
-            icon: (
-              <i
-                class='icon-monitor icon-mc-check-small'
-                aria-hidden='true'
-              />
-            ),
+            icon: { icon: 'icon-mc-check-small' },
           }
         : {};
-    case 'virtual.viewport':
-      // 视口专用图标提供前复用应用版本图标。
-      return badge
-        ? {
-            icon: (
-              <i
-                class='icon-monitor icon-yingyongbanben rum-composite-badge-icon is-viewport'
-                aria-hidden='true'
-              />
-            ),
-          }
-        : {};
-    case 'attributes.view.loading_type': {
-      const loadingType = String(value) as keyof typeof RUM_VIEW_LOADING_TYPE_ICONS;
-      const icon =
-        badge && Object.hasOwn(RUM_VIEW_LOADING_TYPE_ICONS, loadingType) && RUM_VIEW_LOADING_TYPE_ICONS[loadingType];
-      return icon
-        ? {
-            icon: (
-              <i
-                class={`icon-monitor rum-composite-badge-icon ${icon}`}
-                aria-hidden='true'
-              />
-            ),
-          }
-        : {};
-    }
     case 'status.code': {
       const config = RUM_STATUS_CODE_MAP[Number(value)];
       if (!config) return {};

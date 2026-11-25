@@ -27,6 +27,8 @@ export * from './common';
 export * from './enum';
 export * from './events-list';
 export * from './favorite';
+export * from './field-value';
 export * from './record';
 export * from './statistics';
+export * from './trace-link';
 export * from './view-config';

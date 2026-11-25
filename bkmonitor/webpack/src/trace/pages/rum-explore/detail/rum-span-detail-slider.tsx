@@ -23,16 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import {
-  computed,
-  defineAsyncComponent,
-  defineComponent,
-  getCurrentInstance,
-  provide,
-  shallowRef,
-  toRef,
-  watch,
-} from 'vue';
+import { computed, defineAsyncComponent, defineComponent, getCurrentInstance, shallowRef, toRef, watch } from 'vue';
 import type { Component, PropType } from 'vue';
 
 import { Alert, Button, Exception, Sideslider } from 'bkui-vue';
@@ -46,7 +37,6 @@ import OriginDataPanel from './components/origin-data-panel/origin-data-panel';
 import TimelineFilterBar from './components/trace-context/timeline-filter-bar';
 import TimelineViewList from './components/trace-context/timeline-view-list';
 import {
-  TRACE_CONTEXT_ROW_OBSERVER_KEY,
   useDetailFormatter,
   useDetailOverview,
   useDetailSections,
@@ -58,8 +48,7 @@ import { RumDetailTabEnum, RumTimelineFilterCategoryEnum } from './constants';
 import SliderHeader from '@/components/slider-header/slider-header';
 import TemporaryShareNew from '@/components/temporary-share/temporary-share-new';
 
-import type { IRumField, IRumTimeRange, RumModeType } from '../typings';
-import type { IRumTraceInfo } from './services';
+import type { IRumField, IRumTimeRange, IRumTraceInfo, RumModeType } from '../typings';
 import type { IRumDetailContext, IRumTimelineSpanVM, IRumTimelineViewVM, RumDetailTabType } from './typings';
 
 import './rum-span-detail-slider.scss';
@@ -112,6 +101,11 @@ export default defineComponent({
       type: String as PropType<RumModeType>,
       required: true,
     },
+    /** 详情记录能否按结果列表切换上一条或下一条。 */
+    showRecordNavigation: {
+      type: Boolean,
+      default: true,
+    },
   },
   emits: {
     'update:isShow': (_value: boolean) => true,
@@ -122,6 +116,12 @@ export default defineComponent({
     /** 嵌套抽屉里再点击其他 Span 时，请求上层替换嵌套抽屉的内容 */
     spanOpen: (_context: IRumDetailContext) => true,
   },
+  /**
+   * @description 组织 RUM 详情、时间轴和嵌套抽屉的状态。
+   * @param props 当前详情的来源、上下文和导航设置
+   * @param context Vue 组件上下文，用于回传详情操作
+   * @returns RUM 详情抽屉的渲染函数
+   */
   setup(props, { emit }) {
     const { t } = useI18n();
     /** 列表侧切换上一个 / 下一个时保留当前 tab */
@@ -207,7 +207,7 @@ export default defineComponent({
 
     /** 会话时间轴：按 session_id 取整个会话的 View 卡片（会话层级没有当前 Span） */
     const sessionTimeline = useTraceContext({
-      active: computed(() => isSession.value && activeTab.value === RumDetailTabEnum.TRACE_CONTEXT),
+      active: computed(() => props.isShow && isSession.value && activeTab.value === RumDetailTabEnum.TRACE_CONTEXT),
       appName: computed(() => props.context?.app_name || ''),
       bizId,
       dimension: sessionId,
@@ -218,7 +218,7 @@ export default defineComponent({
 
     /** 链路上下文：按当前 Span 所属 View 取链路，仅非会话层级使用 */
     const traceContext = useTraceContext({
-      active: computed(() => !isSession.value && activeTab.value === RumDetailTabEnum.TRACE_CONTEXT),
+      active: computed(() => props.isShow && !isSession.value && activeTab.value === RumDetailTabEnum.TRACE_CONTEXT),
       appName: computed(() => props.context?.app_name || ''),
       bizId,
       currentSpanId: spanId,
@@ -231,10 +231,12 @@ export default defineComponent({
     /** 第二个 Tab 的数据源：会话层级用会话时间轴，其余用链路上下文 */
     const timeline = computed(() => (isSession.value ? sessionTimeline : traceContext));
 
-    /** 行可见性注册下发给当前时间轴：会话与链路上下文各自维护检索队列 */
-    provide(TRACE_CONTEXT_ROW_OBSERVER_KEY, root => {
-      timeline.value.observeTimelineRows(root);
-    });
+    // 等卡片渲染后，从同一个滚动容器注册所有 View 卡片里的关联 Trace。
+    watch(
+      [traceContextScrollRef, timeline, () => timeline.value.cardItems.value],
+      ([container, ctx]) => ctx.observeRows(container),
+      { flush: 'post' }
+    );
 
     /** 链路上下文打开的嵌套抽屉，复用本组件定义递归渲染 */
     const ChildSlider = getCurrentInstance()?.type as Component;
@@ -316,6 +318,10 @@ export default defineComponent({
       childShow.value = true;
     };
 
+    /**
+     * @description 渲染当前记录的标题及可用操作，只有列表行详情允许切换相邻记录。
+     * @returns 详情抽屉的标题栏节点
+     */
     function renderTitle() {
       return (
         <SliderHeader
@@ -340,7 +346,7 @@ export default defineComponent({
               </div>
             ),
           }}
-          buttons={props.nested ? ['fullscreen'] : ['fullscreen', 'previous', 'next']}
+          buttons={props.nested || !props.showRecordNavigation ? ['fullscreen'] : ['fullscreen', 'previous', 'next']}
           isFullscreen={isFullscreen.value}
           onFullscreen={fullscreen => {
             isFullscreen.value = fullscreen;
