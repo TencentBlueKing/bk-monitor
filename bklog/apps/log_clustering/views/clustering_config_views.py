@@ -37,6 +37,7 @@ from apps.log_clustering.handlers.quix.query import ClusteringPreviewQuery, appl
 from apps.log_clustering.serializers import (
     ClusteringConfigSerializer,
     ClusteringDebugSerializer,
+    CreateClusteringConfigSerializer,
 )
 from apps.log_search.models import LogIndexSet
 from apps.log_trace.serializers import DateHistogramSerializer
@@ -199,7 +200,7 @@ class ClusteringConfigViewSet(APIViewSet):
             "result":true
         }
         """
-        params = self.params_valid(ClusteringConfigSerializer)
+        params = self.params_valid(CreateClusteringConfigSerializer)
         return Response(ClusteringConfigHandler().create(index_set_id=index_set_id, params=params))
 
     @detail_route(methods=["POST"], url_path="access/update")

@@ -152,6 +152,8 @@ class QuixClusteringHandler:
                 updates={**enable_fields, **UNBOUND_RESET_FIELDS} if runtime else None,
             )
             business_config = self._save_business_config(collector_config, params, clustering_fields, filter_rules)
+            if "acks" in params:
+                operation.request_snapshot["acks"] = params["acks"]
             operation.request_snapshot["model_parameters"] = DataFlowHandler.get_clustering_training_params(
                 business_config
             )

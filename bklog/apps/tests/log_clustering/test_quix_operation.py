@@ -195,6 +195,15 @@ class TestQuixEnableRunner(TestCase):
         self.assertNotIn("kafka_resource", params)
         self.assertEqual(params["binding"]["kafka"], KAFKA)
 
+    def test_create_forwards_requested_acks_and_reuses_returned_binding(self):
+        self.operation.request_snapshot["acks"] = "all"
+        self.operation.save(update_fields=["request_snapshot"])
+        self.bkfara.get_clustering.return_value["kafka"] = {**KAFKA, "acks": "all"}
+        self.run_operation()
+        self.assertEqual(self.bkfara.create_task.call_args.args[0]["acks"], "all")
+        binding = self.transfer.set_log_clustering_config.call_args.args[0]["binding"]
+        self.assertEqual(binding["kafka"]["acks"], "all")
+
     def test_missing_source_kafka_blocks_creation(self):
         self.transfer.get_data_id.return_value = {"mq_config": {}}
         self.run_operation()

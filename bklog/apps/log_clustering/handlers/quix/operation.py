@@ -253,6 +253,8 @@ class QuixClusteringOperationRunner:
                 raise QuixClusteringConfigInvalidException(
                     f"Invalid Kafka cluster ID for DataID {self.runtime.bk_data_id}"
                 )
+            if "acks" in self.operation.request_snapshot:
+                payload["acks"] = self.operation.request_snapshot["acks"]
             return {**payload, "kafka_cluster_id": cluster_id}
 
         payload = self.operation.get_request_payload("create_task", create_payload)

@@ -158,6 +158,10 @@ class ClusteringConfigSerializer(serializers.Serializer):
     regex_template_id = serializers.IntegerField(default=0)
 
 
+class CreateClusteringConfigSerializer(ClusteringConfigSerializer):
+    acks = serializers.ChoiceField(choices=("1", "all"), required=False)
+
+
 class ClusteringDebugSerializer(serializers.Serializer):
     input_data = serializers.CharField()
     predefined_varibles = serializers.CharField(default=OnlineTaskTrainingArgs.PREDEFINED_VARIBLES)
