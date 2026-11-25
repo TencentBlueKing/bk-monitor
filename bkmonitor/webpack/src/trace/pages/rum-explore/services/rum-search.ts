@@ -63,7 +63,7 @@ const normalizeField = (raw: IRumRawField): IRumField => {
     composite: raw.extra_config?.composite,
     field_display_type: raw.field_display_type,
     field_unit: raw.field_unit || '',
-    hover: raw.hover,
+    hover: raw.extra_config?.hover,
     is_real: raw.is_real !== false,
     is_searched: !!raw.is_searchable,
     is_dimensions: !!raw.is_agg,

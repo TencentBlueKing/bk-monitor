@@ -87,8 +87,8 @@ export default defineComponent({
       emit('fieldClick', event, item);
     }
 
-    function renderItem(item: IDimensionFieldTreeItem, level: number, parentKey: string) {
-      const nodeKey = `${parentKey}/${item.levelAlias}`;
+    function renderItem(item: IDimensionFieldTreeItem, level: number, parentKey: string, index: number) {
+      const nodeKey = `${parentKey}/${item.levelAlias}_${index}`;
       const isTreeNode = item.children && item.children.length > 0;
       const expanded = isTreeNode && isExpanded(nodeKey);
       const disabled = !isTreeNode && !item.is_dimensions;
@@ -139,7 +139,9 @@ export default defineComponent({
           </div>
 
           {isTreeNode && expanded && (
-            <div class='leaf-content'>{item.children.map(child => renderItem(child, level + 1, nodeKey))}</div>
+            <div class='leaf-content'>
+              {item.children.map((child, index) => renderItem(child, level + 1, nodeKey, index))}
+            </div>
           )}
         </div>
       );
@@ -148,6 +150,8 @@ export default defineComponent({
     return { renderItem };
   },
   render() {
-    return <div class='dimension-field-tree'>{this.list.map(item => this.renderItem(item, 0, ''))}</div>;
+    return (
+      <div class='dimension-field-tree'>{this.list.map((item, index) => this.renderItem(item, 0, '', index))}</div>
+    );
   },
 });

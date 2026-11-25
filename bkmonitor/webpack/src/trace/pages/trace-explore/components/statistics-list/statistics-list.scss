@@ -7,10 +7,17 @@
       padding: 0 24px;
     }
 
+    /* 字段较多时 Tab 横向滚动：滚动条固定占 2px，悬停 Tab 行时才显色 */
+    .bk-tab-header-nav {
+      &::-webkit-scrollbar {
+        display: block;
+        height: 3px;
+      }
+    }
+
     .bk-tab-header-item {
       padding: 0;
       font-size: 14px;
-      color: #232529;
 
       & + .bk-tab-header-item {
         margin-left: 32px;

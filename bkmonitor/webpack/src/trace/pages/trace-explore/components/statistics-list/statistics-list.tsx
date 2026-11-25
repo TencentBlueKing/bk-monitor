@@ -124,8 +124,8 @@ export default defineComponent({
       onSliderShowChange: show => emit('sliderShowChange', show),
     });
 
-    /** field 为数组时展示字段 Tab */
-    const hasFieldTab = computed(() => Array.isArray(props.field));
+    /** field 为多字段数组时展示字段 Tab */
+    const hasFieldTab = computed(() => Array.isArray(props.field) && props.field.length > 1);
 
     function handleConditionChange(condition: ConditionChangeEvent) {
       emit('conditionChange', condition);

@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent } from 'vue';
+import { type PropType, computed, defineComponent, useTemplateRef } from 'vue';
 
 import { useI18n } from 'vue-i18n';
-import { Tippy } from 'vue-tippy';
 
 import FieldTypeIcon from '../../../../../trace-explore/components/field-type-icon';
 import RumHoverInfo from '../../../../detail/components/hover-info/hover-info';
+import { useHoverInfo } from '../../../../detail/composables/use-hover-info';
 
 import type { IRumField } from '../../../../typings';
 
@@ -60,6 +60,9 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const label = computed(() => props.field?.alias ?? props.colKey);
+    const hoverInfoRef = useTemplateRef<HTMLDivElement>('hoverInfo');
+    /** hover 字段说明时展示 hover-info 卡片，无 hover 数据的列头不加事件 */
+    const { hoverBindings, hoverData } = useHoverInfo();
 
     /** 打开分析浮层，避免点击同时触发表头排序。 */
     const handleAnalysis = (event: MouseEvent) => {
@@ -67,11 +70,18 @@ export default defineComponent({
       if (props.analysis) emit('fieldAnalysis', event.currentTarget as Element, props.analysis);
     };
 
-    return { t, label, handleAnalysis };
+    return { t, label, hoverInfoRef, hoverBindings, hoverData, handleAnalysis };
   },
   render() {
     const hover = this.field?.hover;
-    const label = <span class={['th-label', { 'has-hover-info': hover }]}>{this.label}</span>;
+    const label = (
+      <span
+        class={['th-label', { 'has-hover-info': hover }]}
+        {...this.hoverBindings(this.hoverInfoRef, hover)}
+      >
+        {this.label}
+      </span>
+    );
     return (
       <div class='rum-table-header-cell'>
         {!this.field?.composite && (
@@ -84,16 +94,7 @@ export default defineComponent({
           class='header-title'
           v-overflow-tips={{ placement: 'top', theme: 'dark text-wrap' }}
         >
-          {hover ? (
-            <Tippy
-              v-slots={{ default: () => label, content: () => <RumHoverInfo data={hover} /> }}
-              interactive={true}
-              placement='top'
-              theme='rum-hover-info-popover'
-            />
-          ) : (
-            label
-          )}
+          {label}
         </div>
         {this.analysis && (
           <button
@@ -108,6 +109,11 @@ export default defineComponent({
             />
           </button>
         )}
+        <div style='display: none'>
+          <div ref='hoverInfo'>
+            <RumHoverInfo data={this.hoverData} />
+          </div>
+        </div>
       </div>
     );
   },
