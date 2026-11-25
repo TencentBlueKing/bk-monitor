@@ -355,6 +355,7 @@
       box-sizing: border-box;
       margin: 0;
       font-size: 0;
+      line-height: 0;
 
       .line {
         display: flex;

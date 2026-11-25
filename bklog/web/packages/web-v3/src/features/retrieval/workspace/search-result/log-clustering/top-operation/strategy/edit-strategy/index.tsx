@@ -27,9 +27,10 @@
 
 import { renderDrawerFormSkeleton } from '@/shared/ui/loading/drawer-skeleton';
 import { useApplicationStore } from '@/app/state/domains/application-store';
-import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
+import { Dialog as TDialog, InputNumber as TInputNumber, MessagePlugin as TDesignMessage, Option as TOption, Select as TSelect } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
+import { useOverlayZIndex } from '@/shared/global/overlay/index';
 
 import { defineComponent, ref, computed, watch } from 'vue';
 import useLocale from '@/shared/composables/use-locale';
@@ -112,22 +113,24 @@ export default defineComponent({
     const levelIconMap = asDictionary({
       1: {
         icon: 'weixian',
-        color: '#E71818',
+        color: 'var(--td-error-color)',
       },
       2: {
         icon: 'circle-alert-filled',
-        color: '#F59500',
+        color: 'var(--td-warning-color)',
       },
       3: {
         icon: 'info-fill',
-        color: '#3A84FF',
+        color: 'var(--td-brand-color)',
       },
     });
 
     const strategyFromRef = ref<any>(null);
     const isShowDialog = ref(false);
-    const formLoading = ref(false);
+    const dialogZIndex = useOverlayZIndex(isShowDialog);
     const levelPanelShow = ref(false);
+    const levelPanelZIndex = useOverlayZIndex(levelPanelShow, 'DROPDOWN');
+    const formLoading = ref(false);
     const groupSelectList = ref<
       {
         id: number;
@@ -220,12 +223,13 @@ export default defineComponent({
     };
 
     const handleDialogClose = () => {
+      levelPanelShow.value = false;
       emit('update:isShow', false);
       isShowDialog.value = false;
     };
 
     return () => (
-      <bk-dialog
+      <TDialog
         v-slots={{
           header: () => (
             <div>
@@ -238,17 +242,21 @@ export default defineComponent({
           ),
         }}
         width={480}
-        ext-cls='strategy-dialog'
-        value={isShowDialog.value}
-        confirm-fn={handleConfirmSubmit}
-        header-position='left'
-        mask-close={false}
-        onCancel={handleDialogClose}
-        theme='primary'
-        onValueChange={handleOpenDialog}
+        dialogClassName='strategy-dialog'
+        attach='body'
+        visible={isShowDialog.value}
+        zIndex={dialogZIndex.value}
+        confirmBtn={t('确定')}
+        cancelBtn={t('取消')}
+        closeOnOverlayClick={false}
+        onConfirm={handleConfirmSubmit}
+        onClose={handleDialogClose}
+        onOpened={() => handleOpenDialog(true)}
+        onClosed={() => handleOpenDialog(false)}
       >
         <bk-form
           ref={strategyFromRef}
+          class='strategy-form'
           v-loading={{ loading: formLoading.value, indicator: renderDrawerFormSkeleton }}
           form-type='vertical'
           {...{
@@ -260,82 +268,57 @@ export default defineComponent({
         >
           <bk-form-item
             v-show={isAlarmType.value}
-            desc-type={'icon'}
             label={t('新类告警间隔（天）')}
+            tips={t('表示近一段时间内新增日志模式，可自定义判定的时间区间，如：近 30 天内新增')}
             property='interval'
             required
           >
-            <bk-input
+            <TInputNumber
               value={formData.value.interval}
               placeholder={t('每隔 n（整数）天数，再次产生的日志模式将视为新类')}
-              show-controls={false}
-              type='number'
+              theme='normal'
               onChange={(value: unknown) => (formData.value.interval = value)}
             />
-            <div class='form-item-tip'>
-              {t('表示近一段时间内新增日志模式，可自定义判定的时间区间，如：近 30 天内新增')}
-            </div>
           </bk-form-item>
           <bk-form-item
             v-show={isAlarmType.value}
-            desc-type={'icon'}
             label={t('新类告警阈值')}
+            tips={t('表示某日志模式数量突然异常增长，可能某些模块突发风险')}
             property='threshold'
             required
           >
-            <bk-input
+            <TInputNumber
               value={formData.value.threshold}
               placeholder={t('新类对应日志触发告警的条数')}
-              show-controls={false}
-              type='number'
+              theme='normal'
               onChange={(value: unknown) => (formData.value.threshold = value)}
             />
-            <div class='form-item-tip'>{t('表示某日志模式数量突然异常增长，可能某些模块突发风险')}</div>
           </bk-form-item>
           <bk-form-item
             label={t('告警级别')}
             property='level'
             required
           >
-            <bk-select
+            <TSelect
               v-slots={{
-                trigger: () => (
-                  <div class='level-trigger-main'>
-                    <div class='dispaly-main'>
-                      <log-icon
-                        type={levelIconMap[formData.value.level]?.icon || ''}
-                        style={{
-                          color: levelIconMap[formData.value.level]?.color,
-                          fontSize: '14px',
-                        }}
-                      />
-                      <span style='margin-left:4px'>
-                        {levelSelectList.find(item => item.id === formData.value.level)?.name}
-                      </span>
-                    </div>
-                    <div
-                      class={{
-                        'trigger-icon': true,
-                        'is-rotate': levelPanelShow.value,
-                      }}
-                    >
-                      <log-icon
-                        common
-                        type='angle-down'
-                      />
-                    </div>
-                  </div>
+                prefixIcon: () => (
+                  <log-icon
+                    type={levelIconMap[formData.value.level]?.icon || ''}
+                    style={{ color: levelIconMap[formData.value.level]?.color, fontSize: '14px' }}
+                  />
                 ),
               }}
               value={formData.value.level}
               clearable={false}
+              popupProps={{ zIndex: levelPanelZIndex.value }}
+              onPopupVisibleChange={(visible: boolean) => (levelPanelShow.value = visible)}
               onChange={(value: unknown) => (formData.value.level = value)}
-              onToggle={(isOpen: boolean) => (levelPanelShow.value = isOpen)}
             >
               {levelSelectList.map(item => (
-                <bk-option
-                  id={item.id}
-                  name={item.name}
+                <TOption
+                  key={item.id}
+                  value={item.id}
+                  label={item.name}
                 >
                   <log-icon
                     type={levelIconMap[item.id].icon}
@@ -345,9 +328,9 @@ export default defineComponent({
                     }}
                   />
                   <span style='margin-left:4px'>{item.name}</span>
-                </bk-option>
+                </TOption>
               ))}
-            </bk-select>
+            </TSelect>
           </bk-form-item>
           <bk-form-item
             v-show={!isAlarmType.value}
@@ -401,7 +384,7 @@ export default defineComponent({
             </bk-select>
           </bk-form-item>
         </bk-form>
-      </bk-dialog>
+      </TDialog>
     );
   },
 });

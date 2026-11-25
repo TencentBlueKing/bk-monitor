@@ -199,6 +199,7 @@ export default defineComponent({
                   message={t('大量的日志会导致聚类结果过多，建议使用过滤规则将重要日志进行聚类；如：仅聚类 warn 日志')} data-v2-display='alert'
                 />
                 <bk-form
+                  class='cluster-access-form'
                   ref={quickClusterFromRef}
                   form-type='vertical'
                   {...{

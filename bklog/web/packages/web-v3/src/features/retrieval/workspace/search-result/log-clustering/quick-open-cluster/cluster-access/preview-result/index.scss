@@ -74,6 +74,7 @@
         border-top: var(--bklog-border-width) solid var(--td-component-stroke);
 
         .count-num {
+          flex: 0 0 36px;
           width: 36px;
           height: 100%;
           display: flex;

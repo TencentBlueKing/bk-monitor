@@ -28,22 +28,30 @@
     }
   }
 
-  .level-trigger-main {
-    display: flex;
-    justify-content: space-between;
-
-    .dispaly-main {
-      margin-left: 6px;
+  .strategy-form {
+    .level-box {
+      width: 100%;
+      min-width: 0;
     }
 
-    .trigger-icon {
-      font-size: 22px;
-      color: #979ba5;
-      margin-right: 2px;
+    .t-form__item:not(:last-of-type) {
+      margin-bottom: var(--bklog-space-16, 16px);
+    }
 
-      &.is-rotate {
-        transform: rotate(180deg);
-      }
+    .t-form__label--top {
+      min-height: 0;
+      margin-bottom: 8px;
+      line-height: var(--bklog-line-height-body, 20px);
+      color: var(--td-text-color-secondary);
+    }
+
+    .t-input-number {
+      width: 100%;
+    }
+
+    .t-form__controls > .t-tips {
+      margin: 8px 0 0;
+      line-height: var(--bklog-line-height-body, 20px);
     }
   }
   .select-group {
@@ -75,20 +83,36 @@
 }
 
 .strategy-create-groups {
-  cursor: pointer;
+  .t-popup__content {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .t-select__dropdown-inner {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
 
   .groups-btn {
     display: flex;
+    flex-shrink: 0;
     align-items: center;
+    min-height: var(--bklog-control-size-medium);
+    padding: 0 var(--bklog-space-16, 16px);
+    border-top: 1px solid var(--td-component-border);
+    background: var(--td-bg-color-component-disabled);
+    color: var(--td-text-color-secondary);
+    cursor: pointer;
+
+    &:hover {
+      background: var(--td-bg-color-component);
+    }
 
     .icon-plus-circle {
       margin-right: 6px;
       font-size: 16px;
     }
   }
-}
-
-.form-item-tip {
-  font-size: 12px;
-  color: #979ba5;
 }

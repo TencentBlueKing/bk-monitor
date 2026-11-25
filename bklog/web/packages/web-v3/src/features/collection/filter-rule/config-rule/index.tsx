@@ -28,7 +28,8 @@
 import { useApplicationStore } from '@/app/state/domains/application-store';
 import { useGlobalsStore } from '@/app/state/domains/globals-store';
 
-import { Popup as TPopup } from 'tdesign-vue-next';
+import { Input as TInput, Popup as TPopup } from 'tdesign-vue-next';
+import { SearchIcon } from 'tdesign-icons-vue-next';
 import { includesValue } from '@/shared/utils/typed-record';
 
 import { defineComponent, ref, computed, watch, onMounted, onUnmounted, onBeforeUnmount } from 'vue';
@@ -132,7 +133,7 @@ export default defineComponent({
         {
           validator: (value: string) => !!value,
           message: t('必填项'),
-          trigger: 'blur',
+          trigger: 'change',
         },
       ],
       values: [
@@ -351,10 +352,9 @@ export default defineComponent({
                 <div class='filter-main'>
                   <div class='field-list'>
                     <div class='search-input'>
-                      <bk-input
+                      <TInput
                         style='width: 100%'
-                        behavior='simplicity'
-                        left-icon='bk-icon icon-search'
+                        prefixIcon={() => <SearchIcon />}
                         placeholder={t('请输入关键字')}
                         value={searchValue.value}
                         clearable
@@ -487,7 +487,7 @@ export default defineComponent({
                                   </div>
                                 ))
                               ) : (
-                                <span style='padding-left:8px'>{t('暂无数据')}</span>
+                                <div class='match-empty'>{t('暂无数据')}</div>
                               )}
                             </div>
                           )}

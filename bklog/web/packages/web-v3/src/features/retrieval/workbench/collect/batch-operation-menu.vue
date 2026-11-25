@@ -28,6 +28,7 @@
   <div class="batch-operation-menu-container">
     <TPopup
       :visible="outerMenuVisible"
+      :z-index="outerMenuZIndex"
       trigger="click"
       :show-arrow="false"
       placement="bottom-left"
@@ -44,6 +45,7 @@
           <div class="batch-operation-menu-content">
             <TPopup
               :visible="groupMenuVisible"
+              :z-index="groupMenuZIndex"
               placement="right-top"
               :show-arrow="false"
               attach="body"
@@ -108,6 +110,7 @@
     <!-- 批量删除对话框 -->
     <TDialog
       :visible="batchDeleteDialogVisible"
+      :z-index="batchDeleteDialogZIndex"
       :width="480"
       attach="body"
       class="batch-delete-dialog"
@@ -163,7 +166,7 @@ import { ServicesInstance } from '@/platform/services';
 
 import { ref, watch, computed, nextTick } from 'vue';
 
-import { useDialogVisible } from '@/shared/global/overlay/index';
+import { useDialogVisible, useOverlayZIndex } from '@/shared/global/overlay/index';
 import useLocale from '@/shared/composables/use-locale';
 
 
@@ -181,11 +184,14 @@ const spaceUid = computed(() => store.spaceUid);
 const emit = defineEmits<{ operateChange: [groupId?: FavoriteGroupId] }>();
 const outerMenuVisible = ref(false);
 const groupMenuVisible = ref(false);
+const outerMenuZIndex = useOverlayZIndex(outerMenuVisible, 'DROPDOWN');
+const groupMenuZIndex = useOverlayZIndex(groupMenuVisible, 'DROPDOWN');
 const batchMoveToGroupMenuRef = ref<HTMLElement | null>(null);
 const moveToGroupInputRef = ref<{ focus: () => void } | null>(null);
 const checkInputAddFormRef = ref<FormInstanceFunctions | null>(null);
 const {
   visible: batchDeleteDialogVisible,
+  zIndex: batchDeleteDialogZIndex,
   setVisible: setBatchDeleteDialogVisible,
   onValueChange: onBatchDeleteDialogChange,
 } = useDialogVisible(false, {
