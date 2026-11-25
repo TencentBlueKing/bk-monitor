@@ -42,6 +42,8 @@ export interface IRumSpanRecord {
   elapsed_time?: number;
   /** 微秒级时间戳 */
   end_time?: number;
+  /** 列表扁平化后的关联 Trace ID，多个 links 合并为数组。 */
+  'links.trace_id'?: string | string[];
   span_id?: string;
   span_name?: string;
   /** 微秒级时间戳 */

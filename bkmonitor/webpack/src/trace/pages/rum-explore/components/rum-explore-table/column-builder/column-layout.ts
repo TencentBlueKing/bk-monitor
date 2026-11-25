@@ -41,6 +41,8 @@ export interface CompositeRow {
 export interface CompositeValue {
   /** 成员自己的元信息，供展示及交互使用。 */
   field: IRumField;
+  /** 主字段无值时保留该成员的位置。 */
+  isPlaceholder: boolean;
   /** 由成员位置生成的键，同一字段重复出现时依然唯一。 */
   key: string;
   /** 原始行中该字段的值。 */
@@ -49,12 +51,14 @@ export interface CompositeValue {
 
 /** 已解析元信息和展示条件的成员定义。 */
 interface CompositeMember {
-  /** 条件字段和允许值集合，所有条件字段均须命中。 */
-  conditions: Array<[string, Set<string>]>;
   /** 接口字段索引中的成员元信息。 */
   field: IRumField;
+  /** 当前成员是否为接口指定的主字段。 */
+  isPrimary: boolean;
   /** 该成员在配置中的位置标识。 */
   key: string;
+  /** 由接口 show_if 预处理得到的条件字段和允许值集合，所有字段均须命中。 */
+  showIf: Array<[string, Set<string>]>;
 }
 
 /** 与记录无关的复合列行布局。 */
@@ -128,8 +132,9 @@ export const resolveColumnLayout = (field: IRumField | undefined, fields: Readon
         return [
           {
             field: memberField,
+            isPrimary: memberField.name === composite.primary,
             key: `${index}:${placement}:${itemIndex}`,
-            conditions: Object.entries(item.show_if ?? {}).map(([name, candidates]) => [
+            showIf: Object.entries(item.show_if ?? {}).map(([name, candidates]) => [
               name,
               new Set(Array.isArray(candidates) ? candidates.map(String) : []),
             ]),
@@ -161,15 +166,16 @@ export const resolveColumnLayout = (field: IRumField | undefined, fields: Readon
 export const resolveCompositeRows = (sections: CompositeSection[], row: Row): CompositeRow[] => {
   /** 在原始行上取值并检查成员的 show_if 条件。 */
   const resolveValues = (members: CompositeMember[]) => {
-    return members.flatMap(({ field, key, conditions }) => {
+    return members.flatMap(({ field, isPrimary, key, showIf }) => {
       const value = row[field.name];
-      if (!hasFieldValue(value)) return [];
-      const visible = conditions.every(([name, candidates]) => {
+      const isPlaceholder = !hasFieldValue(value);
+      if (isPlaceholder && !isPrimary) return [];
+      const visible = showIf.every(([name, candidates]) => {
         const raw = row[name];
         const values = Array.isArray(raw) ? raw : [raw];
         return values.some(item => item !== null && item !== undefined && candidates.has(String(item)));
       });
-      return visible ? [{ field, key, value }] : [];
+      return visible ? [{ field, isPlaceholder, key, value }] : [];
     });
   };
 

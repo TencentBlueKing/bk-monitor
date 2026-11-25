@@ -23,7 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
+import {
+  computed,
+  defineAsyncComponent,
+  defineComponent,
+  onBeforeUnmount,
+  onMounted,
+  shallowRef,
+  toRef,
+  useTemplateRef,
+  watch,
+} from 'vue';
 
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -35,7 +45,6 @@ import {
   traceWhereChangeFormatter,
   traceWhereFormatter,
 } from '../../components/retrieval-filter/utils';
-import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import useUserConfig from '../../hooks/useUserConfig';
 import { updateTimezone } from '../../i18n/dayjs';
 import { useRumExploreStore } from '../../store/modules/rum-explore';
@@ -55,6 +64,7 @@ import RumTrendChart from './components/rum-trend-chart/rum-trend-chart';
 import {
   useRumActiveRow,
   useRumColumnConfig,
+  useRumDetailDrawer,
   useRumEventsDrawer,
   useRumFavorite,
   useRumFieldValues,
@@ -67,13 +77,9 @@ import {
   ALL_SPAN_TYPE,
   RUM_COLUMN_CONFIG_KEY,
   RUM_COLUMN_LAYOUT_PRESET,
-  RUM_DETAIL_SPAN_TYPES,
-  RUM_RECORD_ID_FIELD_MAP,
   RUM_RESIDENT_SETTING_KEY,
   RumModeEnum,
-  SESSION_ID_FIELD,
   SPAN_TYPE_COLUMN_WIDTH_MAP,
-  SPAN_TYPE_FIELD,
 } from './constants';
 import RumSpanDetailSlider from './detail';
 import { OVERVIEW_ISOLATED_LINK_FIELDS } from './detail/constants';
@@ -82,27 +88,25 @@ import EmptyStatus from '@/components/empty-status/empty-status';
 
 import type { ConditionChangeEvent } from '../trace-explore/typing';
 import type { IRumEventsTarget } from './composables/use-rum-events-drawer';
-import type { IRumDetailContext } from './detail';
 import type {
   IRumApplication,
   IRumColumnLayoutPreset,
   IRumCountDrillDown,
   IRumField,
-  IRumSpanRecord,
+  IRumTraceInfo,
   RumModeType,
 } from './typings';
 
 import './rum-explore.scss';
 
+/** 点击关联 Trace 后按需加载的详情抽屉。 */
+const TraceSlider = defineAsyncComponent(
+  () => import(/* webpackChunkName: "trace-slider" */ '@/components/trace-slider/trace-slider')
+);
+
 /** 默认应用与置顶应用的用户配置 key */
 const RUM_EXPLORE_DEFAULT_APPLICATION = 'RUM_EXPLORE_DEFAULT_APPLICATION';
 const RUM_EXPLORE_APPLICATION_THUMBTACK = 'rum_explore_application_thumbtack';
-
-/** 行内微秒时间戳转秒；缺省 / null / 非法值返回 null，避免 NaN 或 0 流入详情上下文 */
-const microToUnixSeconds = (value: unknown): null | number => {
-  const num = Number(value);
-  return Number.isFinite(num) && num > 0 ? Math.floor(num / 1000000) : null;
-};
 
 export default defineComponent({
   name: 'RumExplore',
@@ -119,17 +123,8 @@ export default defineComponent({
     const { handleGetUserConfig: getResidentFieldConfig } = useUserConfig();
 
     const isCollapsed = shallowRef(false);
-    /** Span 详情抽屉的上下文，为 null 时抽屉关闭 */
-    const detailContext = shallowRef<IRumDetailContext | null>(null);
-    const detailShow = shallowRef(false);
-    /** 详情对应行的表格行 key：Span 视角的会话行详情记录 ID 是会话 ID，与行 key（span_id）不同，需单独记录 */
-    const detailRowKey = shallowRef('');
-    /** 详情抽屉层级：Session 视角与 Span 视角下的会话行都按会话层级展示 */
-    const detailMode = computed<RumModeType>(() =>
-      store.mode === RumModeEnum.SESSION || detailContext.value?.span_type === RumModeEnum.SESSION
-        ? RumModeEnum.SESSION
-        : store.mode
-    );
+    /** 表格 Trace 抽屉使用全局检索命中的应用和业务，空值时关闭。 */
+    const activeTraceInfo = shallowRef<IRumTraceInfo | null>(null);
     const applicationLoading = shallowRef(true);
     const applicationError = shallowRef(false);
     let disposed = false;
@@ -163,28 +158,24 @@ export default defineComponent({
           queryCtx.commonParams.value.mode === store.mode
       )
     );
-    /**
-     * 抽屉与高亮行共用的重置信号：结果集被替换（查询条件 / 排序 / 时间范围变化，换应用与换视角同样改写 commonParams）或手动刷新时变化。
-     * 手动刷新不并入 backTopSignal：后者还驱动滚动复位与整表 loading，复用会把刷新变成「回顶 + 清空列表」。
-     */
+    /** 结果集替换或手动刷新时触发重置，手动刷新保留列表滚动位置。 */
     const resetSignal = computed(() => `${tableCtx.backTopSignal.value}|${store.refreshImmediate}`);
     /** events 数组列表抽屉：状态与开关由 hook 管理，重置信号变化（结果集被替换或手动刷新）时自动收起 */
     const eventsDrawerCtx = useRumEventsDrawer(resetSignal);
-    /**
-     * 主表高亮行 key（受控单一数据源）：行点击 / 键盘高亮与 events 抽屉共用，重置信号变化时清除；
-     * 兜底行为详情所在行的表格行 key：页内打开由 detailRowKey 精确记录，刷新 / 分享链接还原时 URL 只带 detailContext，
-     * 需按其记录 ID 在结果集中反查同一记录所在行的行 key（Span 视角会话行的记录 ID 是会话 ID，与行 key 不同），
-     * 因此不会被重置信号清空。
-     */
+    /** RUM 行详情的开关、导航及 URL 恢复。 */
+    const detailDrawer = useRumDetailDrawer({
+      appName: toRef(store, 'appName'),
+      initialQuery: route.query,
+      mode: toRef(store, 'mode'),
+      onOpen: handleDetailOpened,
+      rows: tableCtx.tableData,
+      setUrlParams: queryCtx.setUrlParams,
+      timeRange: toRef(store, 'timeRange'),
+    });
+    /** 行点击、键盘和 events 抽屉共用的高亮状态，结果集重置时回落到详情来源行。 */
     const activeRowCtx = useRumActiveRow(resetSignal, {
       locked: eventsDrawerCtx.show,
-      fallbackRowKey: computed(() => {
-        if (detailRowKey.value) return detailRowKey.value;
-        const recordId = detailContext.value?.record_id ?? '';
-        if (!recordId) return '';
-        const row = tableCtx.tableData.value.find(item => getDetailRecordId(item) === recordId);
-        return String(row?.[RUM_RECORD_ID_FIELD_MAP[store.mode]] ?? '');
-      }),
+      fallbackRowKey: detailDrawer.detailRowKey,
     });
     const configLoading = computed(
       () =>
@@ -680,86 +671,24 @@ export default defineComponent({
     }
 
     /**
-     * 行的详情记录 ID：Span 视角下的会话行与 Session 视角同口径取会话 ID（会话详情的接口与时间轴都以会话 ID 定位），
-     * 其余视角与行唯一键一致。
+     * @description 打开或切换行详情时收起 Events 抽屉，并高亮当前来源行。
+     * @param {string} rowKey 当前检索视角下的来源行标识
+     * @returns {void}
      */
-    function getDetailRecordId(row: IRumSpanRecord) {
-      const isSessionSpan = store.mode === RumModeEnum.SPAN && row?.[SPAN_TYPE_FIELD] === RumModeEnum.SESSION;
-      return String(row?.[isSessionSpan ? SESSION_ID_FIELD : RUM_RECORD_ID_FIELD_MAP[store.mode]] ?? '');
-    }
-
-    /**
-     * 打开详情：详情所需的应用、记录 ID、类型与时间都能从列表行与当前查询条件里取到，
-     * 不额外请求列表接口。
-     * View / Session 视角的一行即一条 view / session 记录：记录 ID 分别取页面 ID 与会话 ID，
-     * 类型固定为 view / session；Span 视角取行内 span_id 与 span_type，其中 session 行按会话 ID 打开会话详情。
-     */
-    function handleOpenDetail(row: IRumSpanRecord) {
-      const isViewMode = store.mode === RumModeEnum.VIEW;
-      const isSessionMode = store.mode === RumModeEnum.SESSION;
-      /** View / Session 行常缺 end_time：end_time 回退 start_time，两者都缺再回退当前检索范围（秒），保证上下文时间始终为有限正数 */
-      const [queryStart, queryEnd] = handleTransformToTimestamp(store.timeRange);
-      const startSeconds = microToUnixSeconds(row?.start_time);
-      const endSeconds = microToUnixSeconds(row?.end_time) ?? startSeconds;
-      detailContext.value = {
-        app_name: store.appName,
-        record_id: getDetailRecordId(row),
-        span_type: isSessionMode ? 'session' : isViewMode ? 'view' : String(row?.[SPAN_TYPE_FIELD] ?? ''),
-        start_time: startSeconds ?? queryStart,
-        end_time: endSeconds ?? queryEnd,
-      };
-      detailShow.value = true;
-      /** 打开详情时收起 events 抽屉：两者都是行数据下钻视图，避免底部抽屉与详情侧弹叠放（上/下一条切换同样走这里，随切换收起） */
+    function handleDetailOpened(rowKey: string) {
       eventsDrawerCtx.closeDrawer();
-      /** 高亮行取表格行 key：Span 视角的会话行记录 ID 是会话 ID，不能直接当行 key */
-      detailRowKey.value = String(row?.[RUM_RECORD_ID_FIELD_MAP[store.mode]] ?? '');
-      activeRowCtx.setActiveRowKey(detailRowKey.value);
-      queryCtx.setUrlParams({
-        detailShow: encodeURIComponent(JSON.stringify(detailShow.value)),
-        detailContext: encodeURIComponent(JSON.stringify(detailContext.value)),
-      });
+      activeRowCtx.setActiveRowKey(rowKey);
     }
-
-    const handleSpanDetailShowChange = (show: boolean) => {
-      detailShow.value = show;
-      if (!show) {
-        detailContext.value = null;
-        detailRowKey.value = '';
-      }
-      queryCtx.setUrlParams({
-        detailShow: encodeURIComponent(JSON.stringify(detailShow.value)),
-        detailContext: encodeURIComponent(JSON.stringify(detailContext.value)),
-      });
-    };
 
     /**
-     * 详情抽屉「上一条 / 下一条」共用逻辑：从当前记录出发按 step 方向查找相邻的可展示详情记录，
-     * 跳过非详情展示的 span 类型，循环到头后从另一头继续；转完一圈仍没找到则停留在当前记录。
+     * @description 关闭底部 events 抽屉后，在当前检索页打开命中的 Trace。
+     * @param {IRumTraceInfo} trace 命中的 Trace ID 及其所属业务和应用
+     * @returns {void}
      */
-    function handleStepDetail(step: -1 | 1) {
-      const tableData = tableCtx.tableData.value;
-      if (!tableData.length) return;
-      /** View / Session 视角每行都可打开详情；Span 视角按行内详情记录 ID 定位当前行，并按详情可用类型过滤跳转目标 */
-      const isViewMode = store.mode === RumModeEnum.VIEW;
-      const isSessionMode = store.mode === RumModeEnum.SESSION;
-      const currentIndex = Math.max(
-        0,
-        tableData.findIndex(item => getDetailRecordId(item) === detailContext.value?.record_id)
-      );
-      // 最多回绕一整圈，offset 走到与起点重合即说明没有其他可展示详情的记录
-      for (let offset = 1; offset <= tableData.length; offset++) {
-        const index = (currentIndex + step * offset + tableData.length) % tableData.length;
-        if (index === currentIndex) return;
-        if (isViewMode || isSessionMode || RUM_DETAIL_SPAN_TYPES.has(tableData[index][SPAN_TYPE_FIELD] ?? '')) {
-          handleOpenDetail(tableData[index]);
-          return;
-        }
-      }
+    function handleOpenTraceDetail(trace: IRumTraceInfo) {
+      eventsDrawerCtx.closeDrawer();
+      activeTraceInfo.value = trace;
     }
-
-    const handlePreviousDetail = () => handleStepDetail(-1);
-
-    const handleNextDetail = () => handleStepDetail(1);
 
     /** 打开 events 抽屉：抽屉 hook 记录目标行后，把高亮行指向该行 */
     function handleEventsCellClick(target: IRumEventsTarget) {
@@ -818,26 +747,11 @@ export default defineComponent({
       }
     }
 
-    /**
-     * URL 还原详情的入参快照：初始化里的 handleQuery 会 replace 一次 query，
-     * 等到 initialize 完成再读 route.query 会受该次导航是否完成影响，故在 setup 时先取一次。
-     */
-    const detailQueryFromUrl = {
-      detailShow: (route.query.detailShow as string) || '',
-      detailContext: (route.query.detailContext as string) || '',
-    };
-
     onMounted(() => {
       updateTimezone(store.timezone);
       initialize().then(() => {
         if (disposed || applicationError.value) return;
-        if (detailQueryFromUrl.detailShow) {
-          detailShow.value = JSON.parse(decodeURIComponent(detailQueryFromUrl.detailShow));
-        }
-        if (detailQueryFromUrl.detailContext) {
-          // 高亮行由 detailContext 兜底派生，与页内打开详情的表现一致，无需在此写入
-          detailContext.value = JSON.parse(decodeURIComponent(detailQueryFromUrl.detailContext));
-        }
+        detailDrawer.restoreDetail();
       });
     });
 
@@ -856,14 +770,13 @@ export default defineComponent({
       applicationList,
       applicationLoading,
       activeRowCtx,
+      activeTraceInfo,
       eventsDrawerCtx,
       applicationError,
       initialize,
       configLoading,
       columnConfig,
-      detailContext,
-      detailShow,
-      detailMode,
+      detailDrawer,
       detailFields,
       retrievalFieldNames,
       emptyType,
@@ -877,6 +790,7 @@ export default defineComponent({
       isSpanMode,
       queryCtx,
       residentSettingOnlyId,
+      resetSignal,
       spanTypeCtx,
       tableCtx,
       thumbtackList,
@@ -893,7 +807,7 @@ export default defineComponent({
       handleConditionChange,
       handleEventsCellClick,
       handleModeChange,
-      handleOpenDetail,
+      handleOpenTraceDetail,
       handleSortChange,
       handleSpanTypeChange,
       handleThumbtackChange,
@@ -901,14 +815,12 @@ export default defineComponent({
       handleCountDrillDown,
       handleCreateApp,
       tagValueDisplayFormatter,
-      handlePreviousDetail,
-      handleNextDetail,
       handleRumSpanDetailConditionAdd,
-      handleSpanDetailShowChange,
     };
   },
   render() {
-    const { activeRowCtx, eventsDrawerCtx, favoriteCtx, queryCtx, spanTypeCtx, tableCtx, viewConfigCtx } = this;
+    const { activeRowCtx, detailDrawer, eventsDrawerCtx, favoriteCtx, queryCtx, spanTypeCtx, tableCtx, viewConfigCtx } =
+      this;
     /** 抽屉的目标行：渲染期取一次快照，既决定是否挂载抽屉，也作为 row 传入 */
     const eventsRow = eventsDrawerCtx.row.value;
     /** 省略方式控件：span 视角挂在类型筛选右侧，其他视角挂在趋势图汇聚周期右侧 */
@@ -1096,6 +1008,7 @@ export default defineComponent({
                                   sort={tableCtx.sortParams.value}
                                   timeRange={this.store.timeRange}
                                   timezone={this.store.timezone}
+                                  traceLookupKey={this.resetSignal}
                                   onActiveChange={activeRowCtx.handleActiveRowChange}
                                   onClearFilter={queryCtx.clearQuery}
                                   onColumnResizeChange={width => this.columnConfig.updateColumnResizeWidth(width)}
@@ -1103,7 +1016,9 @@ export default defineComponent({
                                   onCountClick={this.handleCountDrillDown}
                                   onDisplayFieldChange={fields => this.columnConfig.updateDisplayFields(fields)}
                                   onEventsCellClick={this.handleEventsCellClick}
-                                  onOpenDetail={this.handleOpenDetail}
+                                  onOpenDetail={detailDrawer.handleOpenDetail}
+                                  onOpenSessionDetail={detailDrawer.handleOpenDetail}
+                                  onOpenTraceDetail={this.handleOpenTraceDetail}
                                   onScrollToEnd={tableCtx.handleScrollToEnd}
                                   onSortChange={this.handleSortChange}
                                 />
@@ -1121,18 +1036,29 @@ export default defineComponent({
         </div>
 
         <RumSpanDetailSlider
-          context={this.detailContext}
+          context={detailDrawer.context.value}
           fields={this.detailFields}
-          isShow={this.detailShow}
-          mode={this.detailMode}
+          isShow={detailDrawer.isShow.value}
+          mode={detailDrawer.mode.value}
           retrievalFieldNames={this.retrievalFieldNames}
+          showRecordNavigation={detailDrawer.showRecordNavigation.value}
           onConditionAdd={(key, value) =>
             this.handleRumSpanDetailConditionAdd({ key, method: EMethod.eq, value }, false)
           }
-          onNext={this.handleNextDetail}
-          onPrevious={this.handlePreviousDetail}
-          onUpdate:isShow={this.handleSpanDetailShowChange}
+          onNext={detailDrawer.handleNextDetail}
+          onPrevious={detailDrawer.handlePreviousDetail}
+          onUpdate:isShow={detailDrawer.handleShowChange}
         />
+
+        {this.activeTraceInfo && (
+          <TraceSlider
+            appName={this.activeTraceInfo.app_name}
+            bizId={this.activeTraceInfo.bk_biz_id ?? window.cc_biz_id}
+            isShow={true}
+            traceId={this.activeTraceInfo.trace_id}
+            onSliderClose={() => (this.activeTraceInfo = null)}
+          />
+        )}
 
         {/* events 抽屉：贴页面底部弹出，覆盖除平台导航外的整块内容区，不随表格滚动 */}
         {eventsRow ? (

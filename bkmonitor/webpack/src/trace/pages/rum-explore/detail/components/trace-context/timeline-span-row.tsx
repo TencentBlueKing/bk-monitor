@@ -28,7 +28,7 @@ import type { PropType } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
-import type { IRumTraceInfo } from '../../services';
+import type { IRumTraceInfo } from '../../../typings';
 import type { IRumTimelineSpanVM } from '../../typings';
 
 import './timeline-span-row.scss';

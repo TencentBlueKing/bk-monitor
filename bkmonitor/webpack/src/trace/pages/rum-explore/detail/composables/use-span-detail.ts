@@ -26,11 +26,11 @@
 import { shallowRef, watch } from 'vue';
 import type { Ref } from 'vue';
 
+import { searchTraceInfoMap } from '../../services/trace-link';
 import { getSpanTypeDetailConfig } from '../registry/span-type-registry';
-import { getRecordDetail, searchTraceInfoMap } from '../services';
+import { getRecordDetail } from '../services';
 
-import type { IRumTimeRange, RumModeType } from '../../typings';
-import type { IRumTraceInfo } from '../services';
+import type { IRumTimeRange, IRumTraceInfo, RumModeType } from '../../typings';
 import type { IRumDetailContext, IRumRecordDetail, IRumRelatedData } from '../typings';
 
 interface IUseSpanDetailOptions {

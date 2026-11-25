@@ -29,7 +29,7 @@ import { get } from '@vueuse/core';
 
 /** 高亮行 hook 配置项 */
 export interface IUseRumActiveRowOptions {
-  /** 兜底高亮行 key（span 详情抽屉的记录 ID）：交互高亮为空时回落它，详情开着即保持高亮，关闭后随之失效 */
+  /** 交互高亮为空时使用的详情来源行 key，由详情侧弹状态提供。 */
   fallbackRowKey?: MaybeRef<string>;
   /** 高亮行锁定：为 true 时忽略表格回传的行变化（events 抽屉展开期间点行不切换高亮） */
   locked?: MaybeRef<boolean>;
@@ -38,7 +38,7 @@ export interface IUseRumActiveRowOptions {
 /**
  * @description 主表高亮行 key 管理（对应 RumExploreTable 的 activeRowKey）。行点击 / 键盘高亮由表格回传，
  * events 列点击由抽屉入口指定，两者写入同一个受控数据源，供表格行高亮与 events 抽屉联动；
- * 无交互高亮时回落到兜底行（span 详情抽屉的记录），详情开着即保持高亮，不随结果集替换丢失。
+ * 结果集替换后清除交互高亮。详情仍打开时，表格可以回落到该详情的来源行。
  * @param {MaybeRef<number | string>} resetSignal 重置信号（结果集被替换或手动刷新），变化时清除高亮行
  * @param {IUseRumActiveRowOptions} options 配置项，见 IUseRumActiveRowOptions
  * @returns {object} 高亮行状态与操作：activeRowKey / setActiveRowKey / handleActiveRowChange
@@ -52,7 +52,7 @@ export function useRumActiveRow(resetSignal: MaybeRef<number | string>, options:
 
   /**
    * @description 指定高亮行（events 列点击等由页面主动触发的场景）
-   * @param {string} key 行 key，即该行的 span_id
+   * @param {string} key 当前检索视角下的行 key
    * @returns {void}
    */
   function setActiveRowKey(key: string) {

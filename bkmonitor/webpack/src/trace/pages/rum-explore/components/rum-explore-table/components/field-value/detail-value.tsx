@@ -33,8 +33,7 @@ import {
 } from '../../../../constants';
 import { hasFieldValue } from '../../column-builder/column-layout';
 
-import type { IRumSpanRecord, RumModeType } from '../../../../typings';
-import type { FieldActions } from './field-value';
+import type { FieldActions, IRumSpanRecord, RumModeType } from '../../../../typings';
 import type { TippyContent } from 'vue-tippy';
 
 /** 判断字段是否承担 Span 名称的详情和悬浮提示交互。 */
@@ -75,11 +74,11 @@ export const spanNameHover = (
         (
           <div class='span-name-popover-container'>
             <div class='span-name-popover-item'>
-              <span class='span-name-popover-item-label'>{label}</span>
+              <span class='span-name-popover-item-label'>{label}:</span>
               <span class='span-name-popover-item-value'>{text}</span>
             </div>
             <div class='span-name-popover-item'>
-              <span class='span-name-popover-item-label'>Span ID</span>
+              <span class='span-name-popover-item-label'>Span ID:</span>
               <span class='span-name-popover-item-value'>{row.span_id || '--'}</span>
             </div>
           </div>

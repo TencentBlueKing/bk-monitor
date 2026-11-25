@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { IRumTraceInfo } from '../services';
+import type { IRumTraceInfo } from '../../typings';
 import type { IRumDetailOverview, IRumDetailSection, IRumHoverInfo } from './detail';
 import type { RumViewLoadingType } from './enum';
 import type { IRumWaterfallVM } from './view-model';

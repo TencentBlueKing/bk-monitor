@@ -45,7 +45,7 @@ import { RumSectionTypeEnum } from '../constants';
 import { getTimelineSpanTypeConfig } from '../registry/timeline-span-registry';
 import { formatDuration } from '@/components/trace-view/utils/date';
 
-import type { IRumTraceInfo } from '../services';
+import type { IRumTraceInfo } from '../../typings';
 import type { IRumWaterfallData } from '../typings';
 import type {
   IRumTimelineItemVM,

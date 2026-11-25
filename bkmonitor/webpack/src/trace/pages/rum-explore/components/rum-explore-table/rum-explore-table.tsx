@@ -31,6 +31,7 @@ import ExploreFieldSetting from '../../../trace-explore/components/explore-field
 import StatisticsList from '../../../trace-explore/components/statistics-list/statistics-list';
 import ExploreConditionMenu from '../../../trace-explore/components/trace-explore-table/components/explore-condition-menu';
 import { type IStatisticsFieldItem, useFieldStatisticsPopover } from '../../composables/use-field-statistics-popover';
+import { useVisibleTraceLinks } from '../../composables/use-visible-trace-links';
 import { type RumEllipsisModeType, RUM_EXPLORE_VIEW_CLASS, RumEllipsisModeEnum, RumModeEnum } from '../../constants';
 import { statisticsApi } from '../../services/rum-search';
 import { renderRumLoadingCell, RUM_TABLE_SKELETON_ROW_COUNT } from '../rum-explore-skeleton/rum-explore-skeleton';
@@ -43,7 +44,14 @@ import ExploreTableEmpty from '@/pages/trace-explore/components/trace-explore-ta
 
 import type { TimeRangeType } from '../../../../components/time-range/utils';
 import type { BaseTableColumn } from '../../../trace-explore/components/trace-explore-table/typing';
-import type { IRumCommonParams, IRumCountDrillDown, IRumField, IRumSpanRecord, RumModeType } from '../../typings';
+import type {
+  IRumCommonParams,
+  IRumCountDrillDown,
+  IRumField,
+  IRumSpanRecord,
+  IRumTraceInfo,
+  RumModeType,
+} from '../../typings';
 import type { FieldAnalysisSelection } from './components/column-header/column-header';
 import type { ConditionChangeEvent } from '@/pages/trace-explore/typing';
 import type { SlotReturnValue, TdAffixProps } from 'tdesign-vue-next';
@@ -107,6 +115,11 @@ export default defineComponent({
     scrollContainerSelector: {
       type: String,
       default: `.${RUM_EXPLORE_VIEW_CLASS}`,
+    },
+    /** 结果集替换或手动刷新时重置 Trace 检索，追加分页时复用当前缓存。 */
+    traceLookupKey: {
+      type: String,
+      default: '',
     },
     /** 表格排序信息,字符串格式，以id为例：倒序 => -id；正序 => id； */
     sort: {
@@ -178,17 +191,34 @@ export default defineComponent({
     clearFilter: () => true,
     /** 点击 Span 名称 / View 页面 URL，打开该行的详情抽屉 */
     openDetail: (_row: Record<string, unknown>) => true,
+    /** 点击 Session，回传来源行与关联会话 ID。 */
+    openSessionDetail: (_row: IRumSpanRecord, _sessionId: string) => true,
+    /** 点击 Trace，回传全局检索命中的 Trace 及其所属应用。 */
+    openTraceDetail: (_trace: IRumTraceInfo) => true,
     /** 点击数量统计列，回传目标视角与跳转后携带的检索条件 */
     countClick: (_target: IRumCountDrillDown) => true,
     /** 高亮行变化回调（透传 CommonTable activeChange）：行点击 / 键盘高亮时回传，高亮状态由上层维护 */
     activeChange: (rowKeys: Array<number | string>) => Array.isArray(rowKeys),
   },
+  /**
+   * @description 连接列渲染、表格交互和关联 Trace 的可见性检索。
+   * @param props 当前表格的数据、列配置和结果集状态
+   * @param context Vue 组件上下文，用于把详情和筛选操作传给页面
+   * @returns 表格渲染所需的状态、列配置和交互方法
+   */
   setup(props, { emit }) {
     const { t } = useI18n();
-    /** Span 名称的详情提示。 */
+    /** Span 名称和复合列操作共用的悬浮提示，滚动时一并收起。 */
     const hoverPopoverTools = usePopover();
     /** CommonTable 组件实例 ref，用于滚动时禁用 pointerEvents、单元格事件委托 */
     const tableRef = useTemplateRef<InstanceType<typeof CommonTable>>('tableRef');
+    /** 表格根节点，用于确定 Trace 行标记及其滚动容器。 */
+    const tableElement = computed(() => tableRef.value?.$el as HTMLElement | undefined);
+    /** 当前结果集的 Trace 观察器和命中缓存，由各复合列共享。 */
+    const traceLinks = useVisibleTraceLinks({
+      active: () => !props.loading,
+      scrollRoot: () => tableElement.value?.closest(props.scrollContainerSelector) ?? null,
+    });
     /** 单元格检索条件菜单组件实例 ref，其 $el 作为 popover 内容 */
     const conditionMenuRef = useTemplateRef<InstanceType<typeof ExploreConditionMenu>>('conditionMenuRef');
     /** 触底加载前记录的滚动位置，数据追加后还原以避免仍停在底部重复触发 */
@@ -220,6 +250,7 @@ export default defineComponent({
       tableSort,
       toQuerySort,
     } = useRumColumns(props, () => fieldMap.value, {
+      getTraceInfo: traceId => traceLinks.traceInfoMap.value.get(traceId),
       hoverPopoverTools,
       isActive: (rowId, colKey) =>
         !!props.activeRowKey && props.activeRowKey === rowId && props.activeColKey === colKey,
@@ -227,7 +258,17 @@ export default defineComponent({
       onOpenDetail: row => emit('openDetail', row),
       onCountClick: payload => emit('countClick', payload),
       onFieldAnalysis: openFieldAnalysis,
+      onOpenSessionDetail: (row, sessionId) => emit('openSessionDetail', row, sessionId),
+      onOpenTraceDetail: trace => emit('openTraceDetail', trace),
     });
+
+    // 切换结果集先清理旧流，再等表格 DOM 更新后注册当前行。
+    watch(() => props.traceLookupKey, traceLinks.reset);
+    watch(
+      [tableElement, columns, () => props.data, () => props.loading, () => props.traceLookupKey],
+      () => traceLinks.observeRows(props.loading ? null : tableElement.value),
+      { flush: 'post' }
+    );
 
     /**
      * 单元格检索条件菜单：普通单元格左键点击弹出菜单；CLICK 类型列与数量统计列左键已用于详情 / 下钻，
