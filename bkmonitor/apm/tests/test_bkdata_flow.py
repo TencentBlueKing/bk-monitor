@@ -489,12 +489,18 @@ def test_tail_sampling_existing_flow_pending_exits_without_apply(settings, mocke
     apply_resources.assert_not_called()
 
 
-def _es_storage_case(settings, mocker, binding_spec, binding=True):
+def _es_storage_case(settings, mocker, binding_spec, binding=True, index_settings=None):
     """构造 ES 存储解析用例：监控侧集群名故意与 BKBase 绑定不同，验证以绑定为准。"""
     flow = _build_tail_sampling_v4_flow(settings, mocker)
+    if index_settings is None:
+        index_settings = json.dumps({"number_of_shards": 3, "number_of_replicas": 2})
     trace = SimpleNamespace(
         result_table_id="5005578_bkapm.trace_bk_dbm",
-        storage=SimpleNamespace(retention=7, storage_cluster=SimpleNamespace(cluster_name="DBM_ES")),
+        storage=SimpleNamespace(
+            retention=7,
+            index_settings=index_settings,
+            storage_cluster=SimpleNamespace(cluster_name="DBM_ES"),
+        ),
     )
     direct_link = SimpleNamespace(namespace="bklog", data_link_name="l_559760")
     binding_filter = mocker.patch("apm.core.handlers.bk_data.tail_sampling.ESStorageBindingConfig.objects.filter")
@@ -518,13 +524,13 @@ def test_tail_sampling_v4_es_storage_follows_direct_link_binding(settings, mocke
 
     storage = flow._resolve_v4_es_storage(trace, direct_link)
 
-    # ES 资源名取 BKBase 绑定的 dbm-logs1，而不是监控侧 ClusterInfo 的 DBM_ES
+    # ES 资源名取 BKBase 绑定的 dbm-logs1，而不是监控侧 ClusterInfo 的 DBM_ES；副本数取监控侧 index_settings
     assert storage == {
         "storage": {"kind": "ElasticSearch", "tenant": "default", "namespace": "bklog", "name": "dbm-logs1"},
         "write_alias": {"TimeBased": {"format": "write_%Y%m%d_5005578_bkapm_trace_bk_dbm", "timezone": 0}},
         "unique_field_list": ["trace_id", "span_id", "x"],
         "retention": 7,
-        "replicas": 1,
+        "replicas": 2,
     }
     binding_filter.assert_called_once_with(bk_tenant_id="system", namespace="bklog", data_link_name="l_559760")
     get_data_link.assert_called_once_with(
@@ -550,6 +556,18 @@ def test_tail_sampling_v4_es_storage_unique_fields_fallback_to_trace_default(set
         "end_time",
         "span_name",
     ]
+
+
+@pytest.mark.parametrize("index_settings", ["", json.dumps({"number_of_shards": 3})])
+def test_tail_sampling_v4_es_replicas_fallback_to_app_default(settings, mocker, index_settings):
+    settings.APM_APP_DEFAULT_ES_REPLICAS = 0
+    binding_spec = {
+        "storage": {"kind": "ElasticSearch", "tenant": "default", "namespace": "bklog", "name": "dbm-logs1"},
+        "write_alias": {"TimeBased": {"format": "write_%Y%m%d_5005578_bkapm_trace_bk_dbm", "timezone": 0}},
+    }
+    flow, trace, direct_link, *_ = _es_storage_case(settings, mocker, binding_spec, index_settings=index_settings)
+
+    assert flow._resolve_v4_es_storage(trace, direct_link)["replicas"] == 0
 
 
 def test_tail_sampling_v4_es_storage_requires_direct_link_binding(settings, mocker):

@@ -44,7 +44,6 @@ class TailSamplingFlow(ApmFlow):
     _STORAGE_REGISTRY_AREA_CODE = settings.APM_APP_BKDATA_STORAGE_REGISTRY_AREA_CODE
     # Flow 的命名空间对应 BKBase 项目名。
     _FLOW_NAMESPACE_FORMAT = "project_v3_{project_id}"
-    _V4_FLOW_ES_REPLICAS = 1
     # V4 尾部采样资源状态轮询参数。
     _V4_RESOURCE_WAIT_SECONDS = 500
     _V4_POLL_INTERVAL_SECONDS = 10
@@ -652,6 +651,7 @@ class TailSamplingFlow(ApmFlow):
 
         平台迁移的链路在 BKBase 中注册的 ES 资源名可能与监控 ClusterInfo.cluster_name 不同，
         不能按监控侧配置推算，否则 Flow 会写到错误的 ES 资源。
+        写入的索引由监控 metadata 按 ESStorage.index_settings 创建，保留天数和副本数取监控侧配置。
         """
         storage = trace_datasource.storage
         if storage is None:
@@ -686,7 +686,12 @@ class TailSamplingFlow(ApmFlow):
                 or TRACE_RESULT_TABLE_OPTION[ResultTableOption.OPTION_ES_DOCUMENT_ID]
             ),
             "retention": storage.retention,
-            "replicas": self._V4_FLOW_ES_REPLICAS,
+            # 与应用配置页的副本数一致（落在 ESStorage.index_settings）。
+            "replicas": int(
+                json.loads(storage.index_settings or "{}").get(
+                    "number_of_replicas", settings.APM_APP_DEFAULT_ES_REPLICAS
+                )
+            ),
         }
 
     def _v4_programming_args(self, input_table_id: str, output_table_id: str) -> dict:
