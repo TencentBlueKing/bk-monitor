@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import $http from '@/api';
 
 export interface IAuthorizedNamespace {
@@ -59,8 +59,10 @@ export const useNamespaceAuthorization = () => {
   const loading = ref(false);
   const submitting = ref(false);
   let collectorId: number | string = '';
+  let loadVersion = 0;
 
   const reset = () => {
+    loadVersion += 1;
     collectorId = '';
     namespaces.value = [];
     selectedName.value = '';
@@ -68,8 +70,11 @@ export const useNamespaceAuthorization = () => {
     submitting.value = false;
   };
 
+  onBeforeUnmount(reset);
+
   const load = async (id: number | string) => {
     reset();
+    const version = loadVersion;
     collectorId = id;
     if (!id) return;
     loading.value = true;
@@ -77,12 +82,13 @@ export const useNamespaceAuthorization = () => {
       const res = await $http.request('collect/authorizedNamespaces', {
         params: { collector_config_id: id },
       });
+      if (version !== loadVersion) return;
       namespaces.value = res.result && Array.isArray(res.data) ? res.data : [];
     } catch {
       // 请求层统一反馈错误；弹窗只恢复为空列表。
-      namespaces.value = [];
+      if (version === loadVersion) namespaces.value = [];
     } finally {
-      loading.value = false;
+      if (version === loadVersion) loading.value = false;
     }
   };
 
