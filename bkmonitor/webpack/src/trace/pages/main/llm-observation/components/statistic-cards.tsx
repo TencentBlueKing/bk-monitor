@@ -99,6 +99,11 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 初始是否展开：Span 详情内默认展开，侧栏概览默认收起 */
+    defaultExpanded: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
     'locate-section': (_sectionId: LlmSearchSectionId) => true,
@@ -106,7 +111,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
-    const expanded = shallowRef(false);
+    const expanded = shallowRef(props.defaultExpanded);
 
     const panes = computed(() => splitTokenMatrixPanes(props.nodes));
     const inputNode = computed(() => {

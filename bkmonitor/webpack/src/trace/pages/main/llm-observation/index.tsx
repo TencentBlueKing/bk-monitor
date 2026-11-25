@@ -350,6 +350,7 @@ export default defineComponent({
             <div class='llm-observation-model-stats'>
               <LlmStatisticCards
                 cards={modelCards.value}
+                defaultExpanded={true}
                 interactive={true}
                 nodes={tokenMatrixNodes.value}
                 onLocate-section={handleLocateSection}
