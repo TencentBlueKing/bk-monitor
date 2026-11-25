@@ -5,8 +5,11 @@ import hashlib
 import json
 import posixpath
 import re
+import stat
+from datetime import datetime, timezone
 from pathlib import Path
 
+from apps.log_admin_resource.collector_directory_evidence import decode_directory_step
 from apps.log_admin_resource.collector_probe_evidence import _expand_recursive_glob, parse_yaml_local_inputs
 from apps.log_admin_resource.handlers.inspection import sanitize_sensitive_text
 from apps.log_admin_resource.k8s_inspection_client import object_to_dict
@@ -209,25 +212,53 @@ def inspect_source_step(client, candidate, parsed, target, expected, data_id, re
     policy.update(collector_pod_uid=candidate.pod_uid, collector_container_id=candidate.collector_container_id)
     policy["interval"] = min(10, max(1, int(parsed["values"].get("observation_seconds") or 5)))
     policy["pid"] = int(parsed["values"].get("process_pid") or 0)
-    encoded = base64.b64encode(json.dumps([policy, request]).encode()).decode("ascii")
-    if len(encoded) > 65536:
-        raise FixedProbeError("source_policy_too_large", "rendered source policy exceeds the fixed argument budget")
-    helper = Path(__file__).with_name("scripts").joinpath("collector_source_step.py").read_text()
-    script = (
-        "cd / || exit 1\n"
-        "for py in /usr/bin/python3 /usr/bin/python /usr/local/bin/python3; do\n"
-        '    [ -x "$py" ] || continue\n'
-        f"    exec \"$py\" -E -S - {encoded} <<'BKLOG_SOURCE_STEP'\n"
-        f"{helper}\nBKLOG_SOURCE_STEP\n"
-        'done\nprintf \'{"error":"collector_python_unavailable"}\\n\'\nexit\n'
-    )
-    stdout, _, _ = run_collector_script(client, candidate, ["/bin/sh", "-s"], script)
-    try:
-        result = json.loads(stdout)
-    except ValueError as exc:
-        raise FixedProbeError(
-            "source_step_invalid_response", "collector file observation returned no valid JSON"
-        ) from exc
+    scripts = Path(__file__).with_name("scripts")
+    shell_observation = {}
+    if native and request["operation"] != "read":
+        helper = scripts.joinpath("collector_directory_step.sh").read_text()
+        command = ["/bin/sh", "-s", "--", request["operation"], request["path"]]
+        if "expect" in request:
+            command.append("guarded")
+        sampled_at = datetime.now(timezone.utc).isoformat()
+        stdout, _, _ = run_collector_script(client, candidate, command, helper)
+        try:
+            result = decode_directory_step(stdout, policy, request, sampled_at)
+            shell_observation = result.get("observation", {})
+        except ValueError as exc:
+            raise FixedProbeError("source_step_invalid_response", "incomplete collector directory evidence") from exc
+    # Keep the existing pinned activity and cursor samples for regular files.
+    # The first sample must still identify the file observed by the shell.
+    shell_file = request["operation"] == "stat" and stat.S_ISREG(shell_observation.get("mode", 0))
+    if not native or request["operation"] == "read" or shell_file:
+        if shell_file and "parent_guards" in result:
+            policy["parent_guards"] = result["parent_guards"]
+        encoded = base64.b64encode(json.dumps([policy, request]).encode()).decode("ascii")
+        if len(encoded) > 65536:
+            raise FixedProbeError("source_policy_too_large", "rendered source policy exceeds the fixed argument budget")
+        helper = scripts.joinpath("collector_source_step.py").read_text()
+        script = (
+            "cd / || exit 1\n"
+            "for py in /usr/bin/python3 /usr/bin/python /usr/local/bin/python3; do\n"
+            '    [ -x "$py" ] || continue\n'
+            f"    exec \"$py\" -E -S - {encoded} <<'BKLOG_SOURCE_STEP'\n"
+            f"{helper}\nBKLOG_SOURCE_STEP\n"
+            'done\nprintf \'{"error":"collector_python_unavailable"}\\n\'\nexit\n'
+        )
+        stdout, _, _ = run_collector_script(client, candidate, ["/bin/sh", "-s"], script)
+        try:
+            result = json.loads(stdout)
+        except ValueError as exc:
+            raise FixedProbeError(
+                "source_step_invalid_response", "collector file observation returned no valid JSON"
+            ) from exc
+        if shell_file and result.get("error") == "collector_python_unavailable":
+            result = {"observation": shell_observation, "activity": "unverified", "read_progress": "unknown"}
+        elif shell_file and not result.get("error"):
+            first = result.get("first") or {}
+            # A live log may grow between exec calls. Compare object identity,
+            # then use the pinned samples' sizes and guards for the activity interval.
+            if any(first.get(key) != shell_observation[key] for key in ("device", "inode")):
+                result = {"error": "source_changed_during_stat", "failed_path": request["path"]}
     protect_source_paths(result)
     result["source_paths_checked"] = True
     failed = bool(result.get("error"))

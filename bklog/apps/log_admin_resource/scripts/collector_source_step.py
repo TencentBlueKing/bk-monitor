@@ -363,7 +363,10 @@ def identity_guard(kind, policy, space, path, info):
 
 def check_identity(kind, policy, request, info):
     actual = identity_guard(kind, policy, request["path_space"], request["path"], info)
-    if actual != request["expect"]:
+    expected = request["expect"]
+    if kind == "parent" and "parent_guards" in policy:
+        expected = policy["parent_guards"]["ns" if hasattr(info, "st_mtime_ns") else "float"]
+    if actual != expected:
         raise ValueError("source_" + kind + "_identity_changed")
 
 
