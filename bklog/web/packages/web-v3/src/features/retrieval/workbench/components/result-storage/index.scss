@@ -211,7 +211,7 @@
       }
     }
 
-    // V2 深度输入为 96×26。全局小号步进按钮是 18px 并下移 4px，这里要贴齐 26px 行高并把图标居中。
+    // V2 深度输入为 96×26。按钮贴齐行高，但向内收一个边框，避免盖住输入框圆角边框。
     .json-depth-num.t-input-number.t-size-s {
       width: 96px;
       height: 26px;
@@ -222,15 +222,17 @@
       }
 
       :is(.t-input-number__decrease, .t-input-number__increase) {
-        top: 0;
+        top: var(--bklog-border-width);
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        box-sizing: border-box;
         width: 26px;
         min-width: 26px;
-        height: 26px;
+        height: calc(26px - 2 * var(--bklog-border-width));
         padding: 0;
         line-height: 0;
+        background: transparent;
 
         .t-button__text,
         .t-icon {

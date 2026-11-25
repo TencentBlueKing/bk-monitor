@@ -63,7 +63,9 @@ const handlePopoverHide = () => {
       :visible="visible"
       trigger="click"
       placement="bottom-left"
+      :show-arrow="false"
       overlay-class-name="bklog-v3-popover-tag field-setting-popover"
+      :overlay-inner-style="{ padding: 'var(--bklog-space-4) 0', width: 'max-content' }"
       @visible-change="handleVisibleChange"
     >
       <span class="bklog-icon bklog-shezhi" />
@@ -104,26 +106,68 @@ const handlePopoverHide = () => {
 
 .field-setting-popover {
   .t-popup__content {
-    width: 130px;
-    padding: 7px 0;
-    border: 1px solid var(--bklog-border-muted, #dcdee5);
-    border-radius: var(--bklog-radius-control, 2px);
-    box-shadow: var(--bklog-shadow-small, 0 2px 6px 0 #0000001a);
+    width: max-content;
+    padding: var(--bklog-space-4) 0;
+    border: var(--bklog-border-width) solid var(--bklog-border-muted, var(--td-component-stroke));
+    border-radius: var(--bklog-standard-control-radius);
+    box-shadow: var(--bklog-dropdown-shadow, var(--td-shadow-2));
   }
 
   .dropdown-list {
-    width: 130px;
+    width: auto;
+    margin: 0;
+
     li {
-      height: 32px;
-      padding: 0 6px 0px 12px;
-      line-height: 32px;
-      color: #4d4f56;
+      display: flex;
+      align-items: center;
+      height: var(--bklog-control-size-medium);
+      min-height: var(--bklog-control-size-medium);
+      padding: 0;
+      font-size: var(--bklog-font-body);
+      line-height: var(--bklog-line-height-body);
+      color: var(--td-text-color-secondary);
       cursor: pointer;
 
       &:hover {
-        background: #f5f7fa;
+        background: var(--bklog-option-surface-hover);
       }
     }
+  }
+
+  .field-select-config-v2,
+  .field-alias-title {
+    width: 100%;
+  }
+
+  .dropdown-trigger,
+  .field-alias-title {
+    display: flex;
+    align-items: center;
+    gap: var(--bklog-space-8);
+    width: 100%;
+    height: var(--bklog-control-size-medium);
+    padding: 0 var(--bklog-space-12);
+    font-size: var(--bklog-font-body);
+    line-height: var(--bklog-line-height-body);
+    white-space: nowrap;
+  }
+
+  .dropdown-trigger .bklog-icon,
+  .field-alias-title .bklog-icon {
+    flex: none;
+    width: var(--bklog-space-16);
+    margin: 0;
+    font-size: var(--bklog-space-16);
+    line-height: 1;
+  }
+
+  .field-select-config-v2 .icon-angle-right-line {
+    position: static;
+    flex: none;
+    width: var(--bklog-space-12);
+    margin: 0 0 0 auto;
+    font-size: var(--bklog-space-12);
+    line-height: 1;
   }
 }
 </style>

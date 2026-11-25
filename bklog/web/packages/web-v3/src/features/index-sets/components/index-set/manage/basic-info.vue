@@ -46,7 +46,7 @@
             {{ $t('编辑') }}
           </t-button>
           <bk-popover placement="bottom-end">
-            <t-button class="bklog-icon bklog-lishijilu" />
+            <t-button theme="default" class="history-record-button bklog-icon bklog-lishijilu" />
             <template #content>
               <div class="create-name-and-time">
                 <div
@@ -640,6 +640,18 @@ import { ServicesInstance } from '@/platform/services';
       position: absolute;
       right: 0;
       top: -4px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+
+      .history-record-button {
+        width: var(--bklog-control-size-medium);
+        min-width: var(--bklog-control-size-medium);
+        height: var(--bklog-control-size-medium);
+        padding: 0;
+        color: var(--td-text-color-secondary);
+        background: var(--td-bg-color-container);
+      }
     }
   }
 </style>
