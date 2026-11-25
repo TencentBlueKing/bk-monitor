@@ -120,6 +120,7 @@ def directory_probe_output(step):
         return f"{day}.{fraction:09d} +0000"
 
     header = (
+        "2026-01-02T03:04:05.123456Z ns\n"
         f"{info.st_dev} {info.st_ino} {info.st_mode:x} {info.st_size} "
         f"{info.st_mtime_ns // 10**9} {info.st_ctime_ns // 10**9}|{date(info.st_mtime_ns)}|{date(info.st_ctime_ns)}"
     )
@@ -2039,14 +2040,27 @@ class SourcePolicyTest(SimpleTestCase):
         for precision in ("float", "ns"):
             with self.subTest(precision=precision):
                 listing = decode_directory_step(
-                    metadata + "\nLi90ZXN0LmxvZwAA", policy, dict(step, operation="list", path="/app/log"), "now"
+                    f"2026-01-02T03:04:05.123456Z {precision}\n{metadata}\nLi90ZXN0LmxvZwAA",
+                    policy,
+                    dict(step, operation="list", path="/app/log"),
                 )["observation"]
                 follow = dict(step, expect=listing["entry_guards"][0])
-                result = decode_directory_step(metadata + "\n" + metadata + "\n", policy, follow, "now")
+                wire_stat = f"2026-01-02T03:04:05.123456Z ns\n{metadata}\n{metadata}\n"
+                result = decode_directory_step(wire_stat, policy, follow)
                 stamp = seconds + fraction / 10**9
                 info = SimpleNamespace(st_dev=5, st_ino=23, st_size=13, st_mtime=stamp, st_ctime=stamp)
                 if precision == "ns":
                     info.st_mtime_ns = info.st_ctime_ns = seconds * 10**9 + fraction
+                # Old Workers use only the token supplied in the request.
+                old_list_guard = identity_guard("parent", policy, "collector", step["path"], info)
+                self.assertEqual(follow["expect"], old_list_guard)
+                check_identity("parent", policy, follow, info)
+                self.assertEqual(
+                    decode_directory_step(wire_stat, policy, dict(step, expect=old_list_guard))["observation"][
+                        "verified_expectation"
+                    ],
+                    old_list_guard,
+                )
                 bound_policy = dict(policy, parent_guards=result["parent_guards"])
                 check_identity("parent", bound_policy, follow, info)
                 exact = SimpleNamespace(**vars(info))
@@ -2079,8 +2093,84 @@ class SourcePolicyTest(SimpleTestCase):
         row = result["evidence"]["observation"]
         self.assertEqual((row["inode"], row["size_bytes"]), (path.stat().st_ino, path.stat().st_size))
         self.assertNotIn("file_guard", row)
+        from hashlib import sha256
+        from apps.log_admin_resource import k8s_source_step
+
+        helper = Path(k8s_source_step.__file__).with_name("scripts") / "collector_directory_step.sh"
+        self.assertEqual(result["probe_metadata"]["script_sha256"], sha256(helper.read_bytes()).hexdigest())
+        self.assertEqual(row["sampled_at"], "2026-01-02T03:04:05.123456Z")
+
+    def test_sensitive_metadata_path_is_absent_from_kubernetes_exec_url(self):
+        from urllib.parse import parse_qs, unquote, urlsplit
+
+        from apps.log_admin_resource.k8s_source_step import inspect_source_step
+
+        path = "/logs/account=private-test-value"
+        step = {"operation": "stat", "path_space": "collector", "path": path}
+        client = SimpleNamespace(bcs=SimpleNamespace(api_instance_core_v1=k8s_client.CoreV1Api()))
+        with patch("kubernetes.stream.ws_client.WSClient") as websocket:
+            response = websocket.return_value
+            response.is_open.side_effect = [True, False, False, False]
+            response.peek_stdout.return_value = True
+            response.peek_stderr.return_value = False
+            response.read_stdout.return_value = "2026-01-02T03:04:05.123456Z ns\nERROR source_path_not_found\n"
+            response.returncode = 0
+            result = inspect_source_step(client, candidate(), {"values": {}}, {}, [], 7, step, {})
+        url = websocket.call_args.args[1]
+        self.assertEqual(parse_qs(urlsplit(url).query)["command"], ["/bin/sh", "-s"])
+        self.assertNotIn("private-test-value", unquote(url))
+        self.assertIn(path, response.write_stdin.call_args.args[0])
+        self.assertEqual(result["evidence"]["error"], "source_path_not_found")
+
+    def test_shell_stat_distinguishes_missing_file_and_unavailable_tool(self):
+        import os
+        import shlex
+        import shutil
+        import subprocess
+        import tempfile
+        from pathlib import Path
+
+        from apps.log_admin_resource.k8s_source_step import inspect_source_step
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = str(Path(tmp) / "missing.log")
+            tools_dir = Path(tmp) / "tools"
+            tools_dir.mkdir()
+            stat_tool = tools_dir / "stat"
+            system_stat = shlex.quote(shutil.which("stat"))
+            stat_tool.write_text(
+                "#!/bin/sh\n"
+                'for arg do if [ "$arg" = "$DENIED" ]; then echo "stat: path: Permission denied" >&2; exit 1; fi; done\n'
+                f'exec {system_stat} "$@"\n'
+            )
+            stat_tool.chmod(0o755)
+            for search_path, expected in (
+                (os.environ["PATH"], "source_path_not_found"),
+                (tmp, "stat_tool_unavailable"),
+                (f"{tools_dir}:{os.environ['PATH']}", "source_permission_denied"),
+            ):
+
+                def execute(_client, _candidate, command, script):
+                    process = subprocess.run(
+                        command,
+                        input=script,
+                        env=dict(os.environ, PATH=search_path, DENIED=path),
+                        capture_output=True,
+                        text=True,
+                        check=True,
+                    )
+                    return process.stdout, process.stderr, process.returncode
+
+                with (
+                    self.subTest(expected=expected),
+                    patch("apps.log_admin_resource.k8s_source_step.run_collector_script", side_effect=execute),
+                ):
+                    step = {"operation": "stat", "path_space": "collector", "path": path}
+                    result = inspect_source_step(None, candidate(), {"values": {}}, {}, [], 7, step, {})
+                    self.assertEqual(result["evidence"]["error"], expected)
 
     def test_source_step_executes_fixed_script_and_returns_path_metadata(self):
+        import os
         import subprocess
         import tempfile
         from pathlib import Path
@@ -2088,12 +2178,23 @@ class SourcePolicyTest(SimpleTestCase):
         from apps.log_admin_resource.k8s_source_step import inspect_source_step
 
         def execute(_client, _candidate, command, script):
-            self.assertEqual(command, ["/bin/sh", "-s", "--", "readlink", str(root / "logs")])
-            result = subprocess.run(command, input=script, capture_output=True, text=True, timeout=15, check=True)
+            self.assertEqual(command, ["/bin/sh", "-s"])
+            result = subprocess.run(
+                command,
+                input=script,
+                env=dict(os.environ, PATH=f"{root}:{os.environ['PATH']}"),
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=True,
+            )
             return result.stdout, result.stderr, result.returncode
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp).resolve()
+            clock = root / "date"
+            clock.write_text("#!/bin/sh\nprintf '%s\\n' 2010-01-02T03:04:05.123456Z\n")
+            clock.chmod(0o755)
             (root / "logs").symlink_to("/volume/demo")
             with (
                 patch("apps.log_admin_resource.k8s_source_step.source_policy") as policy,
@@ -2113,6 +2214,7 @@ class SourcePolicyTest(SimpleTestCase):
             self.assertNotIn("pod_uid", result["evidence"])
             self.assertEqual(result["status"], "success")
             observation = result["evidence"]["observation"]
+            self.assertEqual(observation["sampled_at"], "2010-01-02T03:04:05.123456Z")
             self.assertEqual(observation["target"], "/volume/demo")
             self.assertEqual(observation["inode"], (root / "logs").lstat().st_ino)
             self.assertEqual(result["probe_metadata"]["container"], COLLECTOR_CONTAINER_NAME)
@@ -2865,7 +2967,7 @@ class K8sInspectionWorkerTest(SimpleTestCase):
         target = {"type": "node", "node_name": "node-a"}
         step = {"operation": "stat", "path_space": "collector", "path": "/logs/missing"}
         for output, code in [
-            (("stat_unavailable\n", "", 0), "source_step_incomplete"),
+            (("2026-01-02T03:04:05.123456Z ns\nERROR source_path_not_found\n", "", 0), "source_step_incomplete"),
             (FixedProbeError("source_directory_unknown", "missing directory mapping"), "source_directory_unknown"),
             ((directory_probe_output({"operation": "stat", "path": "/"}), "", 0), "collector_identity_changed"),
         ]:

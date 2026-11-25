@@ -5,8 +5,8 @@ import hashlib
 import json
 import posixpath
 import re
+import shlex
 import stat
-from datetime import datetime, timezone
 from pathlib import Path
 
 from apps.log_admin_resource.collector_directory_evidence import decode_directory_step
@@ -216,13 +216,13 @@ def inspect_source_step(client, candidate, parsed, target, expected, data_id, re
     shell_observation = {}
     if native and request["operation"] != "read":
         helper = scripts.joinpath("collector_directory_step.sh").read_text()
-        command = ["/bin/sh", "-s", "--", request["operation"], request["path"]]
+        arguments = [request["operation"], request["path"]]
         if "expect" in request:
-            command.append("guarded")
-        sampled_at = datetime.now(timezone.utc).isoformat()
-        stdout, _, _ = run_collector_script(client, candidate, command, helper)
+            arguments.append("guarded")
+        script = f"set -- {shlex.join(arguments)}\n{helper}"
+        stdout, _, _ = run_collector_script(client, candidate, ["/bin/sh", "-s"], script)
         try:
-            result = decode_directory_step(stdout, policy, request, sampled_at)
+            result = decode_directory_step(stdout, policy, request)
             shell_observation = result.get("observation", {})
         except ValueError as exc:
             raise FixedProbeError("source_step_invalid_response", "incomplete collector directory evidence") from exc
@@ -235,13 +235,13 @@ def inspect_source_step(client, candidate, parsed, target, expected, data_id, re
         encoded = base64.b64encode(json.dumps([policy, request]).encode()).decode("ascii")
         if len(encoded) > 65536:
             raise FixedProbeError("source_policy_too_large", "rendered source policy exceeds the fixed argument budget")
-        helper = scripts.joinpath("collector_source_step.py").read_text()
+        python_helper = scripts.joinpath("collector_source_step.py").read_text()
         script = (
             "cd / || exit 1\n"
             "for py in /usr/bin/python3 /usr/bin/python /usr/local/bin/python3; do\n"
             '    [ -x "$py" ] || continue\n'
             f"    exec \"$py\" -E -S - {encoded} <<'BKLOG_SOURCE_STEP'\n"
-            f"{helper}\nBKLOG_SOURCE_STEP\n"
+            f"{python_helper}\nBKLOG_SOURCE_STEP\n"
             'done\nprintf \'{"error":"collector_python_unavailable"}\\n\'\nexit\n'
         )
         stdout, _, _ = run_collector_script(client, candidate, ["/bin/sh", "-s"], script)
@@ -251,9 +251,12 @@ def inspect_source_step(client, candidate, parsed, target, expected, data_id, re
             raise FixedProbeError(
                 "source_step_invalid_response", "collector file observation returned no valid JSON"
             ) from exc
-        if shell_file and result.get("error") == "collector_python_unavailable":
+        shell_fallback = shell_file and result.get("error") == "collector_python_unavailable"
+        if shell_fallback:
             result = {"observation": shell_observation, "activity": "unverified", "read_progress": "unknown"}
-        elif shell_file and not result.get("error"):
+        else:
+            helper = python_helper
+        if shell_file and not result.get("error") and not shell_fallback:
             first = result.get("first") or {}
             # A live log may grow between exec calls. Compare object identity,
             # then use the pinned samples' sizes and guards for the activity interval.

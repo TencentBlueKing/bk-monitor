@@ -39,15 +39,29 @@ def _guard(kind, policy, path, info, precision):
     return identity_guard(kind, policy, "collector", path, info)
 
 
-def decode_directory_step(output, policy, request, sampled_at):
+def decode_directory_step(output, policy, request):
     path = request["path"]
-    if "expect" in request:
+    if output.strip() == "ERROR stat_tool_unavailable":
+        return {"error": "stat_tool_unavailable", "failed_path": path}
+    header, output = output.split("\n", 1)
+    sampled_at, precision = header.split()
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z", sampled_at) or precision not in ("ns", "float"):
+        raise ValueError("invalid_sample_header")
+    if "expect" in request and not output.startswith("ERROR "):
         parent, output = output.split("\n", 1)
         parent_info = _metadata(parent)
         if request["expect"] not in {_guard("parent", policy, path, parent_info, p) for p in ("float", "ns")}:
             return {"error": "source_parent_identity_changed", "failed_path": path}
-    if output.rstrip("\n") == "stat_unavailable":
-        return {"error": "stat_unavailable", "failed_path": path}
+    if output.startswith("ERROR "):
+        error = output.rstrip("\n")[6:]
+        if error not in {
+            "source_path_not_found",
+            "source_permission_denied",
+            "source_not_directory",
+            "source_stat_failed",
+        }:
+            raise ValueError("invalid_stat_error")
+        return {"error": error, "failed_path": path}
     metadata, payload = output.split("\n", 1)
     info = _metadata(metadata)
     row = {
@@ -103,7 +117,7 @@ def decode_directory_step(output, policy, request, sampled_at):
                 non_utf8.append(name.hex())
         row.update(
             entries=entries,
-            entry_guards=[identity_guard("parent", policy, "collector", entry, info) for entry in entries],
+            entry_guards=[_guard("parent", policy, entry, info, precision) for entry in entries],
             directory_identity_verified=True,
             truncated=truncated or len(names) > 50,
         )
