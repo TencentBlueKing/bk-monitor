@@ -153,13 +153,25 @@ class CollectorNamespaceTests(SimpleTestCase):
 
 
 class NamespaceListGatewayTests(SimpleTestCase):
-    @override_settings(PAAS_API_HOST="https://gateway.example.test", ENVIRONMENT="prod")
-    def test_uses_configured_v4_gateway(self):
-        api = bkdata_access._BkDataAccessApi().list_namespaces
-        self.assertEqual(
-            api.build_actual_url({"tenant": "default"}),
-            "https://gateway.example.test/api/bk-base/prod/v4/tenants/default/namespaces",
-        )
+    @override_settings(PAAS_API_HOST="https://gateway.example.test", ENVIRONMENT="prod", ENABLE_MULTI_TENANT_MODE=True)
+    def test_gateway_and_legacy_routes(self):
+        gateway = "https://gateway.example.test/api/bk-base/prod"
+        legacy = "https://legacy.example.test/v3/access/"
+        with mock.patch.object(bkdata_access, "ACCESS_APIGATEWAY_ROOT", legacy):
+            for use_apigw in (True, False):
+                with self.subTest(use_apigw=use_apigw), self.settings(USE_APIGW=use_apigw):
+                    api = bkdata_access._BkDataAccessApi()
+                    self.assertEqual(
+                        api.list_raw_data.url, f"{gateway}/v3/access/rawdata/" if use_apigw else f"{legacy}rawdata/"
+                    )
+                    self.assertEqual(
+                        api.list_namespaces.build_actual_url({"tenant": "default"}),
+                        f"{gateway}/v4/tenants/default/namespaces",
+                    )
+                    self.assertEqual(
+                        api.get_datalink_resource.url,
+                        f"{gateway}/v4/tenants/{{tenant}}/namespaces/{{namespace}}/{{kind}}/{{name}}/",
+                    )
 
     @override_settings(PAAS_API_HOST="http://gateway.example.test", ENVIRONMENT="stage", OAUTH_COOKIES_PARAMS={})
     def test_login_ticket_only_sent_in_header(self):
