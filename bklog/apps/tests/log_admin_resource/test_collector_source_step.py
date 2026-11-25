@@ -717,6 +717,8 @@ class SourceStepTest(unittest.TestCase):
         executable = self.volume / "bkunifylogbeat"
         copyfile(sys.executable, executable)
         executable.chmod(0o700)
+        # 重命名的解释器仍需找到原安装的相对运行库和标准库。
+        (self.root / sys.platlibdir).symlink_to(Path(sys.base_prefix) / sys.platlibdir, target_is_directory=True)
         with subprocess.Popen(
             [
                 str(executable),
@@ -728,6 +730,7 @@ class SourceStepTest(unittest.TestCase):
             ],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
+            env={**os.environ, "PYTHONHOME": sys.base_prefix},
         ) as reader:
             try:
                 self.assertEqual(reader.stdout.readline(), b"ready\n")

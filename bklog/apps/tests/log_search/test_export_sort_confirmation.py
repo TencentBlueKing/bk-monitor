@@ -5,6 +5,7 @@ import gzip
 import json
 import tempfile
 from pathlib import Path
+from unittest import enterModuleContext
 from unittest.mock import Mock, patch
 
 from django.test import SimpleTestCase, TestCase
@@ -26,6 +27,11 @@ from apps.tests.log_search.test_sharded_export import build_policy, create_job
 
 
 FIELDS = [{"name": "event_time", "type": "long", "unit": "millisecond"}]
+
+
+def setUpModule():
+    enterModuleContext(patch("apps.log_search.export.scheduler.app.send_task"))
+    enterModuleContext(patch("django_redis.cache.RedisCache.lock"))
 
 
 class ExportSortTests(SimpleTestCase):
