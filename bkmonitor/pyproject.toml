@@ -17,7 +17,7 @@ dependencies = [
     "bk-monitor-base",
     "bk-notice-sdk==1.4.2",
     "bkstorages==2.0.3",
-    "blueapps==4.16rc1",
+    "blueapps==4.16rc9",
     "celery==5.4.0",
     "celery-redbeat==2.2.0",
     "confluent-kafka==2.4.0",

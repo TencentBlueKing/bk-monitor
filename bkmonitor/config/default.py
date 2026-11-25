@@ -1308,6 +1308,7 @@ DOC_HOST = "https://bk.tencent.com/docs/"
 if PLATFORM == "community" and not os.getenv("BK_DOCS_URL_PREFIX"):
     BK_DOCS_SITE_URL = DOC_HOST
 
+ESB_DISABLED = os.getenv("BKPAAS_ESB_ENABLED", "").strip().lower() == "false"
 CMDB_USE_APIGW = os.getenv("BKAPP_CMDB_USE_APIGW", "false").lower() == "true"
 CMDB_API_BASE_URL = os.getenv("BKAPP_CMDB_API_BASE_URL", "")
 CMSI_API_BASE_URL = os.getenv("BKAPP_CMSI_API_BASE_URL", "")
@@ -2070,6 +2071,9 @@ ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST = []
 
 # 用户管理web api地址
 BK_USER_WEB_API_URL = os.getenv("BK_USER_WEB_API_URL") or f"{BK_COMPONENT_API_URL}/api/bk-user-web/prod/"
+BK_USER_WEB_API_URL_FRONTEND = (
+    os.getenv("BK_USER_WEB_API_URL") or f"{BK_COMPONENT_API_URL_FRONTEND.rstrip('/')}/api/bk-user-web/prod/"
+)
 
 # GSE消息槽
 GSE_SLOT_ID = int(os.getenv("GSE_SLOT_ID", 0))

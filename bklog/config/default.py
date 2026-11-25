@@ -440,7 +440,12 @@ APIGW_MANAGERS = f"[{','.join(os.getenv('BKAPP_APIGW_MANAGERS', 'admin').split('
 # 网关名称
 BK_APIGW_NAME = os.getenv("BKAPP_APIGW_NAME", "bk-log-search")
 # APIGW 接口地址模板
+ESB_DISABLED = os.getenv("BKPAAS_ESB_ENABLED", "").strip().lower() == "false"
 BK_API_URL_TMPL = os.getenv("BKAPP_API_URL_TMPL", f"{PAAS_API_HOST}/api/{{api_name}}/")
+if ESB_DISABLED:
+    BK_API_URL_TMPL = (
+        os.getenv("BKAPP_API_URL_TMPL") or os.getenv("BK_API_URL_TMPL") or f"{PAAS_API_HOST}/api/{{api_name}}"
+    ).rstrip("/")
 BK_APIGW_JWT_PROVIDER_CLS = "apps.middleware.apigw.ApiGatewayJWTProvider"
 # APIGW 同步配置
 SYNC_APIGATEWAY_ENABLED = os.getenv("BKAPP_SYNC_APIGATEWAY_ENABLED", "on")
@@ -460,6 +465,9 @@ BK_HOT_WARM_CONFIG_URL = (
     "https://www.elastic.co/guide/en/elasticsearch/reference/master/modules-cluster.html#shard-allocation-awareness"
 )
 BK_COMPONENT_API_URL = os.environ.get("BK_COMPONENT_API_URL")
+BK_USER_WEB_API_URL_FRONTEND = (
+    os.getenv("BK_USER_WEB_API_URL") or f"{(BK_COMPONENT_API_URL or BK_PAAS_HOST).rstrip('/')}/api/bk-user-web/prod/"
+)
 DEPLOY_MODE = os.environ.get("DEPLOY_MODE", "")
 
 from iam_engine.settings import load_iam_settings, resolve_iam_gateway_url
@@ -1379,7 +1387,7 @@ ALL_TENANT_SET_ID = 1
 INITIALIZED_TENANT_LIST = [BK_APP_TENANT_ID]
 # 兼容非多租户模式
 APIGW_ENABLED = not (ENABLE_MULTI_TENANT_MODE or "test" in sys.argv)
-USE_APIGW = os.getenv("BKAPP_USE_APIGW", "false").lower() == "true"
+USE_APIGW = ESB_DISABLED or os.getenv("BKAPP_USE_APIGW", "false").lower() == "true"
 
 # 与监控统一的 NodeMan V3 环境级总开关。为 true 时强制准入，其余取值为 false 并按 DB 灰度。
 ENABLE_NODEMAN_V3 = os.getenv("BKAPP_ENABLE_NODEMAN_V3", "false").lower() == "true"

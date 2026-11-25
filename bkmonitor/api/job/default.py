@@ -28,7 +28,7 @@ class JobBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         """
         是否使用apigw
         """
-        return settings.ENABLE_MULTI_TENANT_MODE or settings.JOB_USE_APIGW
+        return settings.ESB_DISABLED or settings.ENABLE_MULTI_TENANT_MODE or settings.JOB_USE_APIGW
 
     @property
     def base_url(self):
