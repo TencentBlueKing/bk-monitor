@@ -730,7 +730,6 @@ class SourceStepTest(unittest.TestCase):
             ],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            env={**os.environ, "PYTHONHOME": sys.base_prefix},
         ) as reader:
             try:
                 self.assertEqual(reader.stdout.readline(), b"ready\n")
