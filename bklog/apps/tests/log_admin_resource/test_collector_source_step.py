@@ -726,6 +726,8 @@ class SourceStepTest(unittest.TestCase):
                 "for line in sys.stdin:\n f.read(int(line)); print('caught up')",
                 str(self.file),
             ],
+            # The renamed interpreter still needs the original installation's standard library.
+            env={**os.environ, "PYTHONHOME": sys.base_prefix},
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
         ) as reader:
