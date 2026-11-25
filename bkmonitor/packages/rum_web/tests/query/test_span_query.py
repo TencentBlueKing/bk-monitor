@@ -140,13 +140,14 @@ class TestApplyFieldSpec:
         """extra_config.hover 写入字段字典，且返回独立副本。"""
         hover = {"title": "FCP（首次内容绘制）", "description": "d", "source": {"label": "l", "url": "u"}}
         result = apply_spec({}, FieldSpec(field_name="web_vitals.fcp", extra_config={"hover": hover}))
-        assert result["hover"] == hover
-        result["hover"]["source"]["url"] = "changed"
+        assert "hover" not in result
+        assert result["extra_config"] == {"hover": hover}
+        result["extra_config"]["hover"]["source"]["url"] = "changed"
         assert hover["source"]["url"] == "u"
 
     def test_hover_not_written_when_absent(self):
         """extra_config 无 hover 时不写入。"""
-        assert "hover" not in apply_spec({}, FieldSpec(field_name="duration"))
+        assert "extra_config" not in apply_spec({}, FieldSpec(field_name="duration"))
 
     def test_returns_same_dict(self):
         """返回值与传入的 field_dict 是同一对象（原地修改）。"""

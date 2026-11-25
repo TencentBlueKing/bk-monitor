@@ -358,15 +358,16 @@ class BaseRumQuery(APMQueryFilterMixin, BaseQuery):
                 for operation in cls.FIELD_OPERATIONS[FieldTypeEnum.KEYWORD.value]
                 if operation["operator"] in cls.VIRTUAL_OPERATORS
             ]
+        extra_config: dict[str, Any] = {}
         if (layout := spec.extra_config.get("composite")) is not None:
-            field_dict["extra_config"] = {
-                "composite": {
-                    "primary": layout.get("primary", spec.get_full_field_name()),
-                    "sections": layout["sections"],
-                }
+            extra_config["composite"] = {
+                "primary": layout.get("primary", spec.get_full_field_name()),
+                "sections": layout["sections"],
             }
         if (hover := spec.extra_config.get("hover")) is not None:
-            field_dict["hover"] = deepcopy(hover)
+            extra_config["hover"] = deepcopy(hover)
+        if extra_config:
+            field_dict["extra_config"] = extra_config
         if spec.option_values is not None:
             field_dict["option_values"] = [
                 {"value": value, "alias": alias} for value, alias in spec.option_values.choices()

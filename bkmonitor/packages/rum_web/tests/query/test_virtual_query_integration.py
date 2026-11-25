@@ -174,7 +174,7 @@ def test_view_config_exposes_supported_virtual_fields(mode, expected):
     assert all(
         "virtual_config" not in field
         and "composite_config" not in field
-        and field.get("extra_config", {}).keys() <= {"composite"}
+        and field.get("extra_config", {}).keys() <= {"composite", "hover"}
         for field in fields.values()
     )
 

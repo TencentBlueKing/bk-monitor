@@ -228,9 +228,11 @@ def test_view_config_web_vitals_use_short_alias_and_hover(precomputed):
     for metric in ("lcp", "inp", "cls", "fcp", "ttfb"):
         field = fields[f"web_vitals.{metric}"]
         assert field["field_alias"] == metric.upper()
-        assert str(field["hover"]["title"]).startswith(f"{metric.upper()}（")
-        assert field["hover"]["source"]["url"] == f"https://web.dev/articles/{metric}"
-    assert "hover" not in fields["duration"]
+        hover = field["extra_config"]["hover"]
+        assert "hover" not in field
+        assert str(hover["title"]).startswith(f"{metric.upper()}（")
+        assert hover["source"]["url"] == f"https://web.dev/articles/{metric}"
+    assert "hover" not in fields["duration"].get("extra_config", {})
 
 
 def test_view_config_includes_frontend_selection_rules():
