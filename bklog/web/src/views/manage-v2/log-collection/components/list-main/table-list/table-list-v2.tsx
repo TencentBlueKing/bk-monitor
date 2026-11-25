@@ -59,6 +59,7 @@ import ClusterFilter from '@/views/retrieve-v2/search-result-panel/log-clusterin
 import '@/views/retrieve-v2/search-result-panel/log-clustering/components/finger-tools/cluster-filter.scss';
 import BklogPopover from '@/components/bklog-popover';
 import RowMoreMenu from './row-more-menu';
+import DataProcessingDialog from '../data-processing-dialog';
 import './table-list-v2.scss';
 
 const CancelToken = axios.CancelToken;
@@ -280,6 +281,8 @@ export default defineComponent({
     const router = useRouter();
     const route = useRoute();
     const showStopTypeDialog = ref(false);
+    const showDataProcessingDialog = ref(false);
+    const processingCollectorId = ref<number | string>('');
     const showCollectIssuedSlider = ref(false);
     const currentRow = ref<ITableRowData>({} as ITableRowData);
     /**
@@ -297,6 +300,7 @@ export default defineComponent({
       authGlobalInfo,
       operateHandler,
       checkCreateAuth,
+      checkCollectionManageAuth,
       spaceUid,
       bkBizId,
       isAllowedCreate,
@@ -628,7 +632,9 @@ export default defineComponent({
       if (type === 'custom_report') {
         const excludeKey = status !== 'terminated' ? 'start' : 'stop';
         return MENU_LIST.filter(
-          item => ['clean', maskingKey, 'stop', 'start', 'delete'].includes(item.key) && item.key !== excludeKey,
+          item =>
+            ['clean', 'data_processing', maskingKey, 'stop', 'start', 'delete'].includes(item.key) &&
+            item.key !== excludeKey,
         );
       }
 
@@ -1957,6 +1963,13 @@ export default defineComponent({
       // 前置校验：视觉禁用的菜单项，点击也不应执行
       if (!getOperatorCanClick(row, key)) return;
 
+      if (key === 'data_processing') {
+        if (!checkCollectionManageAuth(row)) return;
+        processingCollectorId.value = row.collector_config_id ?? '';
+        showDataProcessingDialog.value = true;
+        return;
+      }
+
       currentRow.value = row;
       // 启用
       if (key === 'start') {
@@ -2542,6 +2555,13 @@ export default defineComponent({
             on-refresh={() => {
               reloadList();
               showCollectIssuedSlider.value = false;
+            }}
+          />
+          <DataProcessingDialog
+            visible={showDataProcessingDialog.value}
+            collectorConfigId={processingCollectorId.value}
+            on-close={() => {
+              showDataProcessingDialog.value = false;
             }}
           />
           <StopTypeDialog

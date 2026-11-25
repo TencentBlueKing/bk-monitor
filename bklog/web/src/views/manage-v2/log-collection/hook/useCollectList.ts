@@ -315,6 +315,13 @@ export const useCollectList = () => {
     window.open(resolved.href, '_blank', 'noopener,noreferrer');
   };
 
+  /** 弹窗类操作复用采集项管理权限校验，不进入页面跳转。 */
+  const checkCollectionManageAuth = (row: ICollectListRowData): boolean => {
+    if (row.permission?.[authorityMap.MANAGE_COLLECTION_AUTH]) return true;
+    void getOptionApplyData(buildCollectionApplyData(authorityMap.MANAGE_COLLECTION_AUTH, row.collector_config_id));
+    return false;
+  };
+
   const operateHandler = (
     row: ICollectListRowData,
     operateType: CollectOperateType,
@@ -399,6 +406,7 @@ export const useCollectList = () => {
     isShowMaskingTemplate,
 
     checkCreateAuth,
+    checkCollectionManageAuth,
     operateHandler,
     goListPage,
   };

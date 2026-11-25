@@ -267,16 +267,22 @@ export const SETTING_FIELDS = [
 ];
 
 /**
- *  表格操作列【操作】，默认只外放：检索、编辑
-    - 日志采集 / 更多：清洗、脱敏、存储设置、克隆、停用、删除、一键检测
-    - 计算平台 / 更多：脱敏、删除
-    - 第三方 ES / 更多：脱敏、删除
-    - 自定义上报的 / 更多：清洗、脱敏、停用、删除
+ * 表格操作列【操作】，默认只外放：检索、编辑
+ * - 日志采集 / 更多：清洗、数据加工、脱敏、存储设置、克隆、启用/停用、删除
+ * - 计算平台 / 更多：脱敏、删除
+ * - 第三方 ES / 更多：脱敏、删除
+ * - 自定义上报 / 更多：清洗、数据加工、脱敏、启用/停用、删除
+ * 关联空间行不展示“更多”菜单；数据加工仅限制未完成项，不限制停用状态。
+ * 脱敏受功能开关控制，一键检测当前未启用。
  */
 export const MENU_LIST = [
   {
     label: window.$t('清洗'),
     key: 'clean',
+  },
+  {
+    label: window.$t('数据加工'),
+    key: 'data_processing',
   },
   {
     label: window.$t('脱敏'),
@@ -548,6 +554,9 @@ export const getOperatorCanClick = (row: ICollectListRowData, operateType: Colle
     case 'clone':
       // 克隆 - 无限制条件
       return true;
+    case 'data_processing':
+      // 数据加工 - 采集项已完成即可，停用状态不额外限制。
+      return isCompleted;
     case 'stop':
       // 停用 - 采集状态为"正常"、"异常"或"未知"
       return isSuccess || isFailed || isUnknown;
