@@ -8,16 +8,15 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.utils.translation import gettext_lazy as _
-
 from semconv.constants import FieldDisplayType, FieldUnit
+from semconv.rum import hover
 from semconv.rum.constants import RatingLevel
 from semconv.rum.field import FieldSpec, RatingThreshold
 from constants.otel_query import FieldTypeEnum
 
 CLS = FieldSpec(
     field_name="CLS",
-    field_alias=_("CLS（累积布局偏移）"),
+    field_alias="CLS",
     field_type=FieldTypeEnum.DOUBLE.value,
     is_real=False,
     rating_config=(
@@ -25,11 +24,12 @@ CLS = FieldSpec(
         RatingThreshold(rating=RatingLevel.NEEDS_IMPROVEMENT.value, value=0.25),
         RatingThreshold(rating=RatingLevel.POOR.value),
     ),
+    extra_config={"hover": hover.CLS},
 )
 
 INP = FieldSpec(
     field_name="INP",
-    field_alias=_("INP（交互到下一次绘制）"),
+    field_alias="INP",
     field_unit=FieldUnit.MS.value,
     field_type=FieldTypeEnum.DOUBLE.value,
     field_display_type=FieldDisplayType.DURATION.value,
@@ -39,11 +39,12 @@ INP = FieldSpec(
         RatingThreshold(rating=RatingLevel.NEEDS_IMPROVEMENT.value, value=500),
         RatingThreshold(rating=RatingLevel.POOR.value),
     ),
+    extra_config={"hover": hover.INP},
 )
 
 LCP = FieldSpec(
     field_name="LCP",
-    field_alias=_("LCP（最大内容绘制）"),
+    field_alias="LCP",
     field_unit=FieldUnit.MS.value,
     field_type=FieldTypeEnum.DOUBLE.value,
     field_display_type=FieldDisplayType.DURATION.value,
@@ -53,11 +54,12 @@ LCP = FieldSpec(
         RatingThreshold(rating=RatingLevel.NEEDS_IMPROVEMENT.value, value=4000),
         RatingThreshold(rating=RatingLevel.POOR.value),
     ),
+    extra_config={"hover": hover.LCP},
 )
 
 FCP = FieldSpec(
     field_name="FCP",
-    field_alias=_("FCP（首次内容绘制）"),
+    field_alias="FCP",
     field_unit=FieldUnit.MS.value,
     field_type=FieldTypeEnum.DOUBLE.value,
     field_display_type=FieldDisplayType.DURATION.value,
@@ -67,11 +69,12 @@ FCP = FieldSpec(
         RatingThreshold(rating=RatingLevel.NEEDS_IMPROVEMENT.value, value=3000),
         RatingThreshold(rating=RatingLevel.POOR.value),
     ),
+    extra_config={"hover": hover.FCP},
 )
 
 TTFB = FieldSpec(
     field_name="TTFB",
-    field_alias=_("TTFB（首字节耗时）"),
+    field_alias="TTFB",
     field_unit=FieldUnit.MS.value,
     field_type=FieldTypeEnum.DOUBLE.value,
     field_display_type=FieldDisplayType.DURATION.value,
@@ -81,4 +84,5 @@ TTFB = FieldSpec(
         RatingThreshold(rating=RatingLevel.NEEDS_IMPROVEMENT.value, value=1800),
         RatingThreshold(rating=RatingLevel.POOR.value),
     ),
+    extra_config={"hover": hover.TTFB},
 )

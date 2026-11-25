@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+from copy import deepcopy
 from functools import cached_property
 from typing import Any
 
@@ -364,6 +365,8 @@ class BaseRumQuery(APMQueryFilterMixin, BaseQuery):
                     "sections": layout["sections"],
                 }
             }
+        if (hover := spec.extra_config.get("hover")) is not None:
+            field_dict["hover"] = deepcopy(hover)
         if spec.option_values is not None:
             field_dict["option_values"] = [
                 {"value": value, "alias": alias} for value, alias in spec.option_values.choices()

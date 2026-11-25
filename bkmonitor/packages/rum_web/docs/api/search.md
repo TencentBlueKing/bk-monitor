@@ -53,6 +53,7 @@
 
 | 展示对象 | 字段路径 |
 | --- | --- |
+| Web Vitals 列表表头 | `view_config.fields[].hover` |
 | Resource、View 加载阶段 | `sections.loading_timing.data.phases[].hover` |
 | View 指标标记 | `sections.loading_timing.data.markers[].hover` |
 | View 累计里程碑 | `sections.loading_timing.data.milestones[].hover` |
@@ -242,6 +243,7 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 | option_values        | Array[OptionValue]  | 预设枚举值列表（可选，分析/候选值显示 {alias}（{value}），列表只显示 {alias}）                                             |
 | extra_config         | Object              | 可选扩展配置，`composite` 的结构见 CompositeConfig                                                         |
 | rating_config        | Array[RatingConfig] | 字段评级配置（可选，如 Web Vitals 指标的好坏评定阈值）；每个元素含 `rating`（评级标识）与 `value`（该评级的阈值上限，可选，最大/最差评级可不传 `value`） |
+| hover                | Object              | 字段说明（可选），结构见 [Hover](#12-hover)；目前仅 Web Vitals 字段返回，`field_alias` 为指标简称，完整名称见 `hover.title` |
 
 - CompositeConfig
 
