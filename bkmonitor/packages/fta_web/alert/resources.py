@@ -1444,11 +1444,15 @@ class AlertGraphQueryResource(ApiAuthResource):
         start_time = serializers.IntegerField(required=False, label="开始时间")
         end_time = serializers.IntegerField(required=False, label="结束时间")
 
-    def perform_request(self, params: dict):
-        alert = AlertDocument.get(params["id"])
+    def get_graph_query_params(self, params: dict, alert: AlertDocument) -> dict:
         if not params.get("query_configs"):
             graph_query_config = AIOPSManager.get_graph_panel(alert, compare_function={})
-            params.update(graph_query_config["targets"][0]["data"])
+            return {**params, **graph_query_config["targets"][0]["data"]}
+        return params
+
+    def perform_request(self, params: dict):
+        alert = AlertDocument.get(params["id"])
+        params = self.get_graph_query_params(params, alert)
 
         if alert.strategy:
             item = alert.strategy["items"][0]
