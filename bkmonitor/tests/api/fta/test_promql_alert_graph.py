@@ -13,6 +13,12 @@ import pytest
 from fta_web.alert.promql import can_push_down_alert_labels, get_alert_graph_filter
 
 
+QUEUE_WAIT_RATIO = (
+    'sum(rate(queue_wait_time_sum{module="file"}[1m])) by (instance,name)'
+    '/sum(rate(queue_wait_time_count{module="file"}[1m])) by (instance,name)'
+)
+
+
 @pytest.mark.parametrize(
     ("expression", "labels", "expected"),
     [
@@ -20,24 +26,38 @@ from fta_web.alert.promql import can_push_down_alert_labels, get_alert_graph_fil
         ("(metric @ 123)", {"pod": "api1"}, True),
         ("sum by (pod)(rate(metric[5m])) > 0", {"pod": "api1"}, True),
         ("100 * sum without(instance)(metric)", {"pod": "api1"}, True),
-        ("sum by (pod)(sum without(pod)(metric))", {"pod": "api1"}, False),
-        ("sum(metric)", {"pod": "api1"}, False),
+        ("sum by (pod)(sum without(pod)(metric))", {"pod": "api1"}, True),
+        ("sum(metric)", {"pod": "api1"}, True),
+        ('sum by (pod)(label_join(m, "pod", ".", "a", "b"))', {"pod": "api1"}, False),
+        ("topk(1, metric)", {"pod": "api1"}, True),
         ("topk by (cluster)(1, metric)", {"cluster": "east"}, True),
-        ("topk by (cluster)(1, metric)", {"cluster": "east", "pod": "api1"}, False),
+        ("topk by (cluster)(1, metric)", {"cluster": "east", "pod": "api1"}, True),
         ("bottomk by (pod)(scalar(n), metric)", {"pod": "api1"}, False),
         ('label_replace(metric, "dst", "$1", "pod", "(.*)")', {"pod": "api1"}, True),
         ('label_replace(metric, "dst", "$1", "pod", "(.*)")', {"dst": "api1"}, False),
         ('label_join(metric, "dst", ".", "pod", "ns")', {"dst": "api1"}, False),
-        ('label_replace(metric, ("dst"), "$1", "pod", "(.*)")', {"pod": "api1"}, False),
-        ("a + on(pod) group_left(version) b", {"pod": "api1"}, False),
-        ("a unless b", {"pod": "api1"}, False),
-        ("rate(metric[5m:1m])", {"pod": "api1"}, False),
+        ('label_replace(metric, ("dst"), "$1", "pod", "(.*)")', {"pod": "api1"}, True),
+        ("a + on(pod) group_left(version) b", {"pod": "api1"}, True),
+        ("a unless b", {"pod": "api1"}, True),
+        ("rate(metric[5m:1m])", {"pod": "api1"}, True),
         ("absent(metric)", {"pod": "api1"}, False),
-        ("unsupported_extension(metric)", {"pod": "api1"}, False),
-        ('{job="test"}', {"pod": "api1"}, False),
+        ("unsupported_extension(metric)", {"pod": "api1"}, True),
+        ('{job="test"}', {"pod": "api1"}, True),
         ("metric", {"pod": ""}, False),
         ("metric", {"__name__": "metric"}, False),
         ("metric", {}, False),
+        (QUEUE_WAIT_RATIO, {"instance": "host1", "name": "queue1"}, True),
+        ("a / sum by (cluster)(b)", {"pod": "api1"}, True),
+        ('a / label_replace(b, "pod", "$1", "src", "(.*)")', {"pod": "api1"}, False),
+        ("a unless on(job) b", {"pod": "api1"}, False),
+        ("a / ignoring(zone) b", {"pod": "api1"}, True),
+        ("a / ignoring(pod) b", {"pod": "api1"}, False),
+        ("a * on(pod) group_left(version) b", {"version": "v2"}, False),
+        ("a * on(job) group_right b", {"pod": "api1"}, False),
+        ("a / scalar(b)", {"pod": "api1"}, False),
+        ("a / scalar(vector(2))", {"pod": "api1"}, True),
+        ('count_values by (pod)("pod", m)', {"pod": "2"}, False),
+        ('label_replace(m, ("pod"), "$1", "src", "(.*)")', {"pod": "api1"}, False),
     ],
 )
 def test_push_down(expression, labels, expected):
@@ -45,16 +65,18 @@ def test_push_down(expression, labels, expected):
 
 
 @pytest.mark.parametrize("from_panel", [False, True])
-@pytest.mark.parametrize("safe", [False, True])
-def test_alert_graph_only_queries_when_labels_can_be_pushed_down(mocker, from_panel, safe):
+@pytest.mark.parametrize(
+    ("expr", "dimensions", "safe"),
+    [
+        (QUEUE_WAIT_RATIO, {"instance": "host1", "name": "queue1"}, True),
+        ('label_replace(m,"display","$1","version","(.*)")', {"version": "v2"}, True),
+        ('label_replace(m,"version","$1","release","(.*)")', {"version": "v2"}, False),
+    ],
+)
+def test_alert_graph_only_queries_when_labels_can_be_pushed_down(mocker, from_panel, expr, dimensions, safe):
     from bkmonitor.documents import AlertDocument
     from fta_web.alert.resources import AlertGraphQueryResource
 
-    expr = (
-        'label_replace(m,"display","$1","version","(.*)")'
-        if safe
-        else 'label_replace(m,"version","$1","release","(.*)")'
-    )
     query = {
         "data_source_label": "prometheus",
         "data_type_label": "time_series",
@@ -62,21 +84,17 @@ def test_alert_graph_only_queries_when_labels_can_be_pushed_down(mocker, from_pa
         "agg_interval": 60,
         "metric_id": "prometheus.m",
     }
-    origin = {"data": {"dimension_fields": ["version"], "dimensions": {"version": "v2"}, "value": 2}}
+    origin = {"data": {"dimension_fields": list(dimensions), "dimensions": dimensions, "value": 2}}
     snapshot = {"origin_alarm": origin, "strategy": {"items": [{"query_configs": [query], "algorithms": []}]}}
     alert = AlertDocument(extra_info=snapshot, first_anomaly_time=120, event={"bk_biz_id": 2, "extra_info": snapshot})
     mocker.patch.object(AlertDocument, "get", return_value=alert)
     graph = mocker.patch(
         "fta_web.alert.resources.resource.grafana.graph_unify_query",
-        return_value={
-            "series": [
-                {"dimensions": {"version": v}, "datapoints": [[2, 120000]], "metric_field": "_result_"} for v in ["v2"]
-            ]
-        },
+        return_value={"series": [{"dimensions": dimensions, "datapoints": [[2, 120000]], "metric_field": "_result_"}]},
     )
     params = {"id": 42, "bk_biz_id": 2, "start_time": 60, "end_time": 180}
     if from_panel:
-        params["query_configs"] = [{**query, "promql": expr.replace("$1", "null"), "filter_dict": {"version": "v2"}}]
+        params["query_configs"] = [{**query, "promql": expr.replace("$1", "null"), "filter_dict": dict(dimensions)}]
     result = AlertGraphQueryResource().perform_request(params)
     if not safe:
         graph.assert_not_called()
@@ -84,8 +102,8 @@ def test_alert_graph_only_queries_when_labels_can_be_pushed_down(mocker, from_pa
         return
     sent = graph.call_args.args[0]["query_configs"][0]
     assert sent["promql"] == expr
-    assert sent["filter_dict"] == {"version": "v2"}
-    assert [row["dimensions"] for row in result["series"]] == [{"version": "v2"}]
+    assert sent["filter_dict"] == dimensions
+    assert [row["dimensions"] for row in result["series"]] == [dimensions]
     assert result["series"][0]["markPoints"] == [[2, 120000]]
 
 
@@ -111,7 +129,8 @@ def test_non_promql_graph_keeps_filters_and_series(mocker):
         (["pod", "missing"], "metric", None),
         (["pod", "__NO_DATA_DIMENSION__"], "metric", None),
         ([], "metric", None),
-        (["pod", "version"], "topk by (pod)(1, metric)", None),
+        (["pod", "version"], "topk by (pod)(1, metric)", {"pod": "p", "version": "v2"}),
+        (["pod", "version"], "bottomk(1, metric)", {"pod": "p", "version": "v2"}),
     ],
 )
 def test_alert_detail_visibility(mocker, fields, expression, expected):

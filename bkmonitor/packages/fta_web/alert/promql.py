@@ -14,77 +14,55 @@ from bkmonitor.documents import AlertDocument
 from bkmonitor.models import NO_DATA_TAG_DIMENSION
 from constants.data_source import DataSourceLabel
 
-WINDOW_FUNCTIONS = {
-    "rate",
-    "irate",
-    "increase",
-    "delta",
-    "idelta",
-    "changes",
-    "resets",
-    "sum_over_time",
-    "avg_over_time",
-    "min_over_time",
-    "max_over_time",
-    "count_over_time",
-    "last_over_time",
-}
-GROUP_AGGREGATIONS = {"sum", "avg", "count", "min", "max", "group", "stddev", "stdvar"}
+
+def _label_name(arg) -> str | None:
+    while isinstance(arg, promql.ParenExpr):
+        arg = arg.expr
+    return arg.val if isinstance(arg, promql.StringLiteral) else None
 
 
 def can_push_down_alert_labels(expression: str, labels: dict) -> bool:
-    """只有全部告警标签都能逐层穿过表达式到达同一个指标时，才向输入追加 matcher。"""
+    """默认允许前过滤，仅拦截会改变告警维度或其计算范围的操作。"""
     if not labels or any(
         key.startswith("__") or key in {"targets", "rank", "cookies"} or value in (None, "", "undefined")
         for key, value in labels.items()
     ):
         return False
     try:
-        node = promql.parse(expression)
+        expr = promql.parse(expression)
     except ValueError:
-        # 统一查询支持扩展语法，本地无法判定时不展示告警图。
-        return False
+        # 统一查询支持扩展语法，本地无法解析时保留原查询行为。
+        return True
 
-    while True:
-        if isinstance(node, promql.VectorSelector):
-            return bool(node.name) and not node.matchers.or_matchers
-        if isinstance(node, promql.ParenExpr):
-            node = node.expr
-        elif isinstance(node, promql.AggregateExpr):
-            operator = str(node.op)
-            if operator in {"topk", "bottomk"}:
-                if not isinstance(node.param, promql.NumberLiteral):
-                    return False
-            elif operator not in GROUP_AGGREGATIONS:
-                return False
+    def allows_filter(node) -> bool:
+        if isinstance(node, promql.AggregateExpr) and str(node.op) == "count_values":
+            return _label_name(node.param) not in labels
 
-            grouping = node.modifier
-            if grouping is None:
+        if isinstance(node, promql.BinaryExpr) and node.modifier:
+            modifier = node.modifier
+            # group_left / group_right 可以从一侧复制标签，不能拿复制出的标签过滤另一侧。
+            if not labels.keys().isdisjoint(modifier.group_labels or []):
                 return False
-            if grouping.type == promql.AggModifierType.By:
-                if not labels.keys() <= set(grouping.labels):
-                    return False
-            elif not labels.keys().isdisjoint(grouping.labels):
+            matching = modifier.matching
+            if matching:
+                if matching.type == promql.LabelModifierType.Include:
+                    return labels.keys() <= set(matching.labels)
+                return labels.keys().isdisjoint(matching.labels)
+
+        if isinstance(node, promql.Call):
+            name = node.func.name
+            if name in {"label_replace", "label_join"}:
+                return _label_name(node.args[1]) not in labels
+            if name in {"absent", "absent_over_time", "info"}:
                 return False
-            node = node.expr
-        elif isinstance(node, promql.Call):
-            args = node.args
-            if node.func.name in WINDOW_FUNCTIONS and isinstance(args[0], promql.MatrixSelector):
-                node = args[0].vector_selector
-            elif (
-                node.func.name in {"label_replace", "label_join"}
-                and isinstance(args[1], promql.StringLiteral)
-                and args[1].val not in labels
-            ):
-                node = args[0]
-            else:
+            if name == "scalar":
+                # 动态标量依赖整个输入向量，提前缩小它会改变其他序列使用的值。
+                return promql.walk(node.args[0], lambda arg: not isinstance(arg, promql.VectorSelector))
+            if name in {"histogram_quantile", "histogram_fraction"} and "le" in labels:
                 return False
-        elif isinstance(node, promql.BinaryExpr) and isinstance(node.lhs, promql.NumberLiteral):
-            node = node.rhs
-        elif isinstance(node, promql.BinaryExpr) and isinstance(node.rhs, promql.NumberLiteral):
-            node = node.lhs
-        else:
-            return False
+        return True
+
+    return promql.walk(expr, allows_filter)
 
 
 def get_alert_graph_filter(alert: AlertDocument) -> dict[str, str] | None:
