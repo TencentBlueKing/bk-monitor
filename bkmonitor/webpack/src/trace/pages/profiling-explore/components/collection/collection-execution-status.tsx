@@ -69,7 +69,6 @@ export default defineComponent({
       <span class='collection-execution-status'>
         <Popover
           disabled={!this.message}
-          placement='top'
           theme='collection-execution-status'
         >
           {{
