@@ -447,6 +447,7 @@ export default {
     'The positioning at the panel level of the dashboard requires a certain amount of time to synchronize. If necessary, please click',
 
   // 告警中心
+  '当前 PromQL 无法按本条告警的维度组合过滤': 'This PromQL query cannot filter by this alert’s dimension combination.',
   'PromQL 策略暂时不支持维度分析': 'PromQL strategies do not support dimension analysis',
   异常点: 'Abnormal point',
 

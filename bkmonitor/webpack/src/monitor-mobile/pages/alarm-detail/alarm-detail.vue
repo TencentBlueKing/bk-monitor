@@ -35,6 +35,12 @@
       :series="series"
       @click="handleGoChart"
     />
+    <div
+      v-else-if="eventDetail.dataTypeLabel === 'time_series' && eventDetail.hideGraph"
+      class="alarm-detail-chart-empty"
+    >
+      {{ $t('当前 PromQL 无法按本条告警的维度组合过滤') }}
+    </div>
     <!-- tag -->
     <van-row
       class="alarm-detail-tag"
@@ -388,6 +394,16 @@ export default class AlarmDetail extends Vue {
 
   &-chart {
     padding-top: 1.5rem;
+  }
+
+  &-chart-empty {
+    display: grid;
+    min-height: 210px;
+    padding: 0 16px;
+    color: #63656e;
+    text-align: center;
+    background: #f0f1f5;
+    place-items: center;
   }
 
   &-tag {

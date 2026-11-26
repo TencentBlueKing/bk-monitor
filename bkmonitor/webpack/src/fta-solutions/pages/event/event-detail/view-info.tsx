@@ -619,7 +619,15 @@ export default class ViewInfo extends tsc<IViewInfoProp> {
   render() {
     return (
       <div class={['event-detail-viewinfo', { displaynone: !this.show }]}>
-        {!this.detail.hide_graph && this.getSeriesViewComponent()}
+        {this.detail.hide_graph ? (
+          <div class='series-view-container series-view-empty'>
+            <bk-exception type='empty' scene='part'>
+              <span>{this.$t('当前 PromQL 无法按本条告警的维度组合过滤')}</span>
+            </bk-exception>
+          </div>
+        ) : (
+          this.getSeriesViewComponent()
+        )}
         {this.getShowSourceLogData ? this.getSourceLogComponent() : undefined}
       </div>
     );

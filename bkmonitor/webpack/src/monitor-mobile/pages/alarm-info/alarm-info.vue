@@ -111,11 +111,13 @@
             </div>
           </div>
           <div
-            v-if="item.dataTypeLabel === 'time_series' && !item.hideGraph"
+            v-if="item.dataTypeLabel === 'time_series'"
             class="card-content-right"
             @click.stop
           >
+            <span v-if="item.hideGraph" class="card-chart-empty">{{ $t('当前 PromQL 无法按本条告警的维度组合过滤') }}</span>
             <monitor-mobile-echarts
+              v-else
               height="70"
               class="card-chart"
               :get-series-data="() => handleGetChartData(item)"
@@ -505,6 +507,16 @@ $statusList: 'abnormal' 'shield_abnormal' 'closed' 'recovered';
             margin-bottom: 2px;
             color: $defaultFontColor;
           }
+        }
+
+        .card-chart-empty {
+          display: grid;
+          width: 88px;
+          min-height: 70px;
+          font-size: 12px;
+          color: #63656e;
+          text-align: center;
+          place-items: center;
         }
 
         &-right {

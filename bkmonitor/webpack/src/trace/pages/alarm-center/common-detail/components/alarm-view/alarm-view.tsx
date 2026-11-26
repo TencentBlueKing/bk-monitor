@@ -25,7 +25,7 @@
  */
 import { type PropType, defineComponent, KeepAlive, shallowRef } from 'vue';
 
-import { Tab } from 'bkui-vue';
+import { Exception, Tab } from 'bkui-vue';
 
 import AlarmRecords from './alarm-records';
 import DimensionAnalysis from './dimension-analysis';
@@ -72,13 +72,22 @@ export default defineComponent({
   render() {
     return (
       <div class='alarm-view'>
-        {this.detail && !this.detail.hide_graph && (
+        {this.detail && (
           <div class='alarm-view-chart-wrapper'>
-            <AlarmCharts
-              bizId={this.bizId}
-              defaultTimeRange={this.defaultTimeRange}
-              detail={this.detail}
-            />
+            {this.detail.hide_graph ? (
+              <Exception
+                class='alarm-chart-empty'
+                description={this.$t('当前 PromQL 无法按本条告警的维度组合过滤')}
+                scene='part'
+                type='empty'
+              />
+            ) : (
+              <AlarmCharts
+                bizId={this.bizId}
+                defaultTimeRange={this.defaultTimeRange}
+                detail={this.detail}
+              />
+            )}
           </div>
         )}
         <div class='alarm-view-tab'>
