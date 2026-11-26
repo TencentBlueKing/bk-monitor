@@ -137,7 +137,7 @@ def test_secret_write_and_duplicate_cleanup_use_same_namespace_and_are_idempoten
     ClusterConfig.deploy_to_k8s_with_hash("cluster-a", "public-1", {101: "first"}, "apm")
     secret = next(iter(secrets.values()))
     secret.data["application-999.conf"] = _encode("unrelated")
-    clean.assert_called_once_with("cluster-a", "public-1", "apm")
+    clean.assert_called_once_with("cluster-a", "public-1", "apm", check_lease=None)
 
     kube.client_request.reset_mock()
     ClusterConfig.deploy_to_k8s_with_hash("cluster-a", "public-1", {101: "first"}, "apm")
@@ -173,7 +173,7 @@ def test_secret_list_failure_keeps_existing_fallback_behavior(mocker, list_resul
     clean = mocker.patch.object(ClusterConfig, "clean_dup_secrets")
     ClusterConfig.deploy_to_k8s_with_hash("cluster-a", "public-1", {101: "first"}, "apm")
     assert kube.client_request.call_args.args[0] is kube.core_api.create_namespaced_secret
-    clean.assert_called_once_with("cluster-a", "public-1", "apm")
+    clean.assert_called_once_with("cluster-a", "public-1", "apm", check_lease=None)
 
 
 @pytest.mark.parametrize("platform", [False, True])
@@ -361,7 +361,7 @@ def test_custom_report_global_batch_and_business_batch_are_separate(protocol, mu
 
 
 def test_failed_target_does_not_clean_or_block_other_targets(multi_target_delivery, mocker):
-    def deploy(cluster_id, namespace, configs, protocol):
+    def deploy(cluster_id, namespace, configs, protocol, *, check_lease=None):
         if namespace == "public-1":
             raise RuntimeError("unavailable target")
 

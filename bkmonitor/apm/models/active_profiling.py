@@ -92,6 +92,9 @@ class ActiveProfilingExecution(models.Model):
     schedule_type = models.CharField("执行方式", max_length=16)
     # 计划执行为计划 ID，立即执行为本行 id；改造前上报的立即执行没有 task_id，写 0，不用 NULL 以免唯一索引失效
     task_id = models.IntegerField("任务 ID", default=0)
+    # 从计划点立即执行时记录该计划 ID，按计划筛选执行时一并命中；立即执行的 task_id 是本行 id，不能用来关联计划。
+    # 其余执行为空，BMW 不写这一列，所以可空
+    source_task_id = models.IntegerField("触发计划 ID", null=True)
     scheduled_at = models.BigIntegerField("执行计划时间")
     task_name = models.CharField("任务名称", max_length=128)
     creator = models.CharField("创建人", max_length=128)
@@ -150,6 +153,8 @@ class ActiveProfilingHostExecution(models.Model):
     process_names = models.TextField("进程名", default="")
     process_pids = models.TextField("进程 PID", default="")
     processes = models.JSONField("采集进程", default=list)
+    # SaaS 受理取消时写入的操作人，Event 里没有，BMW 不写这一列，所以可空；采集端自行结束为 cancelled 的没有取消人
+    cancelled_by = models.CharField("取消人", max_length=128, null=True)
     # 当前生效 Event 的上报时间，用于判断后到的同阶段 Event 是否更新；占位行为 0
     event_time = models.BigIntegerField("生效 Event 时间")
     unknown_at = models.BigIntegerField("转为 unknown 的时间", null=True)

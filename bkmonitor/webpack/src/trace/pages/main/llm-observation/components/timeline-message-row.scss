@@ -193,18 +193,12 @@
   }
 
   &-pairs {
-    // flex-basis 取 0 保留「最多分到剩余宽度一半」的诉求；max-content 再把左侧钳到内容自然宽度，
-    // 内容短时按内容浮动、省下的宽度由右侧 flex:1 吸收，内容长时仍停在原平分的一半
     flex: 1 1 0;
     gap: 4px;
     min-width: 0;
     overflow: hidden;
 
     @include flex-align(center);
-
-    &:not(.is-empty) {
-      max-width: max-content;
-    }
 
     // 空参数占位：容器按内容收缩且不参与收缩，保证「--」不被右侧长内容挤压隐藏，
     // 剩余宽度全部让给右侧
@@ -215,9 +209,30 @@
   }
 
   &-result {
-    // 吸收左侧按内容收缩后让出的宽度；左侧撑满一半时与左侧对半分
+    // 吸收输入侧按内容收缩后让出的剩余宽度
     flex: 1 1 0;
     min-width: 0;
+  }
+
+  // 双侧：输入按自然宽度排布、最多半宽，输出紧挨其后。
+  // 能否放下由 availableWidth（io 半宽）判断，不能按自身截断后的宽度回算。
+  &-io:not(.is-single-side) > &-pairs:not(.is-empty):not(&-result) {
+    flex: 0 1 auto;
+    width: max-content;
+    max-width: 50%;
+
+    .llm-span-io-kvs,
+    .llm-timeline-row-pairs-text {
+      flex: 0 1 auto;
+      width: max-content;
+      max-width: 100%;
+    }
+  }
+
+  // 只有输入或只有输出时，该侧可占满父容器剩余宽度。
+  // 返回侧同时带 -pairs 类，故此处一并覆盖。
+  &-io.is-single-side &-pairs:not(.is-empty) {
+    max-width: 100%;
   }
 
   &-pairs-text {
@@ -408,6 +423,12 @@
 
   &:hover {
     background: #f7f9fc;
+  }
+
+  // 矩阵工具行定位命中：与 Span 行高亮保持一致，背景落在可见行上
+  &.is-highlighted .llm-timeline-row-main {
+    background: #f0f5ff;
+    box-shadow: inset 2px 0 0 $primary-color;
   }
 
   &.is-tool:hover .llm-timeline-row-actions {

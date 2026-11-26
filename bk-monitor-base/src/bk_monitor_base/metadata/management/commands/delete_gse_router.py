@@ -6,6 +6,7 @@ from django.db.models import Q
 from bk_monitor_base.infras import third_party_api as api
 from bk_monitor_base.infras.constant import DEFAULT_TENANT_ID
 from bk_monitor_base.infras.third_party_api.errors import BkApiError
+from bk_monitor_base.infras.third_party_api.user.api import single_tenant_backend_username
 from bk_monitor_base.metadata import config, models
 from bk_monitor_base.metadata.config import settings
 from bk_monitor_base.metadata.utils import consul
@@ -63,7 +64,10 @@ class Command(BaseCommand):
                 api.gse.delete_route(
                     bk_tenant_id=DEFAULT_TENANT_ID,
                     condition={"channel_id": data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
-                    operation={"operator_name": settings.blueking.common_username, "method": "all"},
+                    operation={
+                        "operator_name": single_tenant_backend_username(settings.blueking.common_username),
+                        "method": "all",
+                    },
                 )
                 successful_data_ids_list.append(data_id)
             except BkApiError:

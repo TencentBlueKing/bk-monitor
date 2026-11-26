@@ -2601,6 +2601,11 @@ class IssueSearchResource(Resource):
         return result
 
 
+# 单次归属校验允许拼接的天索引数量上限。索引名约 25 字节，30 个约 800 字节，
+# 远低于 ES 的 http.max_initial_line_length（默认 4KB）；超过则退回全索引通配。
+MAX_DAY_INDEXES_PER_QUERY = 30
+
+
 class IssueTrendResource(Resource):
     """按指定 Issue ID 批量查询趋势。"""
 
@@ -2625,16 +2630,7 @@ class IssueTrendResource(Resource):
     def perform_request(self, validated_request_data: dict) -> dict:
         bk_biz_ids = list(dict.fromkeys(validated_request_data["bk_biz_ids"]))
         requested_ids = list(dict.fromkeys(validated_request_data["issue_ids"]))
-        hits = (
-            IssueDocument.search(all_indices=True)
-            .filter("terms", _id=requested_ids)
-            .filter("terms", bk_biz_id=bk_biz_ids)
-            .source(False)
-            .params(size=len(requested_ids))
-            .execute()
-            .hits
-        )
-        allowed_ids = {hit.meta.id for hit in hits}
+        allowed_ids = self._get_allowed_issue_ids(requested_ids, bk_biz_ids)
         issue_ids = [issue_id for issue_id in requested_ids if issue_id in allowed_ids]
         if not issue_ids:
             return {}
@@ -2645,6 +2641,84 @@ class IssueTrendResource(Resource):
             trend_end_time=validated_request_data["trend_end_time"],
         )
         return handler.get_alert_trend(issue_ids)
+
+    @staticmethod
+    def _get_allowed_issue_ids(requested_ids: list[str], bk_biz_ids: list[int]) -> set[str]:
+        """返回 requested_ids 中确实属于 bk_biz_ids 的 id 集合（Issue 归属校验）。
+
+        性能说明：Issue 索引按天拆分（写索引 `write_YYYYMMDD_bkfta_issue`），写索引由
+        `IssueDocument.get_index_time()`（优先 create_time）决定，而 issue_id 内嵌的正是
+        create_time，因此可由 id 直接定位到天索引，把查询范围从 `bkfta_issue_*_read`
+        的全部历史索引收敛到 1~N 个。
+
+        功能说明：
+        1. `terms bk_biz_id` 条件不可省略 —— 它就是归属校验本身。去掉后其他业务的
+           Issue 也会通过校验，响应中会多出这些 ID 的全零曲线。
+        2. 天索引未命中的 id 会合并成**一次**全索引通配补查。这样以下漏查都能找回：
+           文档实际落在别的日期索引（迁移/回填）、该日读别名已被 ILM 清理（保留期
+           曾被调小、或轮转时同一物理索引累积了多种日期别名）、以及别名按天 00:00
+           过期与 id 精确时间戳之间的边界差。补查同样带 `bk_biz_id`，跨业务的 id
+           补查后仍是丢弃；最坏耗时约等于改造前（一次天索引 + 一次通配）。
+        """
+        day_indexes: list[str] = []
+        parseable_ids: list[str] = []
+        unparsable_ids: list[str] = []
+        for issue_id in requested_ids:
+            try:
+                timestamp = IssueDocument.parse_timestamp_by_id(issue_id)
+            except Exception:
+                # 正常请求不会进入该分支：IssueIDField 已在序列化层校验 id 可解析。
+                # 保留仅为防御内部调用绕过序列化校验的场景，此时退回全索引查询。
+                unparsable_ids.append(issue_id)
+                continue
+            parseable_ids.append(issue_id)
+            day_indexes.append(IssueDocument.build_read_index_name_by_timestamp(timestamp))
+
+        unique_day_indexes = sorted(set(day_indexes))
+        allowed_ids: set[str] = set()
+        if unique_day_indexes and len(unique_day_indexes) <= MAX_DAY_INDEXES_PER_QUERY:
+            allowed_ids = IssueTrendResource._query_allowed_ids(parseable_ids, bk_biz_ids, index=unique_day_indexes)
+        elif unique_day_indexes:
+            # 极端场景：id 横跨过多天索引，索引名列表会把 URL 撑超 ES 的
+            # http.max_initial_line_length（默认 4KB，约 150 个索引名）。
+            # 此时直接走一次全索引通配，行为与改造前一致。
+            logger.warning(
+                "[issue-trend] issue ids span %d day indices, fallback to all indices (bk_biz_ids=%s)",
+                len(unique_day_indexes),
+                bk_biz_ids,
+            )
+            return IssueTrendResource._query_allowed_ids(sorted(set(requested_ids)), bk_biz_ids)
+
+        # 未命中不等于"无权限"，见上面功能说明第 2 点；合并成一次补查，每请求最多一次。
+        unmatched_ids = [issue_id for issue_id in parseable_ids if issue_id not in allowed_ids]
+        unmatched_ids.extend(unparsable_ids)
+        if unmatched_ids:
+            logger.warning(
+                "[issue-trend] %d/%d issue ids unmatched in day indices, fallback to all indices, bk_biz_ids=%s",
+                len(unmatched_ids),
+                len(requested_ids),
+                bk_biz_ids,
+            )
+            allowed_ids |= IssueTrendResource._query_allowed_ids(sorted(set(unmatched_ids)), bk_biz_ids)
+        return allowed_ids
+
+    @staticmethod
+    def _query_allowed_ids(ids: list[str], bk_biz_ids: list[int], index: list[str] | None = None) -> set[str]:
+        """按 `_id` + `bk_biz_id` 查询命中的 Issue id 集合。
+
+        `bk_biz_id` 条件不可省略 —— 它就是归属校验本身，去掉会让其他业务的 Issue 通过。
+        `index` 为空时查全索引通配（`bkfta_issue_*_read`）。
+        """
+        search = IssueDocument.search(index=index) if index else IssueDocument.search(all_indices=True)
+        hits = (
+            search.filter("terms", _id=ids)
+            .filter("terms", bk_biz_id=bk_biz_ids)
+            .source(False)
+            .params(size=len(ids))
+            .execute()
+            .hits
+        )
+        return {hit.meta.id for hit in hits}
 
 
 class IssueDetailResource(Resource):

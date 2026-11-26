@@ -55,11 +55,25 @@ export function formatSecondCount(value: number): string {
   return String(Math.round(value * 100) / 100);
 }
 
+/** Token 压缩单位表，按阈值从大到小匹配（1e6 → m，1e3 → k） */
+const TOKEN_UNITS: [number, string][] = [
+  [1e6, 'm'],
+  [1e3, 'k'],
+];
+
 /**
- * @description 将 Token 数量格式化为千分位文本
+ * @description 将 Token 数量格式化为 14.2m / 42k，不足 1000 时原样输出
  */
-export function formatTokenCount(value: number): string {
-  return value.toLocaleString('en-US');
+export function formatCompactToken(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '0';
+  for (const [threshold, unit] of TOKEN_UNITS) {
+    if (value >= threshold) {
+      const compact = value / threshold;
+      const text = Number.isInteger(compact) ? `${compact}` : compact.toFixed(1).replace(/\.0$/, '');
+      return `${text}${unit}`;
+    }
+  }
+  return `${value}`;
 }
 
 /**

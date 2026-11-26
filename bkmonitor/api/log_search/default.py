@@ -116,7 +116,7 @@ class LogSearchAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
             return settings.BKLOGSEARCH_API_BASE_URL or settings.BKLOGSEARCH_API_GW_BASE_URL
 
         # 多租户模式下，使用bk-log-search的apigw地址
-        if settings.ENABLE_MULTI_TENANT_MODE:
+        if settings.ESB_DISABLED or settings.ENABLE_MULTI_TENANT_MODE:
             return f"{settings.BK_COMPONENT_API_URL}/api/bk-log-search/prod/"
         else:
             return f"{settings.BK_COMPONENT_API_URL}/api/c/compapi/v2/bk_log/"

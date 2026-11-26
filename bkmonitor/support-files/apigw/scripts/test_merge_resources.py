@@ -707,7 +707,7 @@ if __name__ == "__main__":
 
 
 def test_personal_tokens_are_opted_in_and_survive_merge(tmp_path):
-    """Personal authentication must remain user-scoped and never opt in mutations implicitly."""
+    """Keep personal authentication user-scoped and require explicit review of export opt-ins."""
     import shutil
 
     registry_path = _SCRIPT.parents[3] / "kernel_api/unified_mcp/registry.py"
@@ -727,6 +727,7 @@ def test_personal_tokens_are_opted_in_and_survive_merge(tmp_path):
     shutil.copytree(_RESOURCES_DIR, tmp_path / "resources")
     merge_resources_func(tmp_path / "resources")
     merged = yaml.safe_load((tmp_path / "resources.yaml").read_text())["paths"]
+    personal_token_exports = {"export_profile_pprof"}
     enabled = set()
     for path, methods in merged.items():
         if not path.startswith("/mcp/"):
@@ -738,7 +739,16 @@ def test_personal_tokens_are_opted_in_and_survive_merge(tmp_path):
             name = operation["operationId"]
             assert config["userVerifiedRequired"] is True
             assert config["appVerifiedRequired"] is False
-            assert not {"mutation", "task", "export"}.intersection(capabilities.get(aliases.get(name, name), ()))
+            operation_capabilities = set(capabilities.get(aliases.get(name, name), ()))
+            assert not {"mutation", "task"}.intersection(operation_capabilities)
+            if name in personal_token_exports:
+                assert "export" in operation_capabilities
+                assert config["resourcePermissionRequired"] is True
+                schema = operation["requestBody"]["content"]["application/json"]["schema"]
+                assert "confirm" in schema["required"]
+                assert schema["properties"]["confirm"]["enum"] == [True]
+            else:
+                assert "export" not in operation_capabilities
             enabled.add(name)
     assert {
         "search_logs",
@@ -748,6 +758,7 @@ def test_personal_tokens_are_opted_in_and_survive_merge(tmp_path):
         "lookup_tool_schema",
         "lookup_permissions",
         "lookup_metadata",
+        *personal_token_exports,
     } <= enabled
     assert "execute_tool" not in enabled
 
@@ -758,7 +769,7 @@ def test_independent_user_directory_is_public_personal_only_and_excludes_interna
     from kernel_api.user_api import USER_API_TAG, build_user_api_paths
 
     aliases = build_user_api_paths(_RESOURCES_DIR / "internal/user")
-    assert len(aliases) == 101
+    assert len(aliases) == 106
     assert not any(
         path in aliases
         for filename in ("operation_mcp.yaml", "ops_mcp.yaml", "openclaw_recovering_mcp.yaml")
@@ -791,7 +802,7 @@ def test_independent_user_directory_is_public_personal_only_and_excludes_interna
             assert resource["backend"]["method"] == method
             assert resource["matchSubpath"] is False
             assert resource["backend"]["matchSubpath"] is False
-    assert len(set(names)) == 101
+    assert len(set(names)) == 106
 
 
 def test_shared_read_backends_move_only_mcp_resources(tmp_path):
@@ -818,6 +829,21 @@ def test_shared_read_backends_move_only_mcp_resources(tmp_path):
         ),
         "list_apm_services": ("post", "/app/apm/service/service_list/", "/api/v4/service_web/service_list/"),
         "calculate_by_range": ("post", "/app/apm/calculate_by_range/", "/api/v4/apm_metric_web/calculate_by_range/"),
+        "llm_search_traces": ("post", "/app/apm/list_llm_traces/", "/api/v4/apm_llm_web/list_traces/"),
+        "llm_search_flows": ("post", "/app/apm/list_llm_flows/", "/api/v4/apm_llm_web/list_flows/"),
+        "llm_search_spans": ("post", "/app/apm/list_llm_spans/", "/api/v4/apm_llm_web/list_spans/"),
+        "llm_calculate_by_range": (
+            "post",
+            "/app/apm/llm_calculate_by_range/",
+            "/api/v4/apm_llm_web/calculate_by_range/",
+        ),
+    }
+    operation_ids = {
+        "calculate_by_range": "apm_mcp_calculate_by_range",
+        "llm_search_traces": "llm_mcp_search_traces",
+        "llm_search_flows": "llm_mcp_search_flows",
+        "llm_search_spans": "llm_mcp_search_spans",
+        "llm_calculate_by_range": "llm_mcp_calculate_by_range",
     }
     shutil.copytree(_RESOURCES_DIR, tmp_path / "resources")
     merge_resources_func(tmp_path / "resources")
@@ -840,12 +866,13 @@ def test_shared_read_backends_move_only_mcp_resources(tmp_path):
         assert app["authConfig"]["appVerifiedRequired"] is True
         assert app["authConfig"]["userVerifiedRequired"] is False
         assert app["authConfig"]["resourcePermissionRequired"] is True
-        assert user["backend"]["path"] == "/api/v4/mcp/" + name + "/"
+        backend_name = name if name == "calculate_by_range" else operation_ids.get(name, name)
+        assert user["backend"]["path"] == "/api/v4/mcp/" + backend_name + "/"
         assert user["authConfig"]["userVerifiedRequired"] is True
         assert user["authConfig"]["oauth2PersonalClientEnabled"] is True
         assert user["authConfig"]["resourcePermissionRequired"] is True
         assert user["matchSubpath"] is False and user["backend"]["matchSubpath"] is False
-        assert user_operation["operationId"] == ("apm_mcp_calculate_by_range" if name == "calculate_by_range" else name)
+        assert user_operation["operationId"] == operation_ids.get(name, name)
     # The two ops MCP overlaps are intentionally unchanged and remain user-only.
     assert app_backends & set(mcp_backends.values()) == {
         ("get", "/api/v3/meta/query_data_link_metadata/"),

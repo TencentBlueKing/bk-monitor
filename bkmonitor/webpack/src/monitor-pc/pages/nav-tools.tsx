@@ -332,6 +332,27 @@ class NavTools extends DocumentLinkMixin {
     if (item.id === docCookies.getItem(LANGUAGE_COOKIE_KEY)) {
       return;
     }
+    if (window.esb_disabled) {
+      try {
+        if (!window.bk_user_web_api_url || !window.bk_tenant_id) {
+          throw new Error(String(this.$t('用户管理配置缺失')));
+        }
+        const root = window.bk_user_web_api_url.replace(/\/$/, '').replace(/^http:/i, location.protocol);
+        const response = await fetch(`${root}/api/v3/open-web/tenant/current-user/language/`, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', 'X-Bk-Tenant-Id': window.bk_tenant_id },
+          body: JSON.stringify({ language: item.id }),
+        });
+        const result = await response.json();
+        if (!response.ok || result.result === false || (result.code != null && result.code !== 0)) {
+          throw new Error(result.message || response.statusText);
+        }
+      } catch (error) {
+        this.$bkMessage({ theme: 'error', message: error instanceof Error ? error.message : String(error) });
+        return;
+      }
+    }
     docCookies.removeItem(LANGUAGE_COOKIE_KEY);
     docCookies.setItem(
       LANGUAGE_COOKIE_KEY,
@@ -340,7 +361,7 @@ class NavTools extends DocumentLinkMixin {
       '/',
       `${window.bk_domain && location.hostname.includes(window.bk_domain) ? window.bk_domain : location.hostname}`
     );
-    if (window.bk_component_api_url) {
+    if (!window.esb_disabled && window.bk_component_api_url) {
       useJSONP(
         `${window.bk_component_api_url
           .replace(/\/$/, '')
@@ -417,11 +438,11 @@ class NavTools extends DocumentLinkMixin {
   }
   /** 权限中心入口 */
   handleGoToPermissionCenter() {
-    // 去掉尾部 /，避免 bk_iam_url 已带斜杠时拼成 //my-perm
-    const base = (window.bk_iam_url || '').replace(/\/$/, '');
-    if (!base) return;
+    // 完整地址由后端按 IAM 版本下发，避免前端写死 V3 专有的 /my-perm 路径
+    const url = window.bk_iam_my_perm_url;
+    if (!url) return;
     this.hidePopoverSetOrHelp();
-    window.open(`${base}/my-perm`, '_blank', 'noopener,noreferrer');
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
   handleQuit() {
     location.href = `${window.site_url}logout`;

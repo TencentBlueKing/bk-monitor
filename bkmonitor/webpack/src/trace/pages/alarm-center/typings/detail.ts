@@ -78,6 +78,7 @@ export interface IAlarmDetail {
   first_anomaly_time: number;
   follower: null | string[];
   graph_panel: IGraphPanel;
+  hide_graph?: boolean;
   id: string;
   ip: null | string;
   ipv6: null | string;
@@ -525,6 +526,7 @@ export class AlarmDetail {
   readonly first_anomaly_time: number;
   readonly follower: null | string[];
   readonly graph_panel: IGraphPanel;
+  readonly hide_graph?: boolean;
   readonly id: string;
   readonly ip: null | string;
   readonly ipv6: null | string;

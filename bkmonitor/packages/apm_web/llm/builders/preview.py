@@ -9,6 +9,7 @@ from apm_web.llm.adapter import adapt_spans
 from apm_web.llm.adapter.fields import flow_attribute_fields
 from apm_web.llm.adapter.utils import CONTENT_FIELDS
 from apm_web.llm.builders.summary import TraceSummary
+from apm_web.llm.tokens import TokenUsageBuilder
 from apm_web.strategy.dispatch.entity import EntitySet
 from constants.apm import OtlpKey
 
@@ -149,7 +150,12 @@ def model_message_preview(messages: Any) -> dict[str, Any] | None:
 
 
 def prepare_flow_spans(
-    raw_spans: list[dict[str, Any]], entity_set: EntitySet, *, include_input_output: bool, preview: bool
+    raw_spans: list[dict[str, Any]],
+    entity_set: EntitySet,
+    *,
+    include_input_output: bool,
+    preview: bool,
+    token_usage: TokenUsageBuilder | None = None,
 ) -> list[dict[str, Any]]:
     """逐条标准化并提取预览，立即释放该条原始正文和解析后的消息。"""
     spans: list[dict[str, Any]] = []
@@ -166,6 +172,8 @@ def prepare_flow_spans(
             }
         converted = adapt_spans([raw], entity_set)
         for span in converted:
+            if token_usage is not None:
+                token_usage.add_span(span)
             if preview and include_input_output:
                 attributes: dict[str, Any] = span["attributes"]
                 if span.get("span_type") == "TOOL":

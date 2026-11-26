@@ -67,21 +67,26 @@ class BaseFallbackRumQuery(BaseRumQuery, ABC):
         )
         if self.level_query is not None:
             self.level_query.DEFAULT_TIME_FIELD = "start_time"
+            self.level_query.DEFAULT_SORT = self.DEFAULT_SORT
+            self.level_query.RECORD_ID_FIELD = self.RECORD_ID_FIELD
+            self.level_query.SPEC = self.SPEC
+            self.level_query.MODE = self.MODE
+            self.level_query.use_precomputed = True
 
     def get_queries(
-        self, filters: list[types.Filter] | None = None, query_string: str = ""
+        self, filters: list[types.Filter] | None = None, query_string: str = "", *, for_analysis: bool = True
     ) -> list[QueryConfigBuilder]:
         if self.level_query is not None:
             return self.level_query.get_queries(filters, query_string)
-        return self.span_query.get_queries(
-            [
-                *(filters or []),
-                equal_filter("attributes.span_type", [self.MODE]),
-                *self._identity_filters(),
-                equal_filter(f"attributes.{self.MODE}.phase", [self.ANALYSIS_PHASE]),
-            ],
-            query_string,
-        )
+        filters = [*(filters or []), *self._identity_filters()]
+        if for_analysis:
+            filters.extend(
+                [
+                    equal_filter("attributes.span_type", [self.MODE]),
+                    equal_filter(f"attributes.{self.MODE}.phase", [self.ANALYSIS_PHASE]),
+                ]
+            )
+        return self.span_query.get_queries(filters, query_string)
 
     @property
     def raw_query(self) -> BaseRumQuery:
@@ -116,6 +121,8 @@ class BaseFallbackRumQuery(BaseRumQuery, ABC):
         sort = sort or self.DEFAULT_SORT
         if self.level_query is not None:
             return self.level_query.query_list(start_time, end_time, offset, limit, filters, query_string, sort)
+        if any(field.removeprefix("-") in self.virtual_fields for field in sort):
+            sort = [*sort, *self.DEFAULT_SORT, self.RECORD_ID_FIELD]
         records = self.span_query.query_group_list(
             start_time,
             end_time,

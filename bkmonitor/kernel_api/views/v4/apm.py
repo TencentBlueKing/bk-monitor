@@ -7,6 +7,7 @@ from apm_web.metric.views import MetricViewSet
 from apm_web.profile.views import ProfileQueryViewSet
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from kernel_api.resource.apm import (
+    ExportProfilePprofResource,
     GetApmSearchFiltersResource,
     GetProfileApplicationServiceResource,
     GetProfileLabelResource,
@@ -75,4 +76,5 @@ class ApmMcpViewSet(ResourceViewSet):
         ResourceRoute("POST", GetProfileTypeResource, endpoint="get_profile_type"),
         ResourceRoute("POST", GetProfileLabelResource, endpoint="get_profile_label"),
         ResourceRoute("POST", QueryGraphProfileResource, endpoint="query_graph_profile"),
+        ResourceRoute("POST", ExportProfilePprofResource, endpoint="export_profile_pprof"),
     ]

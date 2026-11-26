@@ -32,6 +32,19 @@ import type { RequestConfig } from 'monitor-api/base';
 const SILENT = { needMessage: false };
 
 /**
+ * @description 按会话查询时间轴（会话时间线接口的 session_id 模式，返回会话内全部 View 组成的树）
+ * @param params 应用名与会话 ID
+ * @returns 接口失败时返回 null，与「无数据」区分
+ */
+export async function getSessionTimeline(
+  params: { app_name: string; session_id: string },
+  requestConfig?: RequestConfig
+): Promise<IRumTimelineResponse | null> {
+  const res = await rumTimeline(params, { ...SILENT, ...requestConfig }).catch(() => null);
+  return res || null;
+}
+
+/**
  * @description 按 View 查询链路上下文（会话时间线接口的 view_id 模式，只返回该 View 一个顶层节点）
  * @param params 应用名与视图 ID
  * @returns 接口失败时返回 null，与「无数据」区分

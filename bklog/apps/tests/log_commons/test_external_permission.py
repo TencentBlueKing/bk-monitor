@@ -1,7 +1,8 @@
 from datetime import timedelta
 from unittest.mock import patch
 
-from django.test import SimpleTestCase, TestCase
+from django.http import Http404
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import Resolver404, resolve
 from django.utils import timezone
 from rest_framework.response import Response
@@ -10,7 +11,7 @@ from apps.constants import ExternalPermissionActionEnum, TokenStatusEnum
 from apps.iam.handlers.actions import ActionEnum
 from apps.log_commons.constants import DEFAULT_EXTERNAL_PERMISSION_EXPIRE_DAYS
 from apps.log_commons.handlers.external_permission import ExternalPermissionHandler
-from apps.log_commons.models import ExternalPermission
+from apps.log_commons.models import ExternalPermission, ExternalPermissionApplyRecord
 
 
 class TestExternalIndexSetListFilter(SimpleTestCase):
@@ -121,6 +122,62 @@ class TestExternalPermissionCreate(TestCase):
             kwargs["expire_time"] = expire_time
         ExternalPermission.create(**kwargs)
         return kwargs.get("expire_time")
+
+    def _edit(self, users, resources, **overrides):
+        from apps.log_commons.views import ExternalPermissionViewSet
+
+        data = {
+            "action_id": self.ACTION_ID,
+            "space_uid": self.SPACE_UID,
+            "authorized_users": users,
+            "resources": resources,
+            "operate_type": "update",
+            "expire_time": None,
+            **overrides,
+        }
+        view = ExternalPermissionViewSet()
+        with patch.object(view, "params_valid", return_value=data):
+            return view.create_or_update(None).data
+
+    @override_settings(ESB_DISABLED=True)
+    def test_reduce_existing_grant_without_itsm(self):
+        expiry = self._create(["alice"], ["a", "b"])
+        earlier = expiry - timedelta(days=1)
+        with patch.object(ExternalPermission, "create_approval_ticket") as ticket:
+            self.assertFalse(self._edit(["alice"], ["a"], expire_time=earlier)["need_approval"])
+            self.assertFalse(self._edit(["alice"], ["a"])["need_approval"])
+            ticket.assert_not_called()
+        grant = self._get("alice")
+        self.assertEqual((grant.resources, grant.expire_time), (["a"], earlier))
+
+    @override_settings(ESB_DISABLED=True)
+    def test_expansion_rejected_before_removals_or_audit(self):
+        expiry = self._create(["alice", "bob"], ["a", "b"])
+        for args in [
+            (["alice"], ["new"], {"operate_type": "create"}),
+            (["alice"], ["new"], {}),
+            (["alice"], ["a"], {"expire_time": expiry + timedelta(days=1)}),
+            (["alice", "new"], ["a"], {"view_type": "resource"}),
+        ]:
+            with self.subTest(args=args), self.assertRaises(Http404):
+                self._edit(*args[:2], **args[2])
+        self.assertEqual(set(self._get("bob").resources), {"a", "b"})
+        self.assertEqual(set(self._get("alice").resources), {"a", "b"})
+        self.assertEqual(self._get("alice").expire_time, expiry)
+        self.assertFalse(ExternalPermissionApplyRecord.objects.filter(space_uid=self.SPACE_UID).exists())
+        self.assertFalse(self._edit(["alice"], ["a"], view_type="resource")["need_approval"])
+        self.assertEqual(self._get("bob").resources, ["b"])
+
+    @override_settings(ESB_DISABLED=False)
+    def test_default_switch_keeps_approval_for_new_grants(self):
+        for multi in (False, True):
+            with (
+                self.subTest(multi=multi),
+                override_settings(ENABLE_MULTI_TENANT_MODE=multi),
+                patch.object(ExternalPermission, "create_approval_ticket") as ticket,
+            ):
+                self.assertTrue(self._edit(["alice"], ["new"], operate_type="create")["need_approval"])
+                ticket.assert_called_once()
 
     # ---------- 全新用户创建 ----------
     def test_new_users_created(self):

@@ -104,6 +104,7 @@ from constants.strategy import (
     CUSTOM_PRIORITY_GROUP_PREFIX,
     DATALINK_SOURCE,
     HOST_SCENARIO,
+    MAX_NEW_SERIES_LIMIT,
     SERVICE_SCENARIO,
     SYSTEM_EVENT_RT_TABLE_ID,
     SYSTEM_PROC_PORT_METRIC_ID,
@@ -1353,6 +1354,19 @@ class QueryConfig(AbstractConfig):
         self.id = id
         self.metric_id = metric_id or ""
         self.instance = instance
+        # 存量脏数据自愈 + 写入兜底：custom/event 未显式提供 custom_event_name 时，按 metric_id 补齐。
+        # metric_id 格式为 custom.event.<结果表>.<事件名|__INDEX__>，事件名本身可能包含点，
+        # 因此必须用 result_table_id 精确剥离前缀而不能按点切分；前缀不匹配时不猜测（保持缺省）。
+        # 显式传空串表示"整个事件源"，不做覆盖。
+        if (
+            data_source_label == DataSourceLabel.CUSTOM
+            and data_type_label == DataTypeLabel.EVENT
+            and "custom_event_name" not in kwargs
+        ):
+            prefix = f"{DataSourceLabel.CUSTOM}.{DataTypeLabel.EVENT}.{kwargs.get('result_table_id') or ''}."
+            metric_suffix = self.metric_id[len(prefix) :] if self.metric_id.startswith(prefix) else ""
+            if metric_suffix:
+                kwargs["custom_event_name"] = "" if metric_suffix == "__INDEX__" else metric_suffix
         serializer_class = self.get_serializer_class(data_source_label, data_type_label)
         serializer = serializer_class(data=kwargs)
         serializer.is_valid(raise_exception=True)
@@ -2344,8 +2358,11 @@ class Strategy(AbstractConfig):
                     # detect_range >= agg_interval
                     if agg_interval and int(detect_range) < int(agg_interval):
                         raise ValidationError(detail=_("新维度值检测的检测周期不能小于数据聚合周期"))
-                    if int(config.get("max_series", 100000)) < 1:
-                        raise ValidationError(detail=_("新维度值检测的最大序列数必须大于 0"))
+                    max_series = int(config.get("max_series", 100000))
+                    if max_series < 1 or max_series > MAX_NEW_SERIES_LIMIT:
+                        raise ValidationError(
+                            detail=_("新维度值检测的最大序列数必须在 1 到 {} 之间").format(MAX_NEW_SERIES_LIMIT)
+                        )
                     if int(config.get("effective_delay", 86400)) < 1:
                         raise ValidationError(detail=_("新维度值检测的生效延迟必须大于 0"))
 

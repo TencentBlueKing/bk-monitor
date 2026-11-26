@@ -19,8 +19,8 @@ class LongTaskSpanOverview(SpanOverview):
 class LongTaskKeyInfoSection(KeyInfoSection):
     DATA = (
         group("duration", "elapsed_time", "attributes.long_task.blocking_duration"),
-        group("action", "attributes.action.id"),
-        group("attribution", "attributes.long_task.entry_type", "attributes.long_task.name"),
+        group("action", "attributes.action.ids"),
+        group("attribution", "attributes.long_task.entry_type"),
     )
 
 

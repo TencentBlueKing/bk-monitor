@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 from collections import defaultdict
+from collections.abc import Callable
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Literal, Union
 
@@ -26,6 +27,7 @@ from bkmonitor.utils.nodeman import host_queries
 from constants.bk_collector import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
+from core.errors.alarm_backends import CronLeaseLost
 from metadata.models.bk_collector import BkCollectorDeployPolicy, BkCollectorDeployScene
 from metadata.models.constants import LOG_REPORT_MAX_QPS
 from metadata.models.custom_report.log import LogGroup
@@ -85,7 +87,9 @@ class CustomReportSubscription(models.Model):
         data_id_configs: list[tuple[dict[str, Any], str]],
         bk_host_ids: list[int],
         op_type: str = "add",
-    ):
+        check_lease: Callable[[], None] | None = None,
+    ) -> list[int]:
+        """逐个下发子配置，返回本轮下发异常的 DataID。"""
         available_host_ids = bk_host_ids
 
         if op_type != "remove" and not available_host_ids:
@@ -93,7 +97,7 @@ class CustomReportSubscription(models.Model):
             # 业务背景：bkmonitorproxy 的功能将被 bk-collector 取代，为了版本兼容目前采取两边下发的逻辑
             #         当 bkmonitorproxy 被停止或未部署时，说明 bkmonitorproxy 已下线，无需进行下发
             logger.info("[custom_report] skipped because no available nodes: bk_biz_id(%s)", bk_biz_id)
-            return
+            return []
 
         if op_type == "remove":
             # 使用 Proxy 插件卸除配置时，针对 Proxy 状态为手动停止的机器进行卸载
@@ -105,9 +109,12 @@ class CustomReportSubscription(models.Model):
             bk_host_ids,
         )
         use_nodeman_v3 = BkCollectorDeployPolicy.is_enabled()
+        failed_data_ids = []
         for item, protocol in data_id_configs:
-            if use_nodeman_v3:
-                try:
+            if check_lease:
+                check_lease()
+            try:
+                if use_nodeman_v3:
                     BkCollectorDeployPolicy.deploy(
                         bk_tenant_id=bk_tenant_id,
                         scene=BkCollectorDeployScene.CUSTOM_REPORT,
@@ -117,44 +124,44 @@ class CustomReportSubscription(models.Model):
                         bk_host_ids=bk_host_ids,
                         bk_biz_id=bk_biz_id,
                     )
-                except Exception as e:
-                    logger.exception(
-                        f"deploy custom report config by nodeman v3 error, bk_biz_id({bk_biz_id}), "
-                        f"bk_data_id({item['bk_data_id']}), error: {e}"
-                    )
-                continue
+                    continue
 
-            subscription_params = {
-                "scope": {
-                    "object_type": "HOST",
-                    "node_type": "INSTANCE",
-                    "nodes": [{"bk_host_id": bk_host_id} for bk_host_id in bk_host_ids],
-                },
-                "steps": [
-                    {
-                        "id": "bk-collector",
-                        "type": "PLUGIN",
-                        "config": {
-                            "plugin_name": "bk-collector",
-                            "plugin_version": "latest",
-                            "config_templates": [{"name": cls.SUB_CONFIG_MAP[protocol], "version": "latest"}],
-                        },
-                        "params": {"context": {"bk_biz_id": bk_biz_id, **item}},
+                subscription_params = {
+                    "scope": {
+                        "object_type": "HOST",
+                        "node_type": "INSTANCE",
+                        "nodes": [{"bk_host_id": bk_host_id} for bk_host_id in bk_host_ids],
                     },
-                ],
-            }
-
-            try:
+                    "steps": [
+                        {
+                            "id": "bk-collector",
+                            "type": "PLUGIN",
+                            "config": {
+                                "plugin_name": "bk-collector",
+                                "plugin_version": "latest",
+                                "config_templates": [{"name": cls.SUB_CONFIG_MAP[protocol], "version": "latest"}],
+                            },
+                            "params": {"context": {"bk_biz_id": bk_biz_id, **item}},
+                        },
+                    ],
+                }
                 cls.create_or_update_config(
                     bk_tenant_id=bk_tenant_id,
                     bk_biz_id=bk_biz_id,
                     subscription_params=subscription_params,
                     bk_data_id=item["bk_data_id"],
                 )
-            except Exception as e:
+            except CronLeaseLost:
+                raise
+            except Exception:
+                failed_data_ids.append(item["bk_data_id"])
                 logger.exception(
-                    f"create or update subscription config error, bk_biz_id({bk_biz_id}), bk_data_id({item['bk_data_id']}), error: {e}"
+                    "deploy custom report config by nodeman %s failed, bk_biz_id(%s), bk_data_id(%s)",
+                    "v3" if use_nodeman_v3 else "v2",
+                    bk_biz_id,
+                    item["bk_data_id"],
                 )
+        return failed_data_ids
 
     @classmethod
     def get_protocol(cls, bk_data_id) -> str:
@@ -300,6 +307,7 @@ class CustomReportSubscription(models.Model):
         cls,
         bk_biz_id: int,
         data_id_configs: list[tuple[dict[str, Any], str]],
+        check_lease: Callable[[], None] | None = None,
     ):
         result = {
             "action": "refresh",
@@ -312,6 +320,8 @@ class CustomReportSubscription(models.Model):
         cluster_mapping = BkCollectorClusterConfig.get_cluster_mapping()
 
         for (cluster_id, namespace, _is_global), cc_bk_biz_ids in cluster_mapping.items():
+            if check_lease:
+                check_lease()
             if str(bk_biz_id) not in cc_bk_biz_ids and int(bk_biz_id) not in cc_bk_biz_ids:
                 continue
 
@@ -369,12 +379,20 @@ class CustomReportSubscription(models.Model):
 
                 # 分别按协议调用deploy_to_k8s_with_hash
                 for protocol, config_map in protocol_config_maps.items():
-                    BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, namespace, config_map, protocol)
+                    if check_lease:
+                        check_lease()
+                    BkCollectorClusterConfig.deploy_to_k8s_with_hash(
+                        cluster_id, namespace, config_map, protocol, check_lease=check_lease
+                    )
 
                 # 在所有协议下执行清理，同一个 config_id(data_id) 只允许有一份配置存在
+                if check_lease:
+                    check_lease()
                 BkCollectorClusterConfig.clean_dup_secrets_in_multi_protocol(
-                    cluster_id, namespace, protocol_config_maps.keys(), config_id_to_protocol
+                    cluster_id, namespace, protocol_config_maps.keys(), config_id_to_protocol, check_lease=check_lease
                 )
+            except CronLeaseLost:
+                raise
             except Exception as e:  # pylint: disable=broad-except
                 cluster_record.update({"result": False, "message": str(e)})
                 logger.exception(
@@ -399,6 +417,7 @@ class CustomReportSubscription(models.Model):
         op_type: str,
         data_id_configs: list[tuple[dict[str, Any], str]],
         dry_run: bool = False,
+        check_lease: Callable[[], None] | None = None,
     ):
         """
         刷新指定业务ID的collector自定义上报配置
@@ -468,13 +487,20 @@ class CustomReportSubscription(models.Model):
             return result
 
         # 2. 下发配置
-        cls.create_subscription(
+        failed_data_ids = cls.create_subscription(
             bk_tenant_id=bk_tenant_id,
             bk_biz_id=bk_biz_id,
             data_id_configs=data_id_configs,
             bk_host_ids=proxy_host_ids,
             op_type=op_type,
+            check_lease=check_lease,
         )
+        if failed_data_ids:
+            result.update(
+                result=False,
+                message=f"failed to deploy {len(failed_data_ids)} configs",
+                failed_data_ids=failed_data_ids,
+            )
         return result
 
     @staticmethod
@@ -499,10 +525,11 @@ class CustomReportSubscription(models.Model):
     def refresh_collector_custom_conf(
         cls,
         bk_tenant_id: str,
-        bk_biz_id: int | None = None,
+        bk_biz_id: int | str | None = None,
         op_type: str = "add",
         deploy_targets: tuple[str, ...] | list[str] | str = ("node_man", "k8s"),
         dry_run: bool = False,
+        check_lease: Callable[[], None] | None = None,
     ):
         """
         指定业务ID更新，或者更新全量业务
@@ -520,6 +547,8 @@ class CustomReportSubscription(models.Model):
             按业务ID将上面的任务下发到机器上，通过节点管理的订阅接口，其中0业务为直连云区域，下发所有data_id配置
             bk-collector: 单个data_id对应创建单个订阅
         """
+        if bk_biz_id is not None:
+            bk_biz_id = int(bk_biz_id)
         if isinstance(deploy_targets, str):
             deploy_targets = (deploy_targets,)
         deploy_targets = tuple(dict.fromkeys(deploy_targets))
@@ -571,6 +600,8 @@ class CustomReportSubscription(models.Model):
             bk_biz_ids,
             key=lambda current_bk_biz_id: (current_bk_biz_id == 0, current_bk_biz_id),
         ):
+            if check_lease:
+                check_lease()
             # 0业务下发全部配置，其他业务下发指定业务配置
             if bk_biz_id == 0:
                 data_id_configs: list[tuple[dict[str, Any], str]] = list(
@@ -585,16 +616,14 @@ class CustomReportSubscription(models.Model):
                 "targets": {},
             }
             if "node_man" in deploy_targets:
-                # 业务黑名单
-                if is_biz_id_in_black_list(bk_biz_id):
-                    target_record = {
-                        "action": "skip",
-                        "result": True,
-                        "message": "skip refresh custom report config to node_man because business is in black list",
-                    }
-                    detail["targets"]["node_man"] = target_record
-                else:
-                    try:
+                try:
+                    if is_biz_id_in_black_list(bk_biz_id):
+                        target_record = {
+                            "action": "skip",
+                            "result": True,
+                            "message": "skip refresh custom report config to node_man because business is in black list",
+                        }
+                    else:
                         # 1. 下发配置（走节点管理下发至主机）
                         target_record = cls._refresh_collect_custom_config_by_biz(
                             bk_tenant_id=bk_tenant_id if bk_biz_id != 0 else DEFAULT_TENANT_ID,
@@ -602,6 +631,7 @@ class CustomReportSubscription(models.Model):
                             op_type=op_type,
                             data_id_configs=data_id_configs,
                             dry_run=dry_run,
+                            check_lease=check_lease,
                         )
                         if target_record is None:
                             target_record = {
@@ -609,14 +639,16 @@ class CustomReportSubscription(models.Model):
                                 "result": None if dry_run else True,
                                 "message": "success",
                             }
-                    except Exception as e:
-                        target_record = {
-                            "action": "dry_run" if dry_run else "refresh",
-                            "result": False,
-                            "message": str(e),
-                        }
-                        logger.exception(f"refresh custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}")
-                    detail["targets"]["node_man"] = target_record
+                except CronLeaseLost:
+                    raise
+                except Exception as e:
+                    target_record = {
+                        "action": "dry_run" if dry_run else "refresh",
+                        "result": False,
+                        "message": str(e),
+                    }
+                    logger.exception(f"refresh custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}")
+                detail["targets"]["node_man"] = target_record
 
             if "k8s" in deploy_targets:
                 # 业务黑白名单
@@ -639,9 +671,12 @@ class CustomReportSubscription(models.Model):
                             target_record = cls._refresh_k8s_custom_config_by_biz(
                                 bk_biz_id=bk_biz_id,
                                 data_id_configs=data_id_configs,
+                                check_lease=check_lease,
                             )
                             if target_record is None:
                                 target_record = {"action": "refresh", "result": True, "message": "success"}
+                        except CronLeaseLost:
+                            raise
                         except Exception as e:
                             target_record.update({"result": False, "message": str(e)})
                             logger.exception(

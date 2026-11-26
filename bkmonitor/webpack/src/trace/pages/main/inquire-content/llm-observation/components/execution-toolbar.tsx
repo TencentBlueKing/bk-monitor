@@ -26,9 +26,12 @@
 
 import { type PropType, defineComponent } from 'vue';
 
-import { Checkbox, Input, Radio } from 'bkui-vue';
+import { Checkbox, Radio } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
+import ObservationSearch from '../../../llm-observation/components/observation-search';
+
+import type { LlmTrendSeriesKey, LlmTrendVisible } from '../utils/trend-buckets';
 import type { LlmExecutionFilter } from '../utils/typings';
 
 import './execution-toolbar.scss';
@@ -41,6 +44,11 @@ const FILTER_TABS: { icon?: string; id: LlmExecutionFilter }[] = [
   { id: 'tool', icon: 'Tool' },
   { id: 'error', icon: 'yichang' },
 ];
+
+/** 耗时柱颜色，与趋势图系列一致 */
+const DURATION_COLOR = '#3A84FF';
+/** 总 Token 柱颜色，与趋势图系列一致 */
+const TOKEN_COLOR = '#4DB8A9';
 
 /** Agent 执行线工具栏：同会话切换、类型筛选、关键字搜索 */
 export default defineComponent({
@@ -62,18 +70,39 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    /** 页内搜索当前命中下标，从 0 起；展示为 n / total */
+    searchActiveIndex: {
+      type: Number,
+      default: 0,
+    },
+    searchMatchCount: {
+      type: Number,
+      default: 0,
+    },
     showSession: {
       type: Boolean,
       default: false,
     },
+    trendVisible: {
+      type: Object as PropType<LlmTrendVisible>,
+      default: () => ({ duration: true, token: true }),
+    },
   },
   emits: {
+    'search-next': () => true,
+    'search-prev': () => true,
     'update:filter': (_value: LlmExecutionFilter) => true,
     'update:keyword': (_value: string) => true,
     'update:showSession': (_value: boolean) => true,
+    'toggle-trend': (_key: LlmTrendSeriesKey) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+
+    const trendItems = [
+      { key: 'duration' as LlmTrendSeriesKey, label: t('耗时'), color: DURATION_COLOR },
+      { key: 'token' as LlmTrendSeriesKey, label: t('总 Token'), color: TOKEN_COLOR },
+    ];
 
     const tabLabel = (id: LlmExecutionFilter) => {
       const labels: Record<LlmExecutionFilter, string> = {
@@ -111,6 +140,25 @@ export default defineComponent({
       }
       return null;
     };
+
+    /** 趋势图图例：10x10 色块 + 文案，点击「只看」单个序列，再次点击恢复全部 */
+    const renderTrendLegend = () => (
+      <div class='llm-trend-legend'>
+        {trendItems.map(item => (
+          <span
+            key={item.key}
+            class={['llm-trend-legend-item', { 'is-dim': !props.trendVisible[item.key] }]}
+            onClick={() => emit('toggle-trend', item.key)}
+          >
+            <span
+              class='llm-trend-legend-swatch'
+              style={{ backgroundColor: item.color }}
+            />
+            <span class='llm-trend-legend-label'>{item.label}</span>
+          </span>
+        ))}
+      </div>
+    );
 
     return () => (
       <div class='llm-execution-toolbar'>
@@ -153,18 +201,20 @@ export default defineComponent({
               ))}
             </Radio.Group>
           </div>
-          <Input
-            class='llm-execution-search'
-            modelValue={props.keyword}
-            placeholder={t('搜索 名称、模型、Span ID')}
-            type='search'
-            clearable
-            show-clear-only-hover
-            onClear={() => handleKeywordChange('')}
-            onEnter={handleKeywordChange}
-            onSearch={() => handleKeywordChange(props.keyword)}
-            onUpdate:modelValue={handleKeywordChange}
-          />
+          <div class='llm-execution-toolbar-right'>
+            <div class='llm-execution-search'>
+              <ObservationSearch
+                activeIndex={props.searchActiveIndex}
+                keyword={props.keyword}
+                matchCount={props.searchMatchCount}
+                placeholder={t('搜索 名称、模型、Span ID')}
+                onNext={() => emit('search-next')}
+                onPrev={() => emit('search-prev')}
+                onUpdate:keyword={handleKeywordChange}
+              />
+            </div>
+            {renderTrendLegend()}
+          </div>
         </div>
       </div>
     );

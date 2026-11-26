@@ -602,6 +602,25 @@ class QueryMultiResourceRangeV1Beta3(QueryMultiResourceRange):
     v1beta3_path = ""
 
 
+class GetRelationSchemaResource(UnifyQueryAPIResource):
+    """
+    查询关联关系定义在 namespace 下的生效结果、每条定义的来源与 Redis 覆盖层状态（只读）
+    """
+
+    method = "GET"
+    path = "/relation_schema_print"
+
+    class RequestSerializer(serializers.Serializer):
+        space_uid = serializers.CharField(required=False, allow_blank=True, help_text="用于选择 UQ 集群与请求头")
+        namespace = serializers.CharField(default="__all__", help_text="__all__ 或空间 UID")
+        content = serializers.BooleanField(default=False, help_text="为 true 时附带每条定义的内容")
+
+        def validate(self, attrs):
+            attrs["content"] = "true" if attrs["content"] else "false"
+            attrs["format"] = "json"
+            return attrs
+
+
 class QueryInfoFieldMapResource(UnifyQueryAPIResource):
     method = "POST"
     path = "/query/ts/info/field_map"

@@ -65,6 +65,8 @@ export default defineComponent({
     const highlight = computed(() => props.view.highlight);
     const direction = computed(() => props.view.direction);
     const flame = shallowRef<{ exportPng: () => void }>();
+    // 与 callGraph 属性（SVG 字符串）区分，这里保存组件实例。
+    const callGraphRef = shallowRef<{ exportPng: () => void }>();
     const modes = computed(() => [
       { id: 'table', icon: 'table', label: t('表格') },
       { id: 'combined', icon: 'mc-fenping', label: t('表格和火焰图') },
@@ -88,7 +90,19 @@ export default defineComponent({
     function searchFunction(value: string) {
       emit('viewChange', { keyword: value, highlight: '' });
     }
-    return { t, keyword, highlight, direction, flame, modes, empty, diffLegend, selectFunction, searchFunction };
+    return {
+      t,
+      keyword,
+      highlight,
+      direction,
+      flame,
+      callGraphRef,
+      modes,
+      empty,
+      diffLegend,
+      selectFunction,
+      searchFunction,
+    };
   },
   render() {
     const showFlame = this.mode === 'flame' || this.mode === 'combined';
@@ -125,34 +139,38 @@ export default defineComponent({
               onInput={value => this.searchFunction(String(value))}
             />
           )}
-          <Radio.Group
-            class='profile-direction-modes'
-            disabled={this.mode === 'callgraph'}
-            modelValue={this.direction}
-            type='capsule'
-            onChange={value => {
-              this.$emit('viewChange', { direction: value });
-            }}
-          >
-            <Radio.Button
-              v-tippy={this.t('显示开头')}
-              label='ltr'
+          {this.mode !== 'callgraph' && (
+            <Radio.Group
+              class='profile-direction-modes'
+              modelValue={this.direction}
+              type='capsule'
+              onChange={value => {
+                this.$emit('viewChange', { direction: value });
+              }}
             >
-              <i
-                class='icon-monitor icon-AB'
-                aria-label={this.t('显示开头')}
-              />
-            </Radio.Button>
-            <Radio.Button
-              v-tippy={this.t('显示结尾')}
-              label='rtl'
-            >
-              <i
-                class='icon-monitor icon-YZ'
-                aria-label={this.t('显示结尾')}
-              />
-            </Radio.Button>
-          </Radio.Group>
+              <Radio.Button
+                v-tippy={this.t('显示开头')}
+                label='ltr'
+              >
+                <i
+                  class='icon-monitor icon-AB'
+                  aria-label={this.t('显示开头')}
+                  role='img'
+                />
+              </Radio.Button>
+              <Radio.Button
+                v-tippy={this.t('显示结尾')}
+                label='rtl'
+              >
+                <i
+                  class='icon-monitor icon-YZ'
+                  aria-label={this.t('显示结尾')}
+                  role='img'
+                />
+              </Radio.Button>
+            </Radio.Group>
+          )}
+
           <span
             class='profile-download-trigger'
             v-tippy={this.t(
@@ -160,7 +178,9 @@ export default defineComponent({
                 ? '正在生成 pprof 文件，请稍候'
                 : showFlame
                   ? '下载采集数据或当前火焰图'
-                  : '下载 pprof 文件'
+                  : this.mode === 'callgraph'
+                    ? '下载 pprof 文件或完整调用图'
+                    : '下载 pprof 文件'
             )}
           >
             <Dropdown
@@ -180,7 +200,15 @@ export default defineComponent({
                         v-tippy={this.t('将当前可见火焰图保存为 PNG 图片')}
                         onClick={() => this.flame?.exportPng()}
                       >
-                        {this.t('导出当前视图 PNG')}
+                        png
+                      </Dropdown.DropdownItem>
+                    )}
+                    {this.mode === 'callgraph' && (
+                      <Dropdown.DropdownItem
+                        v-tippy={this.t('将完整调用图保存为 PNG 图片')}
+                        onClick={() => this.callGraphRef?.exportPng()}
+                      >
+                        png
                       </Dropdown.DropdownItem>
                     )}
                   </Dropdown.DropdownMenu>
@@ -271,10 +299,7 @@ export default defineComponent({
               {showFlame && (
                 <div class='profile-flame-pane'>
                   {this.compared && (
-                    <div
-                      class='profile-diff-legend'
-                      aria-label={this.t('差异图例')}
-                    >
+                    <div class='profile-diff-legend'>
                       {this.diffLegend.map(item => (
                         <span
                           key={item.label}
@@ -306,6 +331,7 @@ export default defineComponent({
               )}
               {this.mode === 'callgraph' && (
                 <CallGraph
+                  ref='callGraphRef'
                   svg={this.callGraph}
                   view={this.view.callGraph}
                   onViewChange={callGraph => this.$emit('viewChange', { callGraph })}

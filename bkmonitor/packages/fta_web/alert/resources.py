@@ -100,6 +100,7 @@ from fta_web.alert.handlers.alert_log import AlertLogHandler
 from fta_web.alert.handlers.base import BaseQueryHandler
 from fta_web.alert.handlers.event import EventQueryHandler
 from fta_web.alert.handlers.translator import PluginTranslator
+from fta_web.alert.promql import get_alert_graph_filter
 from fta_web.alert.serializers import (
     ActionIDField,
     ActionSearchSerializer,
@@ -668,6 +669,7 @@ class AlertDetailResource(Resource):
         result["extend_info"] = resource.alert.alert_related_info(alerts=[alert]).get(alert_id, {})
         self.clean_graph_panel_where(graph_panel)
         result["graph_panel"] = graph_panel
+        result["hide_graph"] = get_alert_graph_filter(alert) is None
 
         topo_info = result["extend_info"].get("topo_info", "")
         result["relation_info"] = self.build_relation_info(topo_info, relation_info)
@@ -1444,11 +1446,18 @@ class AlertGraphQueryResource(ApiAuthResource):
         start_time = serializers.IntegerField(required=False, label="开始时间")
         end_time = serializers.IntegerField(required=False, label="结束时间")
 
-    def perform_request(self, params: dict):
-        alert = AlertDocument.get(params["id"])
+    def get_graph_query_params(self, params: dict, alert: AlertDocument) -> dict:
         if not params.get("query_configs"):
             graph_query_config = AIOPSManager.get_graph_panel(alert, compare_function={})
-            params.update(graph_query_config["targets"][0]["data"])
+            return {**params, **graph_query_config["targets"][0]["data"]}
+        return params
+
+    def perform_request(self, params: dict):
+        alert = AlertDocument.get(params["id"])
+        promql_filter = get_alert_graph_filter(alert)
+        if promql_filter is None:
+            return {"series": [], "metrics": [], "trace_series": []}
+        params = self.get_graph_query_params(params, alert)
 
         if alert.strategy:
             item = alert.strategy["items"][0]
@@ -1490,6 +1499,21 @@ class AlertGraphQueryResource(ApiAuthResource):
             end_time = params["end_time"]
         for q_config in params["query_configs"]:
             q_config["bk_biz_id"] = params["bk_biz_id"]
+
+        if promql_filter:
+            # 以告警策略快照为准，旧面板可能经过前端变量替换。
+            configs = params["query_configs"]
+            if len(configs) != 1 or configs[0]["data_source_label"] != DataSourceLabel.PROMETHEUS:
+                return {"series": [], "metrics": [], "trace_series": []}
+            configs[0]["promql"] = query_config["promql"]
+            filters = configs[0].setdefault("filter_dict", {})
+            # 保留已有的独立查询约束，同时要求命中本条告警的维度。
+            if any(
+                key in filters and filters[key] is not None and str(filters[key]) != value
+                for key, value in promql_filter.items()
+            ):
+                return {"series": [], "metrics": [], "trace_series": []}
+            filters.update(promql_filter)
 
         logger.info("alert graph query params %s", dict(params))
         result = resource.grafana.graph_unify_query(params)

@@ -1,13 +1,13 @@
 # 纯用户态 API
 
-新增 101 个支持个人令牌的纯用户态 API，网关路径为 `/user/<接口名>/`，资源名称为 `user_<接口名>`，
+新增 106 个支持个人令牌的纯用户态 API，网关路径为 `/user/<接口名>/`，资源名称为 `user_<接口名>`，
 文档分组为“纯用户态接口”。无需填写应用凭证或申请网关应用权限；用户仍须具备相应业务、索引集、
 APM 应用或其他目标资源的 IAM 权限。现有 MCP 地址、Server 工具清单和应用态接口保持兼容。
 
 ## 范围与原有开启状态
 
-仓库中共有 111 个 MCP API 声明，均要求用户认证。其中 69 个原入口显式开启了 API 级个人令牌，42 个未开启。
-本次将其中 101 个业务接口发布为纯用户态 API，全部开启个人令牌。原 MCP 入口的个人令牌开关不作批量修改。
+仓库中共有 116 个 MCP API 声明，均要求用户认证。其中 74 个原入口显式开启了 API 级个人令牌，42 个未开启。
+本次将其中 106 个业务接口发布为纯用户态 API，全部开启个人令牌。原 MCP 入口的个人令牌开关不作批量修改。
 运营数据 3 个、运维诊断 4 个、OpenClaw 专用入口 3 个不进入公共目录。
 
 Server 的 `oauth2_personal_client_enabled` 与 API 的 `oauth2PersonalClientEnabled` 是不同配置。
@@ -15,9 +15,9 @@ Server 的 `oauth2_personal_client_enabled` 与 API 的 `oauth2PersonalClientEna
 
 | 范围 | 原接口数 | 原入口已开启 | 原入口未开启 | 新增纯用户态 API |
 | --- | ---: | ---: | ---: | ---: |
-| 业务接口 | 101 | 69 | 32 | 101，全部开启 |
+| 业务接口 | 106 | 74 | 32 | 106，全部开启 |
 | 内部与专用接口 | 10 | 0 | 10 | 0 |
-| 合计 | 111 | 69 | 42 | 101 |
+| 合计 | 116 | 74 | 42 | 106 |
 
 ## 调用与权限
 
@@ -48,7 +48,7 @@ curl 'https://gateway.example.com/api/bk-monitor/prod/user/lookup_tool_schema/' 
 
 “未开启”表示原 `/mcp/...` 资源未声明 `oauth2PersonalClientEnabled: true`；新目录中列出路径的接口均已在代码中开启。
 旧路径通常为 `/mcp/<接口名>/`；`apm_mcp_calculate_by_range` 对应 `/mcp/calculate_by_range/`，
-`list_bcs_clusters` 对应 `/mcp/search_bcs_clusters/`。纯用户态入口统一使用工具目录中的名称。
+`list_bcs_clusters` 对应 `/mcp/search_bcs_clusters/`，`llm_mcp_*` 对应 `/mcp/llm_*`。纯用户态入口统一使用工具目录中的名称。
 方法与新路径可以直接用于 CLI 的原始 API 调用。
 
 ### 元数据
@@ -143,7 +143,7 @@ curl 'https://gateway.example.com/api/bk-monitor/prod/user/lookup_tool_schema/' 
 
 ### APM 与性能分析
 
-共 11 个，原入口未开启 0 个。
+共 16 个，原入口未开启 0 个。
 
 | 原资源名称 | 方法 | 原入口个人令牌 | 纯用户态入口 |
 | --- | --- | --- | --- |
@@ -156,8 +156,13 @@ curl 'https://gateway.example.com/api/bk-monitor/prod/user/lookup_tool_schema/' 
 | `get_profile_type` | POST | 已开启 | `/user/get_profile_type/` |
 | `get_profile_label` | POST | 已开启 | `/user/get_profile_label/` |
 | `query_graph_profile` | POST | 已开启 | `/user/query_graph_profile/` |
+| `export_profile_pprof` | POST | 已开启 | `/user/export_profile_pprof/` |
 | `apm_mcp_calculate_by_range` | POST | 已开启 | `/user/calculate_by_range/` |
 | `list_apm_services` | POST | 已开启 | `/user/list_apm_services/` |
+| `llm_mcp_search_traces` | POST | 已开启 | `/user/llm_mcp_search_traces/` |
+| `llm_mcp_search_flows` | POST | 已开启 | `/user/llm_mcp_search_flows/` |
+| `llm_mcp_search_spans` | POST | 已开启 | `/user/llm_mcp_search_spans/` |
+| `llm_mcp_calculate_by_range` | POST | 已开启 | `/user/llm_mcp_calculate_by_range/` |
 
 ### 仪表盘
 
@@ -280,10 +285,10 @@ curl 'https://gateway.example.com/api/bk-monitor/prod/user/lookup_tool_schema/' 
 生成公共资源。共享 Schema 位于 `kernel_api/tool_schema.py`。新增来源须评审，并通过公共目录与业务目录一致性测试；
 不得按文件名或请求方法自动开放内部能力。
 
-发布资源版本为 `0.0.9`，由现有 `python manage.py sync_apigw` 流程同步；真实执行会更新网关资源并发布版本。
+发布资源版本为 `0.0.12`，由现有 `python manage.py sync_apigw` 流程同步；真实执行会更新网关资源并发布版本。
 本次代码与本地测试不代表任一环境已经发布。目标环境发布后，应验证：
 
-1. 网关出现“纯用户态接口”分组，101 个 `user_*` 资源公开可见，认证为仅用户认证且支持个人令牌。
+1. 网关出现“纯用户态接口”分组，106 个 `user_*` 资源公开可见，认证为仅用户认证且支持个人令牌。
 2. 三类内部接口没有新增 `/user/...` 资源；已有 MCP Server 的工具清单与访问地址保持兼容。
 3. 使用个人令牌、不携带 MCP 来源头，验证查询成功、缺权拒绝、跨租户拒绝和参数错误。
 4. 在授权测试资源上验证写入确认及执行，检查业务结果；不得以目录可见替代真实调用验收。

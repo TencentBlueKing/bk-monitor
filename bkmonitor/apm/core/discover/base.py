@@ -15,6 +15,7 @@ import logging
 import time
 from abc import ABC
 from collections import defaultdict
+from dataclasses import dataclass
 from typing import Any, NamedTuple
 from collections.abc import Callable
 
@@ -24,6 +25,7 @@ from opentelemetry.semconv.resource import ResourceAttributes
 
 from apm import constants
 from apm.constants import ApmCacheConfig, ApmCacheType, DiscoverRuleType
+from apm.core.discover.cached_mixin import CachedDiscoverMixin
 from apm.core.discover.instance_data import BaseInstanceData
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.core.handlers.query.span_query import SpanQuery
@@ -334,10 +336,18 @@ class DiscoverBase(ABC):
         return res
 
 
+@dataclass
+class TracePageStats:
+    requests: int = 0
+    query_duration_s: float = 0.0
+    budget_exhausted: bool = False
+
+
 class TopoHandler:
     """编排常规 Trace 发现与按服务折叠的兜底发现，完成后维护服务 Trace 心跳。"""
 
     TRACE_ID_CHUNK_MAX_DURATION = 10 * 60
+    TRACE_ID_LOOKBACK_MS = 10 * 60 * 1000
     FALLBACK_MAX_LOOKBACK_SECONDS = 60 * 60
     # 最大发现的TraceId数量
     TRACE_ID_MAX_SIZE = 50000
@@ -375,10 +385,11 @@ class TopoHandler:
 
         return True
 
-    def _get_after_key_body(self, after_key=None):
+    def _get_after_key_body(self, window_end_ms: int, after_key=None):
+        time_range = {"gte": window_end_ms - self.TRACE_ID_LOOKBACK_MS, "lt": window_end_ms, "format": "epoch_millis"}
         body = {
             "size": 0,
-            "query": {"bool": {"must": {"range": {"time": {"gte": "now-10m", "lt": "now"}}}}},
+            "query": {"bool": {"must": {"range": {"time": time_range}}}},
             "aggs": {
                 "unique_trace_id": {
                     "composite": {
@@ -394,14 +405,19 @@ class TopoHandler:
 
         return body
 
-    def list_trace_ids(self, index_name):
-        start = datetime.datetime.now()
+    def list_trace_ids(self, index_name, stats: TracePageStats):
+        start = time.monotonic()
+        # The composite cursor is meaningful only within the original query window.
+        window_end_ms = time.time_ns() // 1_000_000
         after_key = None
 
         while True:
-            query_body = self._get_after_key_body(after_key)
+            query_body = self._get_after_key_body(window_end_ms, after_key)
             query_body = TraceQueryGuard.build_dsl(query_body, self._trace_target)
+            stats.requests += 1
+            query_started = time.monotonic()
             response = self.datasource.es_client.search(index=index_name, body=query_body, request_timeout=60)
+            stats.query_duration_s += time.monotonic() - query_started
 
             per_round_trace_ids = []
             # 处理结果
@@ -409,7 +425,8 @@ class TopoHandler:
             for bucket in buckets:
                 per_round_trace_ids.append(bucket["key"]["trace_id_source"])
 
-            if (datetime.datetime.now() - start).seconds >= self.TRACE_ID_CHUNK_MAX_DURATION:
+            if time.monotonic() - start >= self.TRACE_ID_CHUNK_MAX_DURATION:
+                stats.budget_exhausted = True
                 logger.warning(
                     f"[TopoHandler] {self.bk_biz_id} {self.app_name} "
                     f"list trace_ids over {constants.DISCOVER_TIME_RANGE}, break"
@@ -434,30 +451,42 @@ class TopoHandler:
             hits = response["hits"]["hits"]
             return [i["_source"] for i in hits]
         else:
-            # 使用scroll获取
-            res = []
             query = {
                 "query": {"bool": {"must": [{"terms": {OtlpKey.TRACE_ID: trace_ids}}]}},
                 "size": max_result_count,
             }
             query = TraceQueryGuard.build_dsl(query, self._trace_target)
-            response = self.datasource.es_client.search(index=index_name, body=query, scroll="5m")
+            response = self.datasource.es_client.search(index=index_name, body=query)
             hits = response["hits"]["hits"]
-            res += [i["_source"] for i in hits]
+            if len(hits) < max_result_count:
+                return [i["_source"] for i in hits]
 
-            scroll_id = response["_scroll_id"]
-
-            while len(hits):
-                response = self.datasource.es_client.scroll(scroll_id=scroll_id, scroll="5m")
+            # 满页无法确认是否读全，从独立的 scroll 快照重新读取，避免拼接重复结果。
+            res = []
+            scroll_id = None
+            query_succeeded = False
+            try:
+                response = self.datasource.es_client.search(index=index_name, body=query, scroll="5m")
+                scroll_id = response["_scroll_id"]
                 hits = response["hits"]["hits"]
-                res += [i["_source"] for i in hits]
-
-            self.datasource.es_client.clear_scroll(scroll_id=scroll_id)
-            return res
+                while hits:
+                    res += [i["_source"] for i in hits]
+                    response = self.datasource.es_client.scroll(scroll_id=scroll_id, scroll="5m")
+                    scroll_id = response.get("_scroll_id") or scroll_id
+                    hits = response["hits"]["hits"]
+                query_succeeded = True
+                return res
+            finally:
+                if scroll_id:
+                    try:
+                        self.datasource.es_client.clear_scroll(scroll_id=scroll_id)
+                    except Exception:
+                        if query_succeeded:
+                            raise
 
     def _discover_handle(self, discover, spans, handle_type, remain_data) -> bool:
         def _topo_handle():
-            instance = discover(self.bk_biz_id, self.app_name)
+            instance = discover(self.bk_biz_id, self.app_name) if isinstance(discover, type) else discover
             instance.discover(spans, remain_data)
 
         def _pre_calculate_handle():
@@ -521,17 +550,18 @@ class TopoHandler:
     def _discover_spans(
         self,
         spans: list[dict[str, Any]],
-        template: list[tuple[type[DiscoverBase], Any]],
+        template: list[tuple[DiscoverBase | type[DiscoverBase], Any]],
         is_fallback: bool = False,
     ) -> bool:
         """按 Span kind 分发；兜底轮重读已有对象，并跳过依赖 Trace 上下文的发现器。"""
         filter_spans: list[dict[str, Any]] = [span for span in spans if span[OtlpKey.KIND] in self.FILTER_KIND]
-        topo_params: list[tuple[type[DiscoverBase], list[dict[str, Any]], str, Any]] = []
+        topo_params: list[tuple[DiscoverBase | type[DiscoverBase], list[dict[str, Any]], str, Any]] = []
         for cls, remain_data in template:
             if is_fallback and cls.DISCOVERY_REQUIRES_TRACE_CONTEXT:
                 continue
             if is_fallback:
                 # 常规轮已完成写入，不能继续用轮次开始前的快照判断是否需要创建。
+                cls = cls if isinstance(cls, type) else type(cls)
                 remain_data = cls(self.bk_biz_id, self.app_name).get_remain_data()
             selected_spans = spans if cls.DISCOVERY_ALL_SPANS else filter_spans
             topo_params.append((cls, selected_spans, "topo", remain_data))
@@ -557,30 +587,59 @@ class TopoHandler:
             return
 
         # 提前读取各发现器的已有对象。
-        topo_params_template: list[tuple[type[DiscoverBase], Any]] = [
-            (discover_cls, discover_cls(self.bk_biz_id, self.app_name).get_remain_data())
-            for discover_cls in DiscoverContainer.list_discovers(TelemetryDataType.TRACE.value)
-        ]
+        topo_params_template: list[tuple[DiscoverBase, Any]] = []
+        for discover_cls in DiscoverContainer.list_discovers(TelemetryDataType.TRACE.value):
+            discoverer = discover_cls(self.bk_biz_id, self.app_name)
+            remain_data = discoverer.get_remain_data()
+            if isinstance(discoverer, CachedDiscoverMixin):
+                discoverer.begin_cache_batch()
+            topo_params_template.append((discoverer, remain_data))
 
-        for round_index, trace_ids in enumerate(self.list_trace_ids(index_name)):
-            if not trace_ids:
-                continue
+        cache_flush_success = True
+        page_stats = TracePageStats()
+        span_fetch_duration_s = 0.0
+        discovery_duration_s = 0.0
+        try:
+            for round_index, trace_ids in enumerate(self.list_trace_ids(index_name, page_stats)):
+                if not trace_ids:
+                    continue
 
-            trace_id_count += len(trace_ids)
+                trace_id_count += len(trace_ids)
 
-            pool = ThreadPool()
-            get_spans_params = [(i, max_result_count, index_name) for i in divide_biscuit(trace_ids, per_trace_size)]
-            results = pool.map_ignore_exception(self.list_span_by_trace_ids, get_spans_params)
-            success = len(results) == len(get_spans_params) and success
-            all_spans_group = [i for i in results if i]
-            all_spans = list(itertools.chain(*all_spans_group))
-            avg_group_span_count = len(all_spans) / len(get_spans_params)
-            if round_index == 0 and avg_group_span_count:
-                per_trace_size = self.calculate_round_count(avg_group_span_count)
+                pool = ThreadPool()
+                get_spans_params = [
+                    (i, max_result_count, index_name) for i in divide_biscuit(trace_ids, per_trace_size)
+                ]
+                span_fetch_started = time.monotonic()
+                results = pool.map_ignore_exception(self.list_span_by_trace_ids, get_spans_params)
+                span_fetch_duration_s += time.monotonic() - span_fetch_started
+                success = len(results) == len(get_spans_params) and success
+                all_spans_group = [i for i in results if i]
+                all_spans = list(itertools.chain(*all_spans_group))
+                avg_group_span_count = len(all_spans) / len(get_spans_params)
+                if round_index == 0 and avg_group_span_count:
+                    per_trace_size = self.calculate_round_count(avg_group_span_count)
 
-            span_count += len(all_spans)
+                span_count += len(all_spans)
 
-            success = self._discover_spans(all_spans, topo_params_template) and success
+                discovery_started = time.monotonic()
+                success = self._discover_spans(all_spans, topo_params_template) and success
+                discovery_duration_s += time.monotonic() - discovery_started
+        finally:
+            # 一个发现器刷新失败时，其余发现器仍需发布已完成页面的心跳。
+            for discoverer, _ in topo_params_template:
+                if not isinstance(discoverer, CachedDiscoverMixin):
+                    continue
+                try:
+                    discoverer.flush_cache_updates()
+                except Exception:
+                    cache_flush_success = False
+                    logger.exception(
+                        "[trace_discovery] event=cache_flush_failed bk_biz_id=%s app_name=%s discoverer=%s",
+                        self.bk_biz_id,
+                        self.app_name,
+                        type(discoverer).__name__,
+                    )
 
         # 只扩展按服务折叠的兜底窗口，不放大常规 Trace 上下文查询。
         end_time: int = int(start.timestamp())
@@ -628,7 +687,7 @@ class TopoHandler:
             int(datetime.datetime.now().timestamp()),
         )
 
-        checkpoint_ready: bool = fallback_success and heartbeat_success
+        checkpoint_ready: bool = fallback_success and heartbeat_success and cache_flush_success
         if checkpoint_ready:
             # 保存本轮查询右边界，而非任务结束时间，避免丢失执行期间新到达的数据。
             cache.redis_client.set(
@@ -647,7 +706,9 @@ class TopoHandler:
 
         logger.info(
             "[trace_discovery] event=summary bk_biz_id=%s app_name=%s task_id=%s "
-            "trace_count=%s span_count=%s service_count=%s fallback_duration_s=%.3f",
+            "trace_count=%s span_count=%s service_count=%s fallback_duration_s=%.3f "
+            "trace_page_requests=%s trace_page_duration_s=%.3f span_fetch_duration_s=%.3f "
+            "regular_discovery_duration_s=%.3f budget_exhausted=%s",
             self.bk_biz_id,
             self.app_name,
             self.task_id,
@@ -655,5 +716,10 @@ class TopoHandler:
             span_count,
             len(last_spans),
             time.monotonic() - fallback_started,
+            page_stats.requests,
+            page_stats.query_duration_s,
+            span_fetch_duration_s,
+            discovery_duration_s,
+            page_stats.budget_exhausted,
         )
         return success and checkpoint_ready

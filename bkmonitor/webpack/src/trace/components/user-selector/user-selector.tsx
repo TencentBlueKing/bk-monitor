@@ -26,7 +26,7 @@
 import { type createVNode, type PropType, type VNode, computed, defineComponent, onMounted, shallowRef } from 'vue';
 
 import { BkUserSelector } from '@blueking/bk-user-selector/vue3';
-import { getUserComponentConfig, USER_GROUP_TYPE } from 'monitor-pc/common/user-display-name';
+import { getUserComponentConfig, USER_GROUP_TYPE, useUserWebApi } from 'monitor-pc/common/user-display-name';
 
 import type { ConfigOptions } from '@blueking/bk-user-display-name';
 import type { IUserGroup, IUserInfo, UserSelectorDragEvent } from 'monitor-pc/components/user-selector/user-group';
@@ -117,7 +117,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const componentConfig = shallowRef<Partial<ConfigOptions>>({});
-    const enableMultiTenantMode = computed(() => window.enable_multi_tenant_mode ?? false);
+    const enableMultiTenantMode = computed(useUserWebApi);
     onMounted(() => {
       componentConfig.value = getUserComponentConfig();
     });

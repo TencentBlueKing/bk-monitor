@@ -62,6 +62,7 @@ CONFIRMATION_OPERATIONS = frozenset(
         "delete_alarm_assign_group",
         "delete_recording_rule",
         "disable_alarm_shield",
+        "export_profile_pprof",
         "fast_create_log_collector",
         "fast_update_log_collector",
         "get_log_extract_download_url",

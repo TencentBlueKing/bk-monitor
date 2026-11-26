@@ -24,6 +24,8 @@ from rum_web.query.resources import (
     RumRecordDetailResource,
     RumRecordsResource,
     RumStatisticsResource,
+    RumTimeSeriesResource,
+    RumTotalResource,
     RumViewConfigResource,
 )
 from rum_web.query.serializers import (
@@ -51,6 +53,8 @@ from rum_web.query.views import SearchViewSet
 EXPECTED_ROUTES = [
     # (endpoint, http_method, resource_class, level_method)
     ("list_records", "POST", RumRecordsResource, "list_records"),
+    ("time_series", "POST", RumTimeSeriesResource, "time_series"),
+    ("total", "POST", RumTotalResource, "total"),
     ("view_config", "GET", RumViewConfigResource, "view_config"),
     ("get_fields_option_values", "POST", RumFieldsOptionValuesResource, "get_fields_option_values"),
     ("generate_query_string", "POST", RumGenerateQueryStringResource, "generate_query_string"),

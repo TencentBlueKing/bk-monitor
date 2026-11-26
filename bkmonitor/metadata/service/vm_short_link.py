@@ -82,10 +82,7 @@ def _normalize_data_labels(data_labels: list[str] | tuple[str, ...] | None) -> l
     normalized_labels = list(dict.fromkeys(str(label).strip() for label in data_labels if str(label).strip()))
     for data_label in normalized_labels:
         if not DATA_LABEL_PATTERN.match(data_label):
-            raise ValueError(
-                "data_label only supports a-z, 0-9, underscore, dot and colon, "
-                f"and must start with a letter: {data_label}"
-            )
+            raise ValueError(f"data_label only supports a-z, 0-9, underscore and dot: {data_label}")
 
     # 校验 data_label 总长度是否超过最大长度
     if len(",".join(normalized_labels)) > DATA_LABEL_MAX_LENGTH:

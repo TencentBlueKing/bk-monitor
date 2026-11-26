@@ -38,6 +38,7 @@ from bkmonitor.utils import consul
 from bkmonitor.utils.k8s_metric import get_built_in_k8s_events, get_built_in_k8s_metrics
 from bkmonitor.utils.request import get_app_code_by_request, get_request, get_request_tenant_id
 from bkmonitor.utils.serializers import TenantIdField
+from bkmonitor.utils.user import single_tenant_backend_username
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DATA_LINK_V4_VERSION_NAME
 from core.drf_resource import Resource, api
@@ -61,7 +62,7 @@ from metadata.models.constants import (
     STRICT_NANO_ES_FORMAT,
     DataIdCreatedFromSystem,
 )
-from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG
+from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR
 from metadata.models.data_link.utils import (
     find_registered_bkdata_data_id_name,
     get_bkbase_raw_data_name_for_v3_datalink,
@@ -88,6 +89,8 @@ from metadata.utils.data_link import get_record_rule_metrics_by_biz_id
 from metadata.utils.es_tools import get_client
 
 logger = logging.getLogger("metadata")
+
+_MANAGED_DATA_SOURCE_NAMESPACES = (BKBASE_NAMESPACE_BK_MONITOR, BKBASE_NAMESPACE_BK_LOG)
 
 
 class FieldSerializer(serializers.Serializer):
@@ -647,6 +650,49 @@ class CreateDownSampleDataFlowResource(Resource):
         tasks.create_statistics_data_flow.delay(table_id, agg_interval)
 
 
+class ApplyDataSourceResource(Resource):
+    """将已有数据源的 DataId 下发到目标项目。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        bk_data_id = serializers.IntegerField(required=True, min_value=1, label="数据源ID")
+        target_namespace = serializers.CharField(required=True, max_length=64, label="目标命名空间")
+        bk_biz_id = serializers.IntegerField(required=False, min_value=1, label="目标项目所属业务ID")
+
+        def validate_target_namespace(self, value):
+            if value in _MANAGED_DATA_SOURCE_NAMESPACES:
+                raise serializers.ValidationError(_("共享 DataId 不允许下发到受管命名空间 bkmonitor、bklog"))
+            return value
+
+    def perform_request(self, request_data):
+        try:
+            data_source = models.DataSource.objects.get(
+                bk_tenant_id=request_data["bk_tenant_id"], bk_data_id=request_data["bk_data_id"]
+            )
+        except models.DataSource.DoesNotExist:
+            raise ValueError(_("数据源不存在，请确认后重试"))
+        return data_source.apply_to_namespace(
+            target_namespace=request_data["target_namespace"], bk_biz_id=request_data.get("bk_biz_id")
+        )
+
+
+class ListDataSourceNamespacesResource(Resource):
+    """查询数据源在当前租户下的命名空间登记。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        bk_data_id = serializers.IntegerField(min_value=1, label="数据源ID")
+        include_builtin = serializers.BooleanField(default=False, label="包含内置命名空间")
+
+    def perform_request(self, request_data):
+        configs = models.DataIdConfig.objects.filter(
+            bk_tenant_id=request_data["bk_tenant_id"], bk_data_id=request_data["bk_data_id"]
+        )
+        if not request_data["include_builtin"]:
+            configs = configs.exclude(namespace__in=_MANAGED_DATA_SOURCE_NAMESPACES)
+        return list(configs.order_by("namespace", "name").values("namespace", "name", "status"))
+
+
 class QueryDataSourceResource(Resource):
     """查询数据源"""
 
@@ -1054,6 +1100,12 @@ class CreateEventGroupResource(Resource):
         operator = serializers.CharField(required=True, label="创建者")
         event_info_list = serializers.ListField(required=False, label="事件列表", default=None)
         data_label = serializers.CharField(label="数据标签", required=False, default="")
+        default_storage = serializers.ChoiceField(
+            choices=[models.ClusterInfo.TYPE_ES, models.ClusterInfo.TYPE_DORIS],
+            required=False,
+            default=models.ClusterInfo.TYPE_ES,
+        )
+        default_storage_config = serializers.DictField(required=False, label="默认存储配置")
 
     def perform_request(self, validated_request_data):
         # 默认都是返回已经删除的内容
@@ -3211,7 +3263,7 @@ class KafkaTailResource(Resource):
         """
         route_params = {
             "condition": {"channel_id": bk_data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
-            "operation": {"operator_name": settings.COMMON_USERNAME},
+            "operation": {"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
         }
 
         route_info_list = api.gse.query_route(**route_params)
@@ -3235,7 +3287,7 @@ class KafkaTailResource(Resource):
                 "stream_to_id": stream_to_id,
                 "plat_name": config.DEFAULT_GSE_API_PLAT_NAME,
             },
-            "operation": {"operator_name": settings.COMMON_USERNAME},
+            "operation": {"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
         }
 
         kafka_config_list = api.gse.query_stream_to(**kafka_params)

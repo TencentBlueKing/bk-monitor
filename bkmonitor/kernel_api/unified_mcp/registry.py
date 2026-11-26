@@ -215,12 +215,22 @@ for _name in (
     "query_graph_profile",
     "calculate_by_range",
     "list_apm_services",
+    "llm_mcp_search_traces",
+    "llm_mcp_search_flows",
+    "llm_mcp_search_spans",
+    "llm_mcp_calculate_by_range",
 ):
     NATIVE_PERMISSIONS[_name] = _native_permission(
         "view_apm_application_v2",
         resource_type="apm_application",
         resource_arg="app_name",
     )
+NATIVE_PERMISSIONS["export_profile_pprof"] = _native_permission(
+    "view_apm_application_v2",
+    resource_type="apm_application",
+    resource_arg="app_name",
+    conditional={"arg": "global_query", "equals": True, "permission": _native_permission("view_business_v2")},
+)
 
 # 仪表盘目录按业务角色授权，详情按具体仪表盘实例授权。
 NATIVE_PERMISSIONS["get_dashboard_tree_list"] = _native_permission("view_dashboard_v2")
@@ -375,8 +385,14 @@ CAPABILITIES = {
     "get_profile_type": ("discovery",),
     "get_profile_label": ("discovery",),
     "query_graph_profile": ("query", "analysis"),
+    "export_profile_pprof": ("export",),
     "calculate_by_range": ("analysis",),
     "list_apm_services": ("discovery",),
+    # LLM 观测
+    "llm_mcp_search_traces": ("query",),
+    "llm_mcp_search_flows": ("detail",),
+    "llm_mcp_search_spans": ("detail",),
+    "llm_mcp_calculate_by_range": ("analysis",),
     # 仪表盘
     "get_dashboard_tree_list": ("discovery",),
     "get_dashboard_detail_by_uid": ("detail",),
@@ -528,8 +544,13 @@ TITLES = {
     "get_profile_type": "获取 Profile 数据类型",
     "get_profile_label": "获取 Profile 标签",
     "query_graph_profile": "查询 Profile 火焰图",
+    "export_profile_pprof": "导出 Profile pprof 文件",
     "calculate_by_range": "分析 APM 指标",
     "list_apm_services": "列出 APM 服务",
+    "llm_mcp_search_traces": "查询 LLM 会话",
+    "llm_mcp_search_flows": "获取 LLM 执行线",
+    "llm_mcp_search_spans": "查询 LLM Span 详情",
+    "llm_mcp_calculate_by_range": "分析 LLM 指标",
     "get_dashboard_tree_list": "获取仪表盘目录树",
     "get_dashboard_detail_by_uid": "获取仪表盘详情",
     "find_relations": "查询资源关联",
@@ -630,6 +651,10 @@ PREREQUISITES: dict[str, tuple[str, ...]] = {
     "query_graph_profile": ("get_profile_application_service", "get_profile_type"),
     "calculate_by_range": ("list_apm_applications",),
     "list_apm_services": ("list_apm_applications",),
+    "llm_mcp_search_traces": ("list_apm_services",),
+    "llm_mcp_search_flows": ("llm_mcp_search_traces",),
+    "llm_mcp_search_spans": ("llm_mcp_search_flows",),
+    "llm_mcp_calculate_by_range": ("list_apm_services",),
     "get_dashboard_detail_by_uid": ("get_dashboard_tree_list",),
 }
 PREREQUISITES.update(
@@ -694,6 +719,7 @@ class ToolDefinition:
     resource_arg: str = "bk_biz_id"  # 默认从哪个参数取得业务／资源上下文。
     backend_derived_fields: tuple[str, ...] = ()  # 由服务端派生、模型无需传入的字段。
     native_permission: dict[str, Any] | None = None  # 可选的原生权限及资源映射。
+    output_schema: dict[str, Any] | None = None  # OpenAPI 成功响应中 data 的 Schema。
 
     def normalize_standalone_args(self, tool_args):
         """适配 standalone 历史标量字符串，Schema 和资源校验仍由执行器负责。
@@ -824,7 +850,7 @@ class ToolDefinition:
 
     def schema_payload(self, catalog_version: str) -> dict[str, Any]:
         """生成 lookup_tool_schema 返回的完整调用契约。"""
-        return {
+        payload = {
             "catalog_version": catalog_version,
             "tool_name": self.name,
             "description": self.description,
@@ -841,6 +867,10 @@ class ToolDefinition:
             "returns": "返回结构沿用现有业务 API。",
             "backend_derived_fields": list(self.backend_derived_fields),
         }
+        if self.output_schema is not None:
+            payload["output_schema"] = deepcopy(self.output_schema)
+            payload["returns"] = "业务返回字段见 output_schema。"
+        return payload
 
 
 class ToolRegistry:
@@ -893,6 +923,13 @@ class ToolRegistry:
     def names(self) -> tuple[str, ...]:
         """返回稳定排序后的全部公开工具名。"""
         return tuple(sorted(self._tools))
+
+
+def _extract_output_schema(operation: dict[str, Any]) -> dict[str, Any] | None:
+    """从 OpenAPI 的成功响应信封提取业务数据 Schema。"""
+    response = (operation.get("responses") or {}).get("200") or {}
+    schema = (response.get("content") or {}).get("application/json", {}).get("schema") or {}
+    return deepcopy((schema.get("properties") or {}).get("data"))
 
 
 def _extract_limits(schema: dict[str, Any]) -> dict[str, Any]:
@@ -1073,6 +1110,7 @@ def load_tool_registry(root: Path | None = None, *, native_tools: tuple[str, ...
                         forwards_confirmation=forwards_confirmation,
                         backend_derived_fields=BACKEND_DERIVED_FIELDS.get(tool_name, ()),
                         native_permission=deepcopy(NATIVE_PERMISSIONS[tool_name]) if tool_name in enabled else None,
+                        output_schema=_extract_output_schema(operation),
                     )
 
     # Step 7: 校验工具、Metadata 和权限契约一一对应，避免静默漏注册或无权限开放。
@@ -1139,8 +1177,8 @@ def _cached_route_registry(base_dir: str, monitor_system_id: str) -> ToolRegistr
 
 
 def resolve_readonly_tool(method: str, path: str) -> ToolDefinition | None:
-    """从同一目录识别只读路由；仅命中工具时才加载动态权限配置。"""
+    """从目录识别只读路由和需要同样校验网关用户身份的 pprof 导出。"""
     tool = _cached_route_registry(str(settings.BASE_DIR), settings.BK_IAM_SYSTEM_ID).get_by_backend(method, path)
-    if tool is None or tool.risk != "query":
+    if tool is None or (tool.risk != "query" and tool.name != "export_profile_pprof"):
         return None
     return get_tool_registry().get(tool.name)

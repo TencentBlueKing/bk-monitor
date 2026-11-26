@@ -26,6 +26,29 @@
 
 import type { MetricDetail } from '../strategy-config-set-new/typings';
 
+interface IMetricIdentity {
+  data_label?: string;
+  metric_field?: string;
+  metric_id?: number | string;
+}
+
+/**
+ * 给策略详情和编辑回填匹配指标元数据。
+ * metric_id 对不上时，用 data_label + metric_field 组合匹配。
+ */
+export function matchStrategyMetric<T extends IMetricIdentity>(
+  metricList: T[] | undefined,
+  query: IMetricIdentity
+): T | undefined {
+  const list = metricList || [];
+  if (query.metric_id) {
+    const exact = list.find(item => item.metric_id === query.metric_id);
+    if (exact) return exact;
+  }
+  if (!query.data_label || !query.metric_field) return undefined;
+  return list.find(item => item.data_label === query.data_label && item.metric_field === query.metric_field);
+}
+
 /**
  * @description: 日志指标重置指标id
  * @param metricId 指标id

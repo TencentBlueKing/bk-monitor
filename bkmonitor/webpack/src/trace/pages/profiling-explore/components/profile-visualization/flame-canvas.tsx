@@ -29,6 +29,7 @@ import { Button, Message } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
 
+import { resolveExportScale } from '../../utils/export-image';
 import {
   type FlameFrame,
   findFrame,
@@ -77,6 +78,58 @@ export default defineComponent({
     let observer: ResizeObserver;
     let raf = 0;
 
+    // 按 CSS 像素坐标绘制火焰图内容，倍率由调用方通过 scale 设定。
+    function paint(context: CanvasRenderingContext2D, width: number, height: number, scrollTop: number) {
+      context.fillStyle = '#f5f6f9';
+      context.fillRect(0, 0, width, height);
+      if (!focus.value?.width) return;
+      const selected = focus.value;
+      const startRow = Math.floor(scrollTop / ROW_HEIGHT);
+      const endRow = Math.min(layout.value.rows.length, startRow + Math.ceil(height / ROW_HEIGHT) + 1);
+      const keyword = props.keyword.trim().toLowerCase();
+      context.font = '12px Arial, sans-serif';
+      context.textBaseline = 'middle';
+      for (let depth = startRow; depth < endRow; depth++) {
+        const row = layout.value.rows[depth];
+        // 行按 x 排序；只绘制焦点子树与视口覆盖的节点。
+        for (const frame of row) {
+          if (frame.x + frame.width <= selected.x) continue;
+          if (frame.x >= selected.x + selected.width) break;
+          const x = Math.max(0, ((frame.x - selected.x) / selected.width) * width);
+          const w = Math.min(width - x, (frame.width / selected.width) * width);
+          if (w < 0.5) continue;
+          const y = depth * ROW_HEIGHT - scrollTop;
+          const match = keyword && frame.node.name.toLowerCase().includes(keyword);
+          const highlighted = props.highlight === frame.node.name;
+          context.fillStyle =
+            (keyword && !match) || depth < selected.depth ? '#aaa' : frameColor(frame.node.name, frame.node.diff_info);
+          context.fillRect(x, y, Math.max(0.5, w - 1), ROW_HEIGHT - 1);
+          if (highlighted) {
+            context.strokeStyle = '#3a84ff';
+            context.lineWidth = 2;
+            context.strokeRect(x + 1, y + 1, Math.max(0, w - 3), ROW_HEIGHT - 3);
+          }
+          if (w > 14) {
+            context.save();
+            context.beginPath();
+            context.rect(x + 3, y, w - 6, ROW_HEIGHT);
+            context.clip();
+            context.fillStyle = '#313238';
+            context.globalAlpha = 1;
+            const text = `${frame.node.name} (${formatProportion(frame.node.value, props.data?.value)}, ${formatProfileValue(frame.node.value, props.unit)})`;
+            const textWidth = context.measureText(text).width;
+            context.fillText(
+              text,
+              props.direction === 'rtl' && textWidth > w - 6 ? x + w - textWidth - 3 : x + 3,
+              y + ROW_HEIGHT / 2
+            );
+            context.restore();
+          }
+        }
+      }
+      context.globalAlpha = 1;
+    }
+
     function renderCanvas() {
       const element = viewport.value;
       const target = canvas.value;
@@ -92,54 +145,7 @@ export default defineComponent({
       target.style.transform = `translateY(${element.scrollTop}px)`;
       const ctx = target.getContext('2d');
       ctx.scale(ratio, ratio);
-      ctx.fillStyle = '#f5f6f9';
-      ctx.fillRect(0, 0, width, height);
-      if (!focus.value?.width) return;
-      const selected = focus.value;
-      const startRow = Math.floor(element.scrollTop / ROW_HEIGHT);
-      const endRow = Math.min(layout.value.rows.length, startRow + Math.ceil(height / ROW_HEIGHT) + 1);
-      const keyword = props.keyword.trim().toLowerCase();
-      ctx.font = '12px Arial, sans-serif';
-      ctx.textBaseline = 'middle';
-      for (let depth = startRow; depth < endRow; depth++) {
-        const row = layout.value.rows[depth];
-        // 行按 x 排序；只绘制焦点子树与视口覆盖的节点。
-        for (const frame of row) {
-          if (frame.x + frame.width <= selected.x) continue;
-          if (frame.x >= selected.x + selected.width) break;
-          const x = Math.max(0, ((frame.x - selected.x) / selected.width) * width);
-          const w = Math.min(width - x, (frame.width / selected.width) * width);
-          if (w < 0.5) continue;
-          const y = depth * ROW_HEIGHT - element.scrollTop;
-          const match = keyword && frame.node.name.toLowerCase().includes(keyword);
-          const highlighted = props.highlight === frame.node.name;
-          ctx.fillStyle =
-            (keyword && !match) || depth < selected.depth ? '#aaa' : frameColor(frame.node.name, frame.node.diff_info);
-          ctx.fillRect(x, y, Math.max(0.5, w - 1), ROW_HEIGHT - 1);
-          if (highlighted) {
-            ctx.strokeStyle = '#3a84ff';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(x + 1, y + 1, Math.max(0, w - 3), ROW_HEIGHT - 3);
-          }
-          if (w > 14) {
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(x + 3, y, w - 6, ROW_HEIGHT);
-            ctx.clip();
-            ctx.fillStyle = '#313238';
-            ctx.globalAlpha = 1;
-            const text = `${frame.node.name} (${formatProportion(frame.node.value, props.data?.value)}, ${formatProfileValue(frame.node.value, props.unit)})`;
-            const textWidth = ctx.measureText(text).width;
-            ctx.fillText(
-              text,
-              props.direction === 'rtl' && textWidth > w - 6 ? x + w - textWidth - 3 : x + 3,
-              y + ROW_HEIGHT / 2
-            );
-            ctx.restore();
-          }
-        }
-      }
-      ctx.globalAlpha = 1;
+      paint(ctx, width, height, element.scrollTop);
     }
 
     function scheduleRender() {
@@ -221,8 +227,20 @@ export default defineComponent({
     }
 
     function exportPng() {
-      renderCanvas();
-      canvas.value?.toBlob(blob => {
+      const element = viewport.value;
+      if (!element) return;
+      const width = element.clientWidth;
+      const height = element.clientHeight;
+      if (!width || !height) return;
+      const scale = resolveExportScale(width, height);
+      // 离屏按导出倍率重绘可见区域，导出结果不受屏幕像素比影响。
+      const target = document.createElement('canvas');
+      target.width = Math.round(width * scale);
+      target.height = Math.round(height * scale);
+      const ctx = target.getContext('2d');
+      ctx.scale(scale, scale);
+      paint(ctx, width, height, element.scrollTop);
+      target.toBlob(blob => {
         if (!blob) return;
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');

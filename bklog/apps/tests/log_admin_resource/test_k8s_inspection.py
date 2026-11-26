@@ -1,6 +1,10 @@
+import base64
 import json
+import sys
+from copy import deepcopy
 from types import SimpleNamespace
 from typing import Any
+from unittest import skipUnless
 from unittest.mock import MagicMock, call, patch
 
 from django.core.cache import caches
@@ -32,6 +36,7 @@ from apps.log_admin_resource.inspection_tasks import (
     InspectionConcurrencyExceeded,
     ResourceInspectionTaskRecord,
 )
+from apps.log_admin_resource.k8s_cluster_context import ClusterInspectionContext
 from apps.log_admin_resource.k8s_inspection import (
     BKLOG_CONFIG_CRD_NAME,
     COLLECTOR_CONTAINER_NAME,
@@ -101,6 +106,33 @@ def resolved_identity(**overrides):
     }
     values.update(overrides)
     return values
+
+
+def directory_probe_output(step):
+    import base64
+    import os
+    from datetime import datetime, timezone
+
+    path = step["path"]
+    info = os.lstat(path) if step["operation"] == "readlink" else os.stat(path)
+
+    def date(ns):
+        seconds, fraction = divmod(ns, 10**9)
+        day = datetime.fromtimestamp(seconds, timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        return f"{day}.{fraction:09d} +0000"
+
+    header = (
+        "2026-01-02T03:04:05.123456Z ns\n"
+        f"{info.st_dev} {info.st_ino} {info.st_mode:x} {info.st_size} "
+        f"{info.st_mtime_ns // 10**9} {info.st_ctime_ns // 10**9}|{date(info.st_mtime_ns)}|{date(info.st_ctime_ns)}"
+    )
+    if step["operation"] == "stat":
+        return header + "\n"
+    if step["operation"] == "list":
+        payload = b"".join(b"./" + entry + bytes(1) for entry in os.listdir(os.fsencode(path)))
+    else:
+        payload = os.readlink(os.fsencode(path))
+    return header + "\n" + base64.b64encode(payload + bytes(1)).decode()
 
 
 def collector(**overrides):
@@ -546,6 +578,60 @@ class K8sInspectionHandlerTest(SimpleTestCase):
         self.assertEqual(record["request_options"]["evidence_groups"], ["control_plane"])
         apply_async.assert_called_once()
 
+    @patch("apps.log_admin_resource.k8s_tasks.run_k8s_inspection.apply_async")
+    @patch(
+        "apps.log_admin_resource.handlers.k8s_inspection._resolve_collector_identity", return_value=resolved_identity()
+    )
+    @patch("apps.log_admin_resource.handlers.k8s_inspection._get_collector", return_value=collector())
+    @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
+    def test_source_step_is_bound_to_pod_and_task_fingerprint(self, _identity, _get, _validate, dispatch):
+        params = {
+            "collector_config_id": 123,
+            "evidence_groups": ["collector"],
+            "target": {"type": "pod_container", "namespace": "demo", "pod_name": "app", "container_name": "main"},
+        }
+        for step, space in [
+            ({"operation": "readlink", "path": "/logs"}, "collector"),
+            ({"operation": "list", "path": "/volume", "via": "/logs"}, "target"),
+        ]:
+            response = start_k8s_inspection({**params, "source_step": step})
+            task = ResourceInspectionTaskRecord.get(response["task_id"])
+            self.assertEqual(task["request_options"]["source_step"], {**step, "path_space": space})
+        direct = start_k8s_inspection(
+            {
+                **params,
+                "target": {"type": "node", "node_name": "node"},
+                "source_step": {"operation": "list", "path": "/"},
+            }
+        )
+        self.assertEqual(
+            ResourceInspectionTaskRecord.get(direct["task_id"])["request_options"]["source_step"]["path_space"],
+            "collector",
+        )
+        self.assertEqual(dispatch.call_count, 3)
+        with self.assertRaisesRegex(ValidationError, "explicit path_space"):
+            start_k8s_inspection({**params, "source_step": {"operation": "read", "path": "/logs/app.log"}})
+        with self.assertRaisesRegex(ValidationError, "client-redacted"):
+            start_k8s_inspection(
+                {**params, "source_step": {"operation": "stat", "path": "/logs/[REDACTED_SECRET].log"}}
+            )
+        for change in [
+            {"evidence_groups": ["control_plane"]},
+            {"target": {"type": "node", "node_name": "node"}},
+            {"source": "/logs/a.log"},
+        ]:
+            with self.assertRaises(ValidationError):
+                start_k8s_inspection({**params, "source_step": step, **change})
+        for native_step in (
+            {"operation": "read", "path": "/volume/app.log"},
+            {"operation": "stat", "path": "/volume/app.log", "via": "/logs"},
+        ):
+            with self.assertRaisesRegex(ValidationError, "collector paths"):
+                start_k8s_inspection({**params, "source_step": {**native_step, "path_space": "collector"}})
+        for path in ["/logs/../etc", "//logs", "/logs//name", "relative"]:
+            with self.assertRaises(ValidationError):
+                start_k8s_inspection({**params, "source_step": {"operation": "stat", "path": path}})
+
     @patch(
         "apps.log_admin_resource.handlers.k8s_inspection._resolve_collector_identity", return_value=resolved_identity()
     )
@@ -861,6 +947,491 @@ class K8sInspectionHandlerTest(SimpleTestCase):
         self.assertEqual(result["task_status"], "not_found")
         self.assertIsNone(result["target"])
 
+    @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
+    @patch(
+        "apps.log_admin_resource.handlers.k8s_inspection._resolve_collector_identity", return_value=resolved_identity()
+    )
+    @patch("apps.log_admin_resource.handlers.k8s_inspection._get_collector", return_value=collector())
+    @patch("apps.log_admin_resource.k8s_tasks.run_k8s_inspection.apply_async")
+    def test_original_log_bytes_require_current_management_access(self, dispatch, _get, _identity, _app):
+        params = {
+            "collector_config_id": 123,
+            "target": {"type": "pod_container", "namespace": "demo", "pod_name": "app", "container_name": "main"},
+            "evidence_groups": ["collector"],
+            "source_step": {"operation": "read", "path_space": "target", "path": "/logs/other.log", "length": 4096},
+        }
+        with self.settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=[]):
+            with self.assertRaises(BklogPermissionError):
+                start_k8s_inspection(params)
+            with self.assertRaises(BklogPermissionError):
+                start_k8s_inspection(
+                    {**params, "source_step": {**params["source_step"], "path_space": "collector", "via": "/logs"}}
+                )
+        dispatch.assert_not_called()
+        with self.settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=["reader-a"]):
+            physical_step = {
+                "operation": "read",
+                "path_space": "collector",
+                "path": "/var/host/example/a.log",
+                "via": "/logs",
+            }
+            physical_id = start_k8s_inspection({**params, "source_step": physical_step})["task_id"]
+            self.assertEqual(
+                ResourceInspectionTaskRecord.get(physical_id)["request_options"]["source_step"], physical_step
+            )
+            with self.assertRaisesRegex(ValidationError, "Pod/container"):
+                start_k8s_inspection(
+                    {**params, "source_step": physical_step, "target": {"type": "node", "node_name": "node"}}
+                )
+            task_id = start_k8s_inspection(params)["task_id"]
+            ResourceInspectionTaskRecord.update(task_id, task_status="success")
+            for payload in (
+                b"Authorization: Bearer fixture-only\n",
+                "日志".encode(),
+                bytes(range(256)) * 16,
+                b"\xff\x00",
+                b"",
+            ):
+                observation = {
+                    "inode": (1 << 63) + 1,
+                    "raw_hex_chunks": [payload[i : i + 2048].hex() for i in range(0, len(payload), 2048)],
+                    "returned_bytes": len(payload),
+                }
+                probes = {
+                    "source_path": {
+                        "status": "success",
+                        "code": "source_step_completed",
+                        "evidence": {
+                            "request": ResourceInspectionTaskRecord.get(task_id)["request_options"]["source_step"],
+                            "observation": observation,
+                        },
+                    },
+                    "other": {"text": "token=value"},
+                }
+                ResourceInspectionTaskRecord.store_result(task_id, {"probes": probes}, source_read=True)
+                self.assertIsNone(ResourceInspectionTaskRecord.load_result(task_id))
+                published = get_k8s_inspection_detail({"task_id": task_id})["evidence"]["probes"]
+                row = published["source_path"]["evidence"]["observation"]
+                actual = (
+                    base64.b64decode(row["content"]) if row["content_encoding"] == "base64" else row["content"].encode()
+                )
+                self.assertEqual(actual, payload)
+                self.assertEqual(bytes(row["content_bytes"]), payload)
+                self.assertEqual(row["inode"], str((1 << 63) + 1))
+                self.assertNotIn("raw_hex_chunks", row)
+                self.assertEqual(published["other"]["text"], "token=***")
+        with self.settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=[]):
+            with self.assertRaises(BklogPermissionError):
+                get_k8s_inspection_detail({"task_id": task_id})
+
+    @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
+    def test_listing_round_trip_returns_only_reusable_entries(self, _identity):
+        import os
+        import tempfile
+        from pathlib import Path
+
+        from apps.log_admin_resource.k8s_source_step import inspect_source_step
+        from apps.log_admin_resource.k8s_tasks import _finish, _timed_probe
+        from apps.log_admin_resource.scripts.collector_source_step import inspect_source
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            for name in (
+                "account=***",
+                "account=blue.log",
+                "account=green.log",
+                "daily\tapp.log",
+                "normal.log",
+                "[REDACTED_SECRET].log",
+                "eyJdemo.abc.xyz.log",
+            ):
+                (root / name).touch()
+            step = {"operation": "list", "path": str(root), "path_space": "collector"}
+            record, _ = ResourceInspectionTaskRecord.create_or_reuse(
+                app_code="reader-a",
+                bk_tenant_id="tenant-a",
+                target={},
+                request_options={"source_step": step},
+                task_type=TASK_TYPE_K8S_INSPECTION,
+            )
+            task_id = record["task_id"]
+            policy = {
+                "pid": 0,
+                "interval": 0,
+                "collector_pod_uid": "collector",
+                "collector_container_id": "containerd://abc",
+            }
+            payload = directory_probe_output(step)
+            with patch(
+                "apps.log_admin_resource.k8s_source_step.run_collector_script",
+                return_value=(payload, "", 0),
+            ):
+                source = inspect_source_step(None, candidate(pod_uid="collector"), {"values": {}}, {}, [], 7, step, {})
+            source = _timed_probe(source)
+            _finish(task_id, record, {"source_path": source}, "success", None)
+            response = get_k8s_inspection_detail({"task_id": task_id})
+            row = response["evidence"]["probes"]["source_path"]["evidence"]["observation"]
+            self.assertTrue(row["directory_identity_verified"])
+            self.assertEqual(row["entries"], [str(root / "account=***"), str(root / "normal.log")])
+            self.assertEqual(
+                row["unavailable_entries"],
+                [
+                    {"position": 1, "reason": "client_display_only"},
+                    {"position": 3, "reason": "redacted_path"},
+                    {"position": 4, "reason": "redacted_path"},
+                    {"position": 5, "reason": "invalid_path"},
+                    {"position": 6, "reason": "client_display_only"},
+                ],
+            )
+            self.assertEqual([item["path"] for item in row["next_steps"]], row["entries"])
+            previous = os.getcwd()
+            try:
+                for follow in row["next_steps"]:
+                    observed = inspect_source(policy, follow)["second"]
+                    self.assertEqual(observed["verified_expectation"], follow["expect"])
+                    self.assertEqual(observed["inode"], Path(follow["path"]).stat().st_ino)
+            finally:
+                os.chdir(previous)
+
+    @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
+    def test_readlink_errors_survive_task_detail(self, _identity):
+        import os
+        import subprocess
+        import tempfile
+        from pathlib import Path
+
+        from apps.log_admin_resource.k8s_source_step import inspect_source_step
+        from apps.log_admin_resource.k8s_tasks import _finish, _timed_probe
+
+        # Exercise the production shell and decoder with deterministic utility
+        # output. The second lstat observes a different inode after rotation.
+        utilities = """
+date() { echo 2026-01-02T03:04:05.123456Z; }
+stat() {
+    for file do :; done
+    case "$file" in
+        /) return 0 ;;
+        /logs/missing) echo 'stat: path: No such file or directory' >&2; return 1 ;;
+        /logs/regular) echo 'regular file|initial'; return ;;
+        /logs/rotated)
+            if [ -f "$marker" ]; then echo 'symbolic link|second'; else echo 'symbolic link|first'; fi ;;
+    esac
+}
+readlink() { printf 'old-target'; touch "$marker"; }
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            marker = str(Path(tmp) / "readlink-called")
+
+            def execute(_client, _candidate, command, script):
+                result = subprocess.run(
+                    command,
+                    input=utilities + script,
+                    env=dict(os.environ, marker=marker),
+                    text=True,
+                    capture_output=True,
+                    timeout=10,
+                    check=True,
+                )
+                return result.stdout, result.stderr, result.returncode
+
+            for name, error in (
+                ("missing", "source_path_not_found"),
+                ("regular", "source_not_symlink"),
+                ("rotated", "source_changed_during_readlink"),
+            ):
+                with self.subTest(name=name):
+                    step = {"operation": "readlink", "path": "/logs/" + name, "path_space": "collector"}
+                    record, _ = ResourceInspectionTaskRecord.create_or_reuse(
+                        app_code="reader-a",
+                        bk_tenant_id="tenant-a",
+                        target={},
+                        request_options={"source_step": step},
+                        task_type=TASK_TYPE_K8S_INSPECTION,
+                    )
+                    with patch("apps.log_admin_resource.k8s_source_step.run_collector_script", side_effect=execute):
+                        probe = inspect_source_step(None, candidate(), {"values": {}}, {}, [], 7, step, {})
+                    _finish(record["task_id"], record, {"source_path": _timed_probe(probe)}, "partial", None)
+                    ResourceInspectionTaskRecord.release_active(record)
+                    detail = get_k8s_inspection_detail({"task_id": record["task_id"]})
+                    self.assertEqual(detail["task_status"], "partial")
+                    row = detail["evidence"]["probes"]["source_path"]
+                    self.assertEqual((row["status"], row["code"]), ("failed", "source_step_incomplete"))
+                    self.assertEqual(row["evidence"]["error"], error)
+                    self.assertEqual(row["evidence"]["failed_path"], step["path"])
+                    self.assertNotIn("observation", row["evidence"])
+
+    @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
+    def test_readlink_paths_through_storage_and_followup_stat(self, _identity):
+        import tempfile
+        from pathlib import Path
+
+        from apps.log_admin_resource.k8s_source_step import inspect_source_step
+        from apps.log_admin_resource.k8s_tasks import _finish, _timed_probe
+        from apps.log_admin_resource.scripts.collector_source_step import inspect_source
+
+        def observe(operation, path):
+            step = {"operation": operation, "path": str(path), "path_space": "collector"}
+            record, _ = ResourceInspectionTaskRecord.create_or_reuse(
+                app_code="reader-a",
+                bk_tenant_id="tenant-a",
+                target={},
+                request_options={"source_step": step},
+                task_type=TASK_TYPE_K8S_INSPECTION,
+            )
+            task_id = record["task_id"]
+            outputs = [(directory_probe_output(step), "", 0)]
+            if operation == "stat":
+                result = inspect_source(
+                    {
+                        "interval": 0,
+                        "pid": 0,
+                        "collector_pod_uid": "collector",
+                        "collector_container_id": candidate().collector_container_id,
+                    },
+                    step,
+                )
+                outputs.append((json.dumps(result), "", 0))
+            with patch(
+                "apps.log_admin_resource.k8s_source_step.run_collector_script",
+                side_effect=outputs,
+            ):
+                probe = inspect_source_step(None, candidate(pod_uid="collector"), {"values": {}}, {}, [], 7, step, {})
+            _finish(task_id, record, {"source_path": _timed_probe(probe)}, "success", None)
+            ResourceInspectionTaskRecord.release_active(record)
+            detail = get_k8s_inspection_detail({"task_id": task_id})
+            self.assertEqual(detail["task_status"], "success")
+            return detail["evidence"]["probes"]["source_path"]["evidence"]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            for name in ("account=blue.log", "account=***", "plain.log"):
+                (root / name).touch()
+            aliases = root / "aliases"
+            aliases.mkdir()
+            for alias, name, hidden in (
+                ("by-target", "account=blue.log", {"target"}),
+                ("account=blue", "plain.log", {"path", "follow_path", "collector_path"}),
+                ("account=***", "account=***", set()),
+                ("normal", "plain.log", set()),
+            ):
+                with self.subTest(alias=alias):
+                    link, original = aliases / alias, root / name
+                    link.symlink_to(original)
+                    source = observe("readlink", link)
+                    row = source["observation"]
+                    self.assertEqual(source["request"]["path"], None if "path" in hidden else str(link))
+                    self.assertEqual(row.get("unavailable_paths", {}), dict.fromkeys(hidden, "redacted_path"))
+                    for key in hidden:
+                        self.assertIsNone(row[key])
+                    for path in {p for p in (row["target"], row["follow_path"], str(link)) if p is not None}:
+                        self.assertEqual(observe("stat", path)["second"]["inode"], str(original.stat().st_ino))
+
+    def test_older_worker_cannot_confirm_guarded_step_or_unpinned_growth(self):
+        from apps.log_admin_resource.handlers.k8s_inspection import _publish_source_step
+
+        step = {"operation": "stat", "path": "/logs/app.log", "path_space": "collector"}
+        source = {
+            "request": step,
+            "first": {"inode": 42},
+            "second": {"inode": 42},
+            "activity": "grew",
+            "growth_bytes": 4,
+            "read_progress": "open_reader_at_eof",
+            "unread_bytes": 0,
+        }
+        probe = {"status": "success", "code": "source_step_completed", "evidence": source}
+        self.assertTrue(_publish_source_step(step, probe))
+        self.assertEqual((source["activity"], source["read_progress"]), ("unverified", "unknown"))
+        self.assertNotIn("unread_bytes", source)
+        self.assertNotIn("growth_bytes", source)
+        guarded = {**step, "expect": "parent-" + "a" * 64}
+        source["request"] = guarded
+        self.assertFalse(_publish_source_step(guarded, probe))
+        probe["status"] = "failed"
+        del source["second"]
+        self.assertFalse(_publish_source_step(guarded, probe))
+        del source["first"]
+        self.assertTrue(_publish_source_step(guarded, probe))
+
+    def test_cached_link_checked_before_cli_redaction_rules(self):
+        from apps.log_admin_resource.handlers.k8s_inspection import _publish_source_step
+
+        step = {"operation": "readlink", "path": "/logs/current", "path_space": "collector"}
+        row = {"target": "/logs/eyJdemo.abc.xyz.log"}
+        probe = {
+            "status": "success",
+            "code": "source_step_completed",
+            "evidence": {"request": step, "source_paths_checked": True, "observation": row},
+        }
+        self.assertTrue(_publish_source_step(step, probe))
+        self.assertIsNone(row["target"])
+        self.assertEqual(row["unavailable_paths"], {"target": "client_display_only"})
+
+    def test_cached_link_paths_without_redaction_provenance(self):
+        from apps.log_admin_resource.handlers.k8s_inspection import _publish_source_step
+
+        step = {"operation": "readlink", "path": "/current"}
+        row = {"follow_path": "/current", "target": "/account=***", "links": [{"target": "/account=***"}]}
+        probe = {
+            "status": "success",
+            "code": "source_step_completed",
+            "evidence": {"request": step, "observation": row},
+        }
+        self.assertTrue(_publish_source_step(step, probe))
+        self.assertEqual(row["follow_path"], "/current")
+        for item in (row, row["links"][0]):
+            self.assertIsNone(item["target"])
+            self.assertEqual(item["unavailable_paths"], {"target": "unverified_path"})
+
+    def test_source_step_publishes_exact_inodes_for_each_available_sample(self):
+        from apps.log_admin_resource.handlers.k8s_inspection import _publish_source_step
+
+        for operation, status, samples in (
+            ("stat", "success", {"first": {"inode": 2**53}, "second": {"inode": 2**53 + 1}}),
+            ("stat", "failed", {"first": {"inode": 2**63 + 1}}),
+            ("list", "success", {"observation": {"inode": 42, "entries": []}}),
+            ("readlink", "success", {"observation": {"inode": 2**64 - 1, "target": "logs"}}),
+        ):
+            with self.subTest(operation=operation, status=status):
+                step = {"operation": operation, "path": "/logs"}
+                expected = {key: str(sample["inode"]) for key, sample in samples.items()}
+                source = {"request": step, **samples}
+                self.assertTrue(
+                    _publish_source_step(
+                        step,
+                        {
+                            "status": status,
+                            "code": "source_step_completed" if status == "success" else "source_step_incomplete",
+                            "evidence": source,
+                        },
+                    )
+                )
+                self.assertEqual({key: source[key]["inode"] for key in samples}, expected)
+
+    def test_cached_listing_marks_ambiguous_paths_and_unverified_directory_identity(self):
+        from apps.log_admin_resource.handlers.k8s_inspection import _publish_source_step
+
+        step = {"operation": "list", "path": "/logs"}
+        row = {"entries": ["/logs/app.log", "/logs/account=***", "/logs/" + "a" * 4096]}
+        source = {"request": step, "observation": row}
+        probe = {"status": "success", "code": "source_step_completed", "evidence": source}
+        self.assertTrue(_publish_source_step(step, probe))
+        self.assertFalse(row["directory_identity_verified"])
+        self.assertEqual(row["entries"], ["/logs/app.log"])
+        self.assertEqual(
+            row["unavailable_entries"],
+            [
+                {"position": 2, "reason": "unverified_path"},
+                {"position": 3, "reason": "invalid_path"},
+            ],
+        )
+
+    @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
+    def test_detail_checks_worker_evidence_for_each_requested_file_operation(self, _identity):
+        from apps.log_admin_resource.collector_probe_evidence import _source_probe
+        from apps.log_admin_resource.k8s_tasks import _finish, _timed_probe
+
+        other = _timed_probe({"status": "success", "code": "observed", "summary": "control plane", "evidence": {}})
+        legacy = _timed_probe(
+            _source_probe(
+                values={},
+                streams={},
+                first_rows=[{"path": "/logs/old.log"}],
+                second_rows=[],
+                allowed_patterns=["/logs/*"],
+                source=None,
+                include_sample=False,
+                error=None,
+            )
+        )
+        self.assertEqual(legacy["code"], "source_paths_inspected")
+        with self.settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=["reader-a"]):
+            for operation in ("list", "stat", "readlink", "read"):
+                step = {"operation": operation, "path": "/logs/app"}
+                record, _ = ResourceInspectionTaskRecord.create_or_reuse(
+                    app_code="reader-a",
+                    bk_tenant_id="tenant-a",
+                    target={},
+                    request_options={"source_step": step},
+                    task_type=TASK_TYPE_K8S_INSPECTION,
+                )
+                task_id = record["task_id"]
+                for source in (
+                    legacy,
+                    _timed_probe(
+                        {
+                            "status": "success",
+                            "code": "source_step_completed",
+                            "summary": "step",
+                            "evidence": {
+                                "request": {**step, "path": "/logs/old"},
+                                "observation": {"raw_hex_chunks": ["61"]},
+                            },
+                        }
+                    ),
+                    _timed_probe(
+                        {
+                            "status": "success",
+                            "code": "source_step_completed",
+                            "summary": "step",
+                            "evidence": {"request": step, "observation": {}},
+                        }
+                    ),
+                ):
+                    ResourceInspectionTaskRecord.set_probe(task_id, "source_path", source)
+                    _finish(task_id, record, {"source_path": source, "control_plane": other}, "success", None)
+                    if source is legacy and operation == "read":
+                        # Baseline Worker stores under the legacy key. Model its actual persisted result.
+                        backing = ResourceInspectionTaskRecord
+                        payload = backing.load_result(task_id, source_read=True)
+                        backing.cache().delete(backing._result_key(task_id, source_read=True))
+                        backing.store_result(task_id, payload)
+                    result = get_k8s_inspection_detail({"task_id": task_id})
+                    validate_params(result, DETAIL_RESPONSE_SCHEMA, "response")
+                    self.assertEqual(result["task_status"], "partial")
+                    self.assertTrue(result["error"]["retryable"])
+                    self.assertEqual(result["error"]["code"], "source_step_unconfirmed")
+                    self.assertEqual(result["probes"]["source_path"]["status"], "failed")
+                    self.assertIsNone(result["evidence"]["probes"]["source_path"]["evidence"])
+                    self.assertEqual(result["evidence"]["probes"]["control_plane"], other)
+                observations = {
+                    "list": {"entries": []},
+                    "stat": {"inode": 42},
+                    "readlink": {"target": "/data/log"},
+                    "read": {"returned_bytes": 0, "raw_hex_chunks": []},
+                }
+                completed = _timed_probe(
+                    {
+                        "status": "success",
+                        "code": "source_step_completed",
+                        "summary": "step",
+                        "evidence": {"request": step, "observation": observations[operation]},
+                    }
+                )
+                ResourceInspectionTaskRecord.set_probe(task_id, "source_path", completed)
+                _finish(task_id, record, {"source_path": completed, "control_plane": other}, "success", None)
+                detail = get_k8s_inspection_detail({"task_id": task_id})
+                validate_params(detail, DETAIL_RESPONSE_SCHEMA, "response")
+                self.assertEqual(detail["task_status"], "success")
+                if operation == "read":
+                    self.assertEqual(
+                        detail["evidence"]["probes"]["source_path"]["evidence"]["observation"]["content"], ""
+                    )
+                diagnostic = {"code": "response_compacted", "message": "bounded result", "retryable": True}
+                _finish(task_id, record, {"control_plane": other}, "partial", diagnostic)
+                self.assertEqual(get_k8s_inspection_detail({"task_id": task_id})["error"], diagnostic)
+                failed = _timed_probe(
+                    {
+                        "status": "failed",
+                        "code": "source_step_incomplete",
+                        "summary": "source unavailable",
+                        "evidence": {"request": step},
+                    }
+                )
+                _finish(task_id, record, {"source_path": failed, "control_plane": other}, "partial", None)
+                detail = get_k8s_inspection_detail({"task_id": task_id})
+                self.assertEqual(detail["evidence"]["probes"]["source_path"], failed)
+
     def test_registry_exposes_k8s_start_and_detail(self):
         metadata = AdminResourceRegistry.call("__meta__", {"action": "list"}, app_code="reader-a")
         self.assertIn(TARGET_LIST_FUNC_NAME, metadata["functions"])
@@ -1161,12 +1732,14 @@ class K8sInspectionDomainTest(SimpleTestCase):
                         "volumeMounts": [
                             {"name": "logs", "mountPath": "/data", "readOnly": False},
                             {"name": "secret", "mountPath": "/var/run/secret", "readOnly": True},
+                            {"name": "cache", "mountPath": "/cache/"},
                         ],
                     }
                 ],
                 "volumes": [
                     {"name": "logs", "persistentVolumeClaim": {"claimName": "business-logs"}},
                     {"name": "secret", "secret": {"secretName": "never-return-secret-name"}},
+                    {"name": "cache", "emptyDir": {}},
                 ],
             },
             "status": {
@@ -1216,6 +1789,7 @@ class K8sInspectionDomainTest(SimpleTestCase):
         self.assertEqual(snapshot["start_time"], "2026-01-01T00:00:01Z")
         self.assertTrue(snapshot["path_mappings"][0]["within_visible_mount"])
         self.assertEqual(snapshot["container"]["volume_mounts"][1]["volume"], {"type": "secret"})
+        self.assertEqual(snapshot["container"]["volume_mounts"][2]["volume"], {"type": "empty_dir"})
         self.assertNotIn("never-return-secret-name", json.dumps(snapshot))
 
     def test_events_only_return_bounded_diagnostic_reasons(self):
@@ -1385,6 +1959,333 @@ class K8sInspectionClientTest(SimpleTestCase):
         bcs.api_instance_core_v1.list_node.assert_has_calls(
             [call(_request_timeout=10), call(limit=50, _request_timeout=10)]
         )
+
+
+class SourcePolicyTest(SimpleTestCase):
+    def test_scope_requires_target_config_and_data_id_and_blocks_secret_volumes(self):
+        from apps.log_admin_resource.k8s_source_step import source_policy
+
+        target = {
+            "type": "pod_container",
+            "container": {
+                "container_id": "containerd://demo",
+                "volume_mounts": [
+                    {"mount_path": "/volume", "sub_path": "app", "volume": {"path": "/work"}},
+                    {"mount_path": "/data", "volume": {"type": "persistent_volume_claim"}},
+                    {"mount_path": "/cache/", "volume": {"type": "empty_dir"}},
+                    {"mount_path": "/node", "volume": {"path": "/"}},
+                    {"mount_path": "/private", "volume": {"type": "secret"}},
+                ],
+            },
+            "matched_container_config_ids": [7],
+        }
+        expected = [
+            {
+                "container_config_id": 7,
+                "collector_type": ContainerCollectorType.CONTAINER,
+                "name": "demo-config",
+                "spec": {"path": ["/logs/*.log"]},
+            }
+        ]
+        pod = {
+            "spec": {
+                "volumes": [{"name": "host", "hostPath": {"path": "/"}}],
+                "containers": [
+                    {"name": COLLECTOR_CONTAINER_NAME, "volumeMounts": [{"name": "host", "mountPath": "/var/host"}]}
+                ],
+            }
+        }
+        hint = collector_child_config_hints(target, expected)[0]
+        stream = {
+            "path": "/config/" + hint,
+            "content": "local: [{dataid: 7, root_fs: /var/host/root/demo, paths: ['/logs/*.log', '/other/*'], "
+            "mounts: [{container_path: /private, host_path: /var/host/private}]}]",
+        }
+        parsed = {"streams": {"child_config.0": stream}}
+        policy = source_policy(parsed, target, expected, 7, pod)
+        self.assertEqual(policy["directories"], ["/logs"])
+        self.assertNotIn("exclude", policy)
+        self.assertEqual(
+            policy["mounts"], {"/volume": True, "/private": False, "/data": True, "/cache": True, "/node": False}
+        )
+        self.assertNotIn("runtime_pid", policy)
+        stream["content"] = stream["content"].replace("/var/host/root/demo", "/var/host/proc/91/root")
+        self.assertEqual(source_policy(parsed, target, expected, 7, pod, metadata_only=True)["runtime_pid"], "91")
+        self.assertNotIn("runtime_pid", source_policy(parsed, target, expected, 8, pod))
+        stream["content"] = (
+            "local: [{dataid: 7, remove_path_prefix: /var/host, mount_infos: [{source: /proc/32/root, dest: /}, "
+            "{source: /work/secret, dest: /private}]}]"
+        )
+        legacy = source_policy(parsed, target, expected, 7, pod)
+        self.assertEqual(legacy["runtime_pid"], "32")
+        self.assertFalse(legacy["mounts"]["/private"])
+        for malformed in ("local: [", "date: 2025-99-99"):
+            parsed["streams"]["child_config.1"] = {**stream, "content": malformed}
+            with self.assertLogs("apps.log_admin_resource.collector_probe_evidence", level="WARNING"):
+                self.assertEqual(source_policy(parsed, target, expected, 7, pod)["runtime_pid"], "32")
+        del parsed["streams"]["child_config.1"]
+        stream["content"] = "local: [{dataid: 7, mount_infos: 1, remove_path_prefix: /var/host}]"
+        self.assertNotIn("runtime_pid", source_policy(parsed, target, expected, 7, pod))
+        stream["path"] = "/config/another-pod.conf"
+        self.assertNotIn("runtime_pid", source_policy(parsed, target, expected, 7, pod))
+        self.assertTrue(source_policy({"streams": {}}, target, expected, 7, pod)["mounts"]["/data"])
+        expected[0]["spec"]["path"] = ["/*.log"]
+        with self.assertRaises(FixedProbeError):
+            source_policy(parsed, target, expected, 7, pod)
+
+        pod["spec"]["containers"][0]["volumeMounts"][0]["subPath"] = "subdirectory"
+        with self.assertRaisesRegex(FixedProbeError, "no verified host root"):
+            source_policy(parsed, target, expected, 7, pod, metadata_only=True)
+
+    def test_volume_identity_sources_follow_pod_mount_type_and_renderer(self):
+        from apps.log_admin_resource.k8s_source_step import _rendered_mount_paths, _target_mounts
+
+        pod_root = "/custom/kubelet/pods/pod-uid"
+        rendered = {
+            "mounts": [{"container_path": "/pvc", "host_path": "/var/host" + pod_root + "/volumes/plugin/pv-a"}]
+        }
+        target = {
+            "pod_uid": "pod-uid",
+            "container": {
+                "name": "main",
+                "volume_mounts": [
+                    {"name": "work", "mountPath": "/work", "volume": {"type": "empty_dir"}},
+                    {"name": "cache", "mountPath": "/sub", "subPathExpr": "$(POD)", "volume": {"type": "empty_dir"}},
+                    {"name": "disk", "mountPath": "/pvc", "volume": {"type": "persistent_volume_claim"}},
+                    {"name": "private", "mountPath": "/private", "volume": {"type": "secret"}},
+                ],
+            },
+        }
+        for config in (
+            rendered,
+            {
+                "remove_path_prefix": "/var/host",
+                "mount_infos": [{"dest": "/pvc", "source": pod_root + "/volumes/plugin/pv-a"}],
+            },
+        ):
+            mapping = {dst: {src} for dst, src in _rendered_mount_paths(config)}
+            _, sources, _ = _target_mounts(target, mapping)
+            self.assertEqual(
+                sources,
+                {
+                    "/pvc": pod_root + "/volumes/plugin/pv-a",
+                    "/work": "/var/lib/kubelet/pods/pod-uid/volumes/kubernetes.io~empty-dir/work",
+                    "/sub": "/var/lib/kubelet/pods/pod-uid/volume-subpaths/cache/main/1",
+                },
+            )
+        subpath_pin = pod_root + "/volume-subpaths/pv-synthetic/main/1"
+        empty_dir = pod_root + "/volumes/kubernetes.io~empty-dir/work"
+        _, sources, _ = _target_mounts(target, {"/sub": {subpath_pin}, "/work": {empty_dir}})
+        self.assertEqual((sources["/sub"], sources["/work"]), (subpath_pin, empty_dir))
+        for paths in ({"/proc/123/root/pvc"}, {pod_root + "/volumes/plugin/pv-a", pod_root + "/volumes/plugin/pv-b"}):
+            self.assertNotIn("/pvc", _target_mounts(target, {"/pvc": paths})[1])
+
+    def test_long_cr_name_does_not_prevent_matching_the_selected_log_directory(self):
+        from apps.log_admin_resource.k8s_source_step import source_directories, source_read_binding
+
+        target = {"type": "pod_container", "container": {"container_id": "a" * 64}, "matched_container_config_ids": [7]}
+        config = {
+            "name": ".".join(["a" * 55] * 4),
+            "collector_type": ContainerCollectorType.CONTAINER,
+            "container_config_id": 7,
+            "spec": {"path": ["/logs/*.log"]},
+        }
+        self.assertEqual(collector_child_config_hints(target, [config]), [])
+        self.assertEqual(source_read_binding(target, [config], {"path": "/logs/current"}), ("/logs", {7}))
+        self.assertEqual(source_directories(target, [{**config, "container_config_id": 8}]), {})
+        self.assertEqual(source_directories({**target, "type": "node"}, [config]), {})
+        self.assertEqual(source_directories(target, [{**config, "container_config_id": None}]), {None: {"/logs"}})
+
+    def test_shell_stat_guard_matches_reader_timestamp_precision(self):
+        from types import SimpleNamespace
+
+        from apps.log_admin_resource.collector_directory_evidence import decode_directory_step
+        from apps.log_admin_resource.scripts.collector_source_step import check_identity, identity_guard
+
+        step = {"path": "/app/log/test.log", "path_space": "collector", "operation": "stat"}
+        policy = {"collector_pod_uid": "collector", "collector_container_id": "container"}
+        seconds, fraction = 1730000000, 123456789
+        metadata = f"5 23 81a4 13 {seconds} {seconds}" + "|2024-10-27 03:33:20.123456789 +0000" * 2
+        for precision in ("float", "ns"):
+            with self.subTest(precision=precision):
+                listing = decode_directory_step(
+                    f"2026-01-02T03:04:05.123456Z {precision}\n{metadata}\nLi90ZXN0LmxvZwAA",
+                    policy,
+                    dict(step, operation="list", path="/app/log"),
+                )["observation"]
+                follow = dict(step, expect=listing["entry_guards"][0])
+                wire_stat = f"2026-01-02T03:04:05.123456Z ns\n{metadata}\n{metadata}\n"
+                result = decode_directory_step(wire_stat, policy, follow)
+                stamp = seconds + fraction / 10**9
+                info = SimpleNamespace(st_dev=5, st_ino=23, st_size=13, st_mtime=stamp, st_ctime=stamp)
+                if precision == "ns":
+                    info.st_mtime_ns = info.st_ctime_ns = seconds * 10**9 + fraction
+                # Old Workers use only the token supplied in the request.
+                old_list_guard = identity_guard("parent", policy, "collector", step["path"], info)
+                self.assertEqual(follow["expect"], old_list_guard)
+                check_identity("parent", policy, follow, info)
+                self.assertEqual(
+                    decode_directory_step(wire_stat, policy, dict(step, expect=old_list_guard))["observation"][
+                        "verified_expectation"
+                    ],
+                    old_list_guard,
+                )
+                bound_policy = dict(policy, parent_guards=result["parent_guards"])
+                check_identity("parent", bound_policy, follow, info)
+                exact = SimpleNamespace(**vars(info))
+                exact.st_mtime_ns = exact.st_ctime_ns = seconds * 10**9 + fraction
+                old_request = dict(step, expect=identity_guard("file", policy, "collector", step["path"], exact))
+                if precision == "float":
+                    with self.assertRaisesRegex(ValueError, "source_file_identity_changed"):
+                        check_identity("file", policy, old_request, info)
+                guard = identity_guard("file", bound_policy, "collector", step["path"], info)
+                read = dict(step, operation="read", expect=guard)
+                check_identity("file", policy, read, info)
+                info.st_ino += 1
+                with self.assertRaisesRegex(ValueError, "source_file_identity_changed"):
+                    check_identity("file", policy, read, info)
+                with self.assertRaisesRegex(ValueError, "source_parent_identity_changed"):
+                    check_identity("parent", bound_policy, follow, info)
+
+    def test_shell_stat_preserves_metadata_without_a_collector_python(self):
+        from pathlib import Path
+
+        from apps.log_admin_resource.k8s_source_step import inspect_source_step
+
+        path = Path(__file__).resolve()
+        step = {"operation": "stat", "path_space": "collector", "path": str(path)}
+        outputs = [(directory_probe_output(step), "", 0), ('{"error":"collector_python_unavailable"}', "", 0)]
+        with patch("apps.log_admin_resource.k8s_source_step.run_collector_script", side_effect=outputs):
+            result = inspect_source_step(None, candidate(), {"values": {}}, {}, [], 7, step, {})
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(result["evidence"]["activity"], "unverified")
+        row = result["evidence"]["observation"]
+        self.assertEqual((row["inode"], row["size_bytes"]), (path.stat().st_ino, path.stat().st_size))
+        self.assertNotIn("file_guard", row)
+        from hashlib import sha256
+        from apps.log_admin_resource import k8s_source_step
+
+        helper = Path(k8s_source_step.__file__).with_name("scripts") / "collector_directory_step.sh"
+        self.assertEqual(result["probe_metadata"]["script_sha256"], sha256(helper.read_bytes()).hexdigest())
+        self.assertEqual(row["sampled_at"], "2026-01-02T03:04:05.123456Z")
+
+    def test_sensitive_metadata_path_is_absent_from_kubernetes_exec_url(self):
+        from urllib.parse import parse_qs, unquote, urlsplit
+
+        from apps.log_admin_resource.k8s_source_step import inspect_source_step
+
+        path = "/logs/account=private-test-value"
+        step = {"operation": "stat", "path_space": "collector", "path": path}
+        client = SimpleNamespace(bcs=SimpleNamespace(api_instance_core_v1=k8s_client.CoreV1Api()))
+        with patch("kubernetes.stream.ws_client.WSClient") as websocket:
+            response = websocket.return_value
+            response.is_open.side_effect = [True, False, False, False]
+            response.peek_stdout.return_value = True
+            response.peek_stderr.return_value = False
+            response.read_stdout.return_value = "2026-01-02T03:04:05.123456Z ns\nERROR source_path_not_found\n"
+            response.returncode = 0
+            result = inspect_source_step(client, candidate(), {"values": {}}, {}, [], 7, step, {})
+        url = websocket.call_args.args[1]
+        self.assertEqual(parse_qs(urlsplit(url).query)["command"], ["/bin/sh", "-s"])
+        self.assertNotIn("private-test-value", unquote(url))
+        self.assertIn(path, response.write_stdin.call_args.args[0])
+        self.assertEqual(result["evidence"]["error"], "source_path_not_found")
+
+    def test_shell_stat_distinguishes_missing_file_and_unavailable_tool(self):
+        import os
+        import subprocess
+        import tempfile
+        from pathlib import Path
+
+        from apps.log_admin_resource.k8s_source_step import inspect_source_step
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = str(Path(tmp) / "missing.log")
+            tools_dir = Path(tmp) / "tools"
+            tools_dir.mkdir()
+            stat_tool = tools_dir / "stat"
+            stat_tool.write_text(
+                '#!/bin/sh\nfor file do :; done\ncase "$file" in /) exit 0 ;; esac\necho "stat: path: ${DIAGNOSTIC}" >&2; exit 1\n'
+            )
+            clock = tools_dir / "date"
+            clock.write_text("#!/bin/sh\necho 2026-01-02T03:04:05.123456Z\n")
+            clock.chmod(0o755)
+            stat_tool.chmod(0o755)
+            for search_path, diagnostic, expected in (
+                (str(tools_dir), "No such file or directory", "source_path_not_found"),
+                (tmp, "", "stat_tool_unavailable"),
+                (str(tools_dir), "Permission denied", "source_permission_denied"),
+            ):
+
+                def execute(_client, _candidate, command, script):
+                    process = subprocess.run(
+                        command,
+                        input=script,
+                        env=dict(os.environ, PATH=search_path, DIAGNOSTIC=diagnostic),
+                        capture_output=True,
+                        text=True,
+                        check=True,
+                    )
+                    return process.stdout, process.stderr, process.returncode
+
+                with (
+                    self.subTest(expected=expected),
+                    patch("apps.log_admin_resource.k8s_source_step.run_collector_script", side_effect=execute),
+                ):
+                    step = {"operation": "stat", "path_space": "collector", "path": path}
+                    result = inspect_source_step(None, candidate(), {"values": {}}, {}, [], 7, step, {})
+                    self.assertEqual(result["evidence"]["error"], expected)
+
+    @skipUnless(sys.platform.startswith("linux"), "runs the Linux collector shell with GNU userspace")
+    def test_source_step_executes_fixed_script_and_returns_path_metadata(self):
+        import os
+        import subprocess
+        import tempfile
+        from pathlib import Path
+
+        from apps.log_admin_resource.k8s_source_step import inspect_source_step
+
+        def execute(_client, _candidate, command, script):
+            self.assertEqual(command, ["/bin/sh", "-s"])
+            result = subprocess.run(
+                command,
+                input=script,
+                env=dict(os.environ, PATH=f"{root}:{os.environ['PATH']}"),
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=True,
+            )
+            return result.stdout, result.stderr, result.returncode
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            clock = root / "date"
+            clock.write_text("#!/bin/sh\nprintf '%s\\n' 2010-01-02T03:04:05.123456Z\n")
+            clock.chmod(0o755)
+            (root / "logs").symlink_to("/volume/demo")
+            with (
+                patch("apps.log_admin_resource.k8s_source_step.source_policy") as policy,
+                patch("apps.log_admin_resource.k8s_source_step.run_collector_script", side_effect=execute),
+            ):
+                result = inspect_source_step(
+                    None,
+                    candidate(pod_uid="collector-uid"),
+                    {"values": {}},
+                    {"type": "node", "node_name": "node-a"},
+                    [],
+                    7,
+                    {"operation": "readlink", "path": str(root / "logs"), "path_space": "collector"},
+                    {},
+                )
+            policy.assert_not_called()
+            self.assertNotIn("pod_uid", result["evidence"])
+            self.assertEqual(result["status"], "success")
+            observation = result["evidence"]["observation"]
+            self.assertEqual(observation["sampled_at"], "2010-01-02T03:04:05.123456Z")
+            self.assertEqual(observation["target"], "/volume/demo")
+            self.assertEqual(observation["inode"], (root / "logs").lstat().st_ino)
+            self.assertEqual(result["probe_metadata"]["container"], COLLECTOR_CONTAINER_NAME)
 
 
 class FixedK8sProbeTest(SimpleTestCase):
@@ -2130,6 +3031,252 @@ class K8sInspectionWorkerTest(SimpleTestCase):
             task_type=TASK_TYPE_K8S_INSPECTION,
         )[0]
 
+    def test_source_step_failures_preserve_other_evidence_and_mark_task_partial(self):
+        target = {"type": "node", "node_name": "node-a"}
+        step = {"operation": "stat", "path_space": "collector", "path": "/logs/missing"}
+        for output, code in [
+            (("2026-01-02T03:04:05.123456Z ns\nERROR source_path_not_found\n", "", 0), "source_step_incomplete"),
+            (FixedProbeError("source_directory_unknown", "missing directory mapping"), "source_directory_unknown"),
+            ((directory_probe_output({"operation": "stat", "path": "/"}), "", 0), "collector_identity_changed"),
+        ]:
+            with self.subTest(code=code):
+                record = self._record(target=target, groups=["collector", "progress"])
+                task_id = record["task_id"]
+                ResourceInspectionTaskRecord.update(
+                    task_id, request_options={**record["request_options"], "source_step": step}
+                )
+                binding = daemon_set(), collector_pod()
+                validation = [
+                    binding,
+                    binding,
+                    FixedProbeError(code, "collector changed") if code == "collector_identity_changed" else binding,
+                ]
+                deep = {
+                    name: probe(evidence={"marker": name})
+                    for name in ("registrar", "progress", "collector_process", "source_path")
+                }
+                with (
+                    patch.multiple(
+                        "apps.log_admin_resource.k8s_tasks",
+                        _load_bound_collector=MagicMock(return_value=collector()),
+                        ContainerCollectorConfig=MagicMock(),
+                        expected_bklog_configs=MagicMock(return_value=[]),
+                        K8sInspectionClient=MagicMock(),
+                        _control_plane_probe=MagicMock(return_value=(probe(evidence={"target": target}), "node-a", [])),
+                        _discover_candidates=MagicMock(return_value=([candidate()], [], [])),
+                        _revalidate_candidate=MagicMock(side_effect=validation),
+                        _config_map_probe=MagicMock(return_value=(probe(), None)),
+                        _pod_logs_probe=MagicMock(return_value=probe()),
+                        run_fixed_collector_probe=MagicMock(return_value={"values": {}}),
+                        build_probe_evidence=MagicMock(return_value=deep),
+                    ),
+                    patch("apps.log_admin_resource.k8s_source_step.run_collector_script", side_effect=[output]),
+                ):
+                    run_k8s_inspection.run(task_id)
+                stored = ResourceInspectionTaskRecord.get(task_id)
+                result = ResourceInspectionTaskRecord.load_result(task_id)
+                self.assertEqual(stored["task_status"], "partial")
+                self.assertTrue(result["partial"])
+                for name in ("registrar", "progress", "collector_process"):
+                    self.assertEqual(result["probes"][name]["evidence"], {"marker": name})
+                source = result["probes"]["source_path"]
+                self.assertEqual((source["status"], source["code"]), ("failed", code))
+                self.assertNotIn("observation", source["evidence"])
+                if code == "source_step_incomplete":
+                    self.assertEqual(source["evidence"]["failed_path"], step["path"])
+
+    @override_settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=["reader-a"])
+    def test_cluster_source_read_stays_bound_to_dispatched_config(self):
+        target = {"type": "pod_container", "namespace": "production", "pod_name": "demo-abc", "container_name": "app"}
+        pod = business_pod()
+        pod["status"]["containerStatuses"][0]["containerID"] = "containerd://" + "c" * 64
+        step = {"operation": "read", "path": "/logs/app.log"}
+        sample = {"observation": {"raw_hex_chunks": ["626b6c6f67"]}}
+        for change in ("stable", "before_spec", "during_spec", "during_uid"):
+            with self.subTest(change=change):
+                config = {
+                    "metadata": {"namespace": "production", "name": "logs", "uid": "config-uid"},
+                    "spec": {**business_target_expected()[0]["spec"], "dataId": 1001, "path": ["/logs/*.log"]},
+                }
+                context = ClusterInspectionContext("BCS-K8S-1", deepcopy(config))
+                snapshot = safe_target_snapshot(target, pod, target_config_matches(target, pod, context.expected))
+                record = self._record(target=target, groups=["collector", "progress"])
+                task_id = record["task_id"]
+                ResourceInspectionTaskRecord.update(
+                    task_id,
+                    target={**record["target"], "collector_config_id": None, "bklog_config": context.binding},
+                    request_options={**record["request_options"], "source_step": step},
+                )
+
+                def fixed_evidence(*args, **kwargs):
+                    if change == "before_spec":
+                        config["spec"]["path"] = ["/other/*.log"]
+                    return {
+                        key: probe(evidence={"marker": key}) for key in ("registrar", "progress", "collector_process")
+                    }
+
+                def read_sample(*args):
+                    if change == "during_uid":
+                        config["metadata"]["uid"] = "replacement-uid"
+                    if change == "during_spec":
+                        config["spec"]["path"] = ["/other/*.log"]
+                    return probe(evidence=sample)
+
+                run_step = MagicMock(side_effect=read_sample)
+                with (
+                    patch("apps.log_admin_resource.k8s_cluster_context.K8sInspectionClient") as config_client,
+                    patch.multiple(
+                        "apps.log_admin_resource.k8s_tasks",
+                        K8sInspectionClient=MagicMock(return_value=MagicMock(read_pod=MagicMock(return_value=pod))),
+                        _control_plane_probe=MagicMock(
+                            return_value=(probe(evidence={"target": snapshot}), "node-a", [])
+                        ),
+                        _discover_candidates=MagicMock(return_value=([candidate()], [], [])),
+                        _revalidate_candidate=MagicMock(return_value=(daemon_set(), collector_pod())),
+                        _config_map_probe=MagicMock(return_value=(probe(), None)),
+                        _pod_logs_probe=MagicMock(return_value=probe()),
+                        run_fixed_collector_probe=MagicMock(return_value={"values": {}}),
+                        build_probe_evidence=MagicMock(side_effect=fixed_evidence),
+                        inspect_source_step=run_step,
+                    ),
+                ):
+                    config_client.return_value.read_bklog_config.side_effect = lambda *_: deepcopy(config)
+                    run_k8s_inspection.run(task_id)
+
+                result = ResourceInspectionTaskRecord.load_result(task_id, source_read=True)
+                self.assertIsNone(ResourceInspectionTaskRecord.load_result(task_id))
+                source = result["probes"]["source_path"]
+                for key in ("registrar", "progress", "collector_process"):
+                    self.assertEqual(result["probes"][key]["evidence"], {"marker": key})
+                if change == "stable":
+                    self.assertEqual(source["evidence"], sample)
+                    self.assertEqual(ResourceInspectionTaskRecord.get(task_id)["task_status"], "success")
+                else:
+                    self.assertEqual(source["code"], "source_step_validation_failed")
+                    self.assertNotIn("raw_hex_chunks", json.dumps(result))
+                    self.assertEqual(ResourceInspectionTaskRecord.get(task_id)["task_status"], "partial")
+                self.assertEqual(run_step.call_count, int(change != "before_spec"))
+
+    @override_settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=["reader-a"])
+    def test_collector_read_only_keeps_samples_covered_by_the_original_rule(self):
+        from apps.log_admin_resource.handlers.inspection import sanitize_json
+
+        target = {"type": "pod_container", "namespace": "production", "pod_name": "demo-abc", "container_name": "app"}
+        for change in (
+            "stable",
+            "before_labels",
+            "during_labels",
+            "same_directory_switch",
+            "alternating",
+            "during_path",
+            "unrelated",
+        ):
+            with self.subTest(change=change):
+                step = {"operation": "read", "path": "/logs/team/app.log"}
+                if change in ("stable", "same_directory_switch"):
+                    step = {
+                        "operation": "read",
+                        "path_space": "collector",
+                        "path": "/node/log/app.log",
+                        "via": "/logs/team",
+                    }
+                pod = business_pod()
+                pod["status"]["containerStatuses"][0]["containerID"] = "containerd://" + "c" * 64
+                pod["metadata"]["labels"]["route"] = "a"
+                mount_path = "/logs/account=blue"
+                pod["spec"]["containers"][0]["volumeMounts"] = [{"name": "logs", "mountPath": mount_path}]
+                rules = []
+                for rule_id, selector, paths in [(44, "a", ["/logs/*/*.log"]), (45, "b", ["/other/*.log"])]:
+                    spec = {
+                        **business_target_expected()[0]["spec"],
+                        "labelSelector": {"matchLabels": {"route": selector}},
+                        "path": paths,
+                    }
+                    rules.append(
+                        {
+                            "name": f"rule-{rule_id}",
+                            "container_config_id": rule_id,
+                            "collector_type": ContainerCollectorType.CONTAINER,
+                            "spec": spec,
+                        }
+                    )
+                if change in ("same_directory_switch", "alternating"):
+                    rules[1]["spec"]["path"] = rules[0]["spec"]["path"]
+                if change == "alternating":
+                    rules[1]["spec"]["labelSelector"] = {"matchLabels": {"team": "blue"}}
+                    pod["metadata"]["labels"]["team"] = "blue"
+                if change == "unrelated":
+                    rules[1]["spec"]["labelSelector"] = rules[0]["spec"]["labelSelector"]
+                snapshot = safe_target_snapshot(target, pod, target_config_matches(target, pod, rules))
+                record = self._record(target=target, groups=["collector", "progress"])
+                task_id = record["task_id"]
+                ResourceInspectionTaskRecord.update(
+                    task_id, request_options={**record["request_options"], "source_step": step}
+                )
+
+                def fixed_evidence(*args, **kwargs):
+                    if change in ("before_labels", "alternating"):
+                        pod["metadata"]["labels"]["route"] = "b"
+                    return {"progress": probe(evidence={"marker": "progress"})}
+
+                def read_sample(*args):
+                    self.assertEqual(args[3]["container"]["volume_mounts"][0]["mountPath"], mount_path)
+                    if change in ("during_labels", "same_directory_switch"):
+                        pod["metadata"]["labels"]["route"] = "b"
+                    if change == "alternating":
+                        pod["metadata"]["labels"].update(route="a", team="red")
+                    if change == "during_path":
+                        rules[0]["spec"]["path"] = ["/elsewhere/*.log"]
+                    if change == "unrelated":
+                        rules[1]["spec"]["path"] = ["/unrelated/*.log"]
+                    return probe(evidence={"observation": {"raw_hex_chunks": ["6162"]}})
+
+                run_step = MagicMock(side_effect=read_sample)
+                with patch.multiple(
+                    "apps.log_admin_resource.k8s_tasks",
+                    _load_bound_collector=MagicMock(return_value=collector()),
+                    ContainerCollectorConfig=MagicMock(),
+                    expected_bklog_configs=MagicMock(side_effect=lambda *_: deepcopy(rules)),
+                    K8sInspectionClient=MagicMock(
+                        return_value=MagicMock(read_pod=MagicMock(side_effect=lambda *_: deepcopy(pod)))
+                    ),
+                    _control_plane_probe=MagicMock(
+                        return_value=(
+                            probe(evidence={"target": sanitize_json(snapshot, redact_text=True)}),
+                            "node-a",
+                            [],
+                        )
+                    ),
+                    _discover_candidates=MagicMock(return_value=([candidate()], [], [])),
+                    _revalidate_candidate=MagicMock(return_value=(daemon_set(), collector_pod())),
+                    _config_map_probe=MagicMock(return_value=(probe(), None)),
+                    _pod_logs_probe=MagicMock(return_value=probe()),
+                    run_fixed_collector_probe=MagicMock(return_value={"values": {}}),
+                    build_probe_evidence=MagicMock(side_effect=fixed_evidence),
+                    inspect_source_step=run_step,
+                ):
+                    run_k8s_inspection.run(task_id)
+                result = ResourceInspectionTaskRecord.load_result(task_id, source_read=True)
+                self.assertIsNone(ResourceInspectionTaskRecord.load_result(task_id))
+                self.assertEqual(result["probes"]["progress"]["evidence"], {"marker": "progress"})
+                valid = change in ("stable", "unrelated")
+                self.assertEqual(result["probes"]["source_path"]["status"], "success" if valid else "failed")
+                self.assertEqual("raw_hex_chunks" in json.dumps(result), valid)
+                self.assertEqual(result["partial"], not valid)
+                self.assertEqual(run_step.call_count, int(change != "before_labels"))
+
+    @override_settings(RESOURCE_CALL_APP_CODE_WHITE_LIST=[])
+    @patch("apps.log_admin_resource.k8s_tasks.K8sInspectionClient")
+    def test_queued_original_read_is_denied_before_cluster_access_after_revocation(self, client):
+        record = self._record()
+        options = {**record["request_options"], "source_step": {"operation": "read", "path": "/logs/other.log"}}
+        ResourceInspectionTaskRecord.update(record["task_id"], request_options=options)
+        run_k8s_inspection.run(record["task_id"])
+        finished = ResourceInspectionTaskRecord.get(record["task_id"])
+        self.assertEqual(finished["error"]["code"], "source_read_access_denied")
+        self.assertFalse(finished["error"]["retryable"])
+        client.assert_not_called()
+
     @patch("apps.log_admin_resource.k8s_tasks.K8sInspectionClient")
     @patch("apps.log_admin_resource.k8s_tasks.expected_bklog_configs", return_value=[])
     @patch("apps.log_admin_resource.k8s_tasks.ContainerCollectorConfig.objects.filter")
@@ -2337,9 +3484,13 @@ class K8sInspectionWorkerTest(SimpleTestCase):
             "error": None,
         }
 
-        compacted = _store_bounded_result(record["task_id"], result)
+        long_path = "/" + "/".join(["日志" * 60] * 14)
+        source = probe(evidence={"request": {"operation": "stat", "path": long_path}, "first": {"path": long_path}})
+        result["probes"]["source_path"] = source
+        compacted = _store_bounded_result(record["task_id"], result, source_operation="stat")
         stored = ResourceInspectionTaskRecord.load_result(record["task_id"])
 
         self.assertTrue(compacted)
+        self.assertEqual(stored["probes"]["source_path"], source)
         self.assertTrue(stored["partial"])
         self.assertEqual(stored["probes"]["response_limit"]["code"], "response_compacted")

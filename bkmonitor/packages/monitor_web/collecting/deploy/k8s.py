@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import hashlib
 import json
 import logging
+from copy import deepcopy
 from typing import Any
 from urllib.parse import urljoin
 
@@ -101,6 +102,20 @@ spec:
     namespace: {{ namespace }}
     name: {{ plugin_release_name }}
 """
+
+
+def collector_release_name(config_id, bk_env):
+    name = f"bk-monitor-collector-{config_id}"
+    return f"{name}-{bk_env}" if bk_env else name
+
+
+def resource_identity(manifest):
+    return manifest["apiVersion"], manifest["kind"], manifest["metadata"]["name"]
+
+
+def stale_resources(previous, desired):
+    """仅清理旧清单中未被本次部署继续使用的对象。"""
+    return (obj for obj in previous if obj and resource_identity(obj) not in desired)
 
 
 class K8sInstaller(BaseInstaller):
@@ -266,7 +281,7 @@ class K8sInstaller(BaseInstaller):
             for config in yaml.safe_load_all(self._render_yaml(target_version, context)):
                 if not config:
                     continue
-                resources.add((config["apiVersion"], config["kind"], config["metadata"]["name"]))
+                resources.add(resource_identity(config))
                 self._create_or_update_dynamic_resource(client, config, context)
 
             # 清理旧版本的资源
@@ -274,10 +289,8 @@ class K8sInstaller(BaseInstaller):
                 return
 
             last_context = self._get_context(target_version.last_version)
-            for config in yaml.safe_load_all(self._render_yaml(target_version.last_version, last_context)):
-                if not config or (config["apiVersion"], config["kind"], config["metadata"]["name"]) in resources:
-                    continue
-
+            previous = yaml.safe_load_all(self._render_yaml(target_version.last_version, last_context))
+            for config in stale_resources(previous, resources):
                 # 如果资源在新版本中不存在，则删除
                 resource_client = client.resources.get(api_version=config["apiVersion"], kind=config["kind"])
                 try:
@@ -312,6 +325,11 @@ class K8sInstaller(BaseInstaller):
                     if e.status != 404:
                         raise e
 
+    def render_snapshot(self, target_version):
+        """按历史安装器的相同上下文和模板渲染，不访问集群。"""
+        context = self._get_context(target_version)
+        return context["values"], self._render_yaml(target_version, context)
+
     def _get_context(self, target_version: DeploymentConfigVersion) -> dict[str, Any]:
         """
         获取上下文配置
@@ -322,10 +340,10 @@ class K8sInstaller(BaseInstaller):
         collect_params: dict[str, Any] = target_version.params
 
         # 获取插件默认配置
-        values: dict[str, Any] = collector_json.get("values") or {}
+        values: dict[str, Any] = deepcopy(collector_json.get("values") or {})
 
         # 将采集配置参数合并到values中
-        for key, value in collect_params.get("plugin", {}).items():
+        for key, value in deepcopy(collect_params.get("plugin", {})).items():
             keys: list[str] = key.split(".")
 
             sub_value = values
@@ -346,16 +364,14 @@ class K8sInstaller(BaseInstaller):
         plugin_id = self.collect_config.plugin.plugin_id.replace("_", "-")
         bk_env: str = settings.BCS_CLUSTER_BK_ENV_LABEL
         if bk_env:
-            release_name = f"bk-monitor-collector-{self.collect_config.id}-{bk_env}"
             plugin_release_name = f"bk-monitor-plugin-{plugin_id}-{bk_env}"
         else:
-            release_name = f"bk-monitor-collector-{self.collect_config.id}"
             plugin_release_name = f"bk-monitor-plugin-{plugin_id}"
 
         return {
             "bk_biz_id": self.collect_config.bk_biz_id,
             "bk_env": bk_env,
-            "release_name": release_name,
+            "release_name": collector_release_name(self.collect_config.id, bk_env),
             "plugin_release_name": plugin_release_name,
             "cluster_id": cluster_id,
             "namespace": namespace,
@@ -374,13 +390,10 @@ class K8sInstaller(BaseInstaller):
             },
         }
 
-    def install(self, install_config: dict, operation: str | None = None) -> dict:
-        """
-        安装采集配置
-        """
+    def record_install(self, install_config, operation):
         # 创建新的部署记录
         deployment_config_params = {
-            "plugin_version": self.plugin.packaged_release_version,
+            "plugin_version": install_config.get("plugin_version") or self.plugin.packaged_release_version,
             "target_node_type": TargetNodeType.CLUSTER,
             # TODO: 目前仅使用内置的k8s集群，后续根据需求支持自定义集群
             "target_nodes": [],
@@ -403,6 +416,10 @@ class K8sInstaller(BaseInstaller):
             new_version.config_meta_id = self.collect_config.pk
             new_version.save()
 
+        return new_version
+
+    def install(self, install_config: dict, operation: str | None = None) -> dict:
+        new_version = self.record_install(install_config, operation)
         try:
             self._deploy(new_version)
         except k8s_client.exceptions.ApiException as e:
@@ -626,6 +643,9 @@ class K8sInstaller(BaseInstaller):
                     if status != "SUCCESS":
                         break
 
+        return self._status_result(status, log)
+
+    def _status_result(self, status, log):
         return [
             {
                 "child": [

@@ -329,7 +329,7 @@ class BaseQuery:
         queries: list[QueryConfigBuilder],
         start_time: int,
         end_time: int,
-        field: str,
+        field: str | None,
         limit: int = 20,
         enable_topk=False,
     ):
@@ -338,17 +338,18 @@ class BaseQuery:
         :param queries: 查询配置列表
         :param start_time: 开始时间戳
         :param end_time: 结束时间戳
-        :param field: 分组统计的目标字段名
+        :param field: 分组计数的字段；None 表示不分组，统计所有匹配记录
         :param limit: 最多展示的分组数量，默认 20
         :param enable_topk: 为 True 时使用 topk 表达式过滤，默认 False
         :return: 图表查询配置对象
         """
         alias = "a"
+        if field is not None:
+            queries = [q.group_by(field) for q in queries]
         queries = [
             q.alias(alias)
             .interval(get_bar_interval_number(start_time, end_time))
-            .metric(field=field, method="COUNT", alias=alias)
-            .group_by(field)
+            .metric(field=field or "_index", method="COUNT", alias=alias)
             for q in queries
         ]
         return self._add_query(
@@ -596,6 +597,20 @@ class BaseQuery:
             return int(value)
         return round(value, 2)
 
+    def _query_statistic_group(
+        self,
+        queries: list[QueryConfigBuilder],
+        start_time: int,
+        end_time: int,
+        field: str,
+        method: str,
+        group_by: list[str],
+        interval: int | None,
+    ) -> list[dict[str, Any]]:
+        return self._query_fields_aggregated_group(
+            queries, start_time, end_time, [field], method, group_by=group_by, interval=interval
+        )
+
     def _statistics(
         self,
         queries: list[QueryConfigBuilder],
@@ -623,11 +638,11 @@ class BaseQuery:
 
         def _collect(time_shift):
             offset = parse_time_compare_abbreviation(time_shift)
-            records = self._query_fields_aggregated_group(
+            records = self._query_statistic_group(
                 queries,
                 start_seconds + offset,
                 end_seconds + offset,
-                [field],
+                field,
                 cal_type,
                 group_by=group_by,
                 interval=interval,

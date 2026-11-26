@@ -57,21 +57,19 @@ class SamplingHelpers:
             if sample_config:
                 self.log(span, f"config in DB value: {sample_config.config_value}")
 
-            # 检查此应用入库在哪一侧进行
-            if sample_config == config:
+            # 采样配置未变化时跳过：前端保存其他应用配置时也会带上采样配置，
+            # 不跳过会重复下发尾部采样（V4 参数变化时会停启 Flink 作业）并再次暂停数据源。
+            if sample_config and sample_config.config_value == config:
                 self.log(span, "check [DB]sample_config == [New]sample_config, skip update")
                 return
 
-            if not self._tail_opened and (
-                config[Application.SamplerConfig.SAMPLER_TYPE]
-                == sample_config.config_value[Application.SamplerConfig.SAMPLER_TYPE]
-                == SamplerTypeChoices.RANDOM
-            ):
-                # 如果未开启尾部采样且都为随机类型 —> 直接更新DB
+            if config[Application.SamplerConfig.SAMPLER_TYPE] != SamplerTypeChoices.TAIL and not self._tail_opened:
+                # 未开启过尾部采样时，随机采样与不采样（等价随机采样 100%）都只由 bk-collector 执行，
+                # 不需要创建尾部采样 Flow —> 直接更新DB
                 self.log(
                     span,
                     "detected application does not enable tail sampling,"
-                    "this will update directly the random-sampling configuration",
+                    "this will update directly the random/empty sampling configuration",
                 )
                 self.application.setup_config(
                     self.application.sampler_config,
@@ -80,7 +78,7 @@ class SamplingHelpers:
                     override=True,
                 )
                 self.application.sampler_config = config
-                self.log(span, "update random-sampling configuration successfully, overwrite DB config with new config")
+                self.log(span, "update sampling configuration successfully, overwrite DB config with new config")
                 return
 
             # 环境中无计算平台 -> 报错
@@ -135,13 +133,12 @@ class SamplingHelpers:
 
     def _change_to_tail_sampling_config(self, sample_config):
         """将完整的采样配置转为尾部采样配置"""
-        if sample_config[Application.SamplerConfig.SAMPLER_TYPE] == SamplerTypeChoices.RANDOM:
-            return {
-                "tail_percentage": sample_config["sampler_percentage"],
-                "tail_conditions": [],
-            }
-        elif sample_config[Application.SamplerConfig.SAMPLER_TYPE] == SamplerTypeChoices.EMPTY:
-            # 不采样 -> 采样100%
+        if sample_config[Application.SamplerConfig.SAMPLER_TYPE] in (
+            SamplerTypeChoices.RANDOM,
+            SamplerTypeChoices.EMPTY,
+        ):
+            # 随机采样由 bk-collector 按页面比例执行（下发 sampler/random），不采样等价随机采样 100%；
+            # 尾部采样 Flow 一旦创建无法撤回，这两种类型下 Flow 都全量放行，避免与 bk-collector 叠加成双重采样。
             return {
                 "tail_percentage": 100,
                 "tail_conditions": [],

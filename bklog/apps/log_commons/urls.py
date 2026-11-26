@@ -19,6 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from django.conf import settings
 from django.conf.urls import include
 from django.urls import re_path
 from rest_framework import routers
@@ -40,3 +41,6 @@ urlpatterns = [
     # 获取临时分享token
     re_path(r"^", include(router.urls)),
 ]
+
+if settings.ESB_DISABLED and not settings.ENABLE_MULTI_TENANT_MODE:
+    urlpatterns.insert(0, re_path(r"^list_users/$", views.list_users))

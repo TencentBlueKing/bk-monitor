@@ -380,9 +380,9 @@ def _cat_passthrough(client, cluster_id: int, params: dict[str, Any], operation:
     """cat_segments / cat_recovery：只读 cat 直透，输出按 CAT_MAX_ROWS 截断并显式标注（不静默截断）。
     index_pattern 可选：运维工具按设计支持全集群视图（多租户/跨集群是设计需求，非安全问题）。"""
     index_pattern = str(params.get("index_pattern") or "").strip()
-    cat_fn = {"cat_segments": client.cat.segments, "cat_recovery": client.cat.recovery}[operation]
     kwargs = {"format": "json", "params": {"request_timeout": ES_REQUEST_TIMEOUT}}
     try:
+        cat_fn = client.cat.segments if operation == "cat_segments" else client.cat.recovery
         rows = cat_fn(index=index_pattern, **kwargs) if index_pattern else cat_fn(**kwargs)
     except Exception as error:
         _es_query_error(operation, error)

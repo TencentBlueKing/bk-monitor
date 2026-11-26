@@ -22,6 +22,7 @@ from django.utils.timezone import now as tz_now
 
 from constants.apm import ApmGlobalTablePrefix
 from constants.common import DEFAULT_TENANT_ID
+from core.drf_resource import api
 from metadata import models
 from metadata.models.constants import DEFAULT_MEASUREMENT, DataIdCreatedFromSystem
 from metadata.models.record_rule.constants import RECORD_RULE_V4_DELETED_RETENTION_DAYS
@@ -52,6 +53,7 @@ from metadata.models.space.ds_rt import (
     get_table_id_cluster_id,
     get_table_info_for_influxdb_and_vm,
 )
+from metadata.models.space.query_router import compose_query_route, normalize_query_router_config
 from metadata.models.space.utils import (
     get_biz_ids_by_space_ids,
     get_related_spaces,
@@ -84,6 +86,9 @@ class SpaceTableIDRedis:
 
         space = models.Space.objects.get(space_type_id=space_type, space_id=space_id)
         bk_tenant_id = space.bk_tenant_id
+        if settings.ENABLE_BMW_ROUTE_REFRESH:
+            api.bmw.refresh_space_route(bk_tenant_id=bk_tenant_id, space_type=space_type, space_id=space_id)
+            return
 
         # 过滤空间关联的数据源信息
         if space_type == SpaceTypes.BKCC.value:
@@ -139,6 +144,11 @@ class SpaceTableIDRedis:
             is_publish,
             bk_tenant_id,
         )
+        use_bmw = settings.ENABLE_BMW_ROUTE_REFRESH
+        if use_bmw and table_id_list and not data_label_list:
+            api.bmw.refresh_data_label_route(bk_tenant_id=bk_tenant_id, table_ids=table_id_list)
+            return
+
         if table_id_list:
             data_labels = self._refine_available_data_label(
                 table_id_list=table_id_list, data_label_list=data_label_list, bk_tenant_id=bk_tenant_id
@@ -148,6 +158,9 @@ class SpaceTableIDRedis:
         else:
             data_labels = None  # 全量刷新不拼接所有标签的 OR 条件。
         if data_labels == []:
+            return
+        if use_bmw and data_labels:
+            api.bmw.refresh_data_label_route(bk_tenant_id=bk_tenant_id, data_labels=data_labels)
             return
 
         aliases = self._get_data_label_aliases(bk_tenant_id, data_label_list=data_labels)
@@ -316,7 +329,8 @@ class SpaceTableIDRedis:
     ) -> None:
         """刷新一个租户的 ``result_table_detail`` 路由。
 
-        本入口同时处理两类结构不同的路由：
+        启用 BMW 定向刷新时，将指定结果表交给 worker 同步刷新。
+        本地刷新同时处理两类结构不同的路由：
 
         * InfluxDB、VM 和预计算指标表沿用原有 payload，不增加日志历史字段；
         * ES/Doris 日志表以 ``ResultTable.default_storage`` 作为顶层当前存储，
@@ -344,6 +358,12 @@ class SpaceTableIDRedis:
             len(table_id_list) if table_id_list else "all",
             is_publish,
         )
+
+        if table_id_list and settings.ENABLE_BMW_ROUTE_REFRESH:
+            api.bmw.refresh_result_table_route(
+                bk_tenant_id=bk_tenant_id, table_ids=table_id_list, is_publish=is_publish
+            )
+            return
 
         # 先按旧流程组装指标路由，后续由日志路由“认领”同名 table_id。这样既能保持
         # 指标和 RecordRule 的原有行为，又不会让已切换到 ES/Doris 的表回退成指标路由。
@@ -813,7 +833,7 @@ class SpaceTableIDRedis:
             # DorisStorage。虚拟表没有对应 Storage 配置时，再回退关联实体表的同类型配置。
             es_db = target_es.get("index_set") or origin_es.get("index_set")
             es_source_type = target_es.get("source_type") or origin_es.get("source_type")
-            # Doris 物理表名只存在于 DorisStorage；虚拟表未单独配置时回退实体表。
+            # 当前 BKBase 结果表也用作旧分段未保存结果表 ID 时的回退值。
             doris_db = target_doris.get("bkbase_table_id") or origin_doris.get("bkbase_table_id")
 
             # 虽名为 history，该列表实际包含实体表所有未删除的当前和历史分段；
@@ -851,14 +871,16 @@ class SpaceTableIDRedis:
                             "enable_time": record["enable_timestamp"],
                         }
                     )
-                elif doris_db:
+                elif segment_db := record["bkbase_table_id"] or doris_db:
+                    # 换表后每代物理表对应一个 BKBase 结果表：历史段必须指向自己那代的结果表，
+                    # 缺失时才回退当前存储值，兼容本特性上线前的历史数据。
                     history.append(
                         {
                             "storage_id": record["cluster_id"],
                             "storage_type": "bk_sql",
                             "storage_name": cluster["cluster_name"],
                             "cluster_name": cluster["cluster_name"],
-                            "db": doris_db,
+                            "db": segment_db,
                             "measurement": models.ClusterInfo.TYPE_DORIS,
                             "enable_time": record["enable_timestamp"],
                             **{
@@ -1125,8 +1147,8 @@ class SpaceTableIDRedis:
         _values.update(
             self._compose_related_bkci_table_ids(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id)
         )
-        _values.update(self._compose_vm_short_link_table_ids(space_type, space_id, bk_tenant_id))
-        _values.update(self._compose_log_global_table_ids(space))
+        _values.update(self._compose_vm_short_link_table_ids(space))
+        _values.update(self._compose_global_table_ids(space))
         return _values
 
     def _compose_bkci_space_table_ids(
@@ -1189,8 +1211,8 @@ class SpaceTableIDRedis:
                 bk_tenant_id=bk_tenant_id,
             )
         )
-        _values.update(self._compose_vm_short_link_table_ids(space_type, space_id, bk_tenant_id))
-        _values.update(self._compose_log_global_table_ids(space))
+        _values.update(self._compose_vm_short_link_table_ids(space))
+        _values.update(self._compose_global_table_ids(space))
         return _values
 
     def _compose_bksaas_space_table_ids(
@@ -1238,18 +1260,24 @@ class SpaceTableIDRedis:
                 bk_tenant_id=bk_tenant_id,
             )
         )
-        _values.update(self._compose_vm_short_link_table_ids(space_type, space_id, bk_tenant_id))
-        _values.update(self._compose_log_global_table_ids(space))
+        _values.update(self._compose_vm_short_link_table_ids(space))
+        _values.update(self._compose_global_table_ids(space))
         return _values
 
-    def _compose_log_global_table_ids(self, space: models.Space) -> dict[str, dict[str, list[dict[str, Any]]]]:
-        """按 query_router_config 组装 ES/Doris 日志全局表。"""
+    def _compose_global_table_ids(self, space: models.Space) -> dict[str, dict[str, list[dict[str, Any]]]]:
+        """按结果表的 query_router_config 组装全局路由。"""
 
+        # 单业务短链路在其他空间也不能通过结果表选项被共享。
+        short_link_table_ids = models.VMShortLinkRecord.objects.filter(
+            bk_tenant_id=space.bk_tenant_id, is_deleted=False
+        ).values("table_id")
         options = list(
             models.ResultTableOption.objects.filter(
                 bk_tenant_id=space.bk_tenant_id,
                 name=models.ResultTableOption.OPTION_QUERY_ROUTER_CONFIG,
-            ).values("table_id", "value", "value_type")
+            )
+            .exclude(table_id__in=short_link_table_ids)
+            .values("table_id", "value", "value_type")
         )
         if not options:
             return {}
@@ -1259,7 +1287,6 @@ class SpaceTableIDRedis:
             for result_table in models.ResultTable.objects.filter(
                 bk_tenant_id=space.bk_tenant_id,
                 table_id__in={option["table_id"] for option in options},
-                default_storage__in=[models.ClusterInfo.TYPE_ES, models.ClusterInfo.TYPE_DORIS],
                 is_deleted=False,
                 is_enable=True,
             )
@@ -1273,8 +1300,7 @@ class SpaceTableIDRedis:
         for option in options:
             table_id = option["table_id"]
             result_table = result_tables.get(table_id)
-            # 归属业务通过原有 ES/Doris 路由查询全量数据，不追加特殊过滤条件。
-            if not result_table or result_table.bk_biz_id == current_bk_biz_id:
+            if not result_table:
                 continue
 
             try:
@@ -1284,16 +1310,17 @@ class SpaceTableIDRedis:
                 if not isinstance(config, dict):
                     raise ValueError("query_router_config is not a dict")
 
-                config = models.VMShortLinkRecord.normalize_query_router_config(
+                config = normalize_query_router_config(
                     config,
                     default_space_type=SpaceTypes.ALL.value,
                 )
-                router_space_type = config[models.VMShortLinkRecord.QUERY_ROUTER_SPACE_TYPE]
+                router_space_type = config["space_type"]
                 if router_space_type not in supported_space_types:
                     raise ValueError(f"query_router_config.space_type {router_space_type} is not supported")
-            except (AttributeError, TypeError, ValueError, json.JSONDecodeError) as err:
+                route = compose_query_route(config, space, is_owner=result_table.bk_biz_id == current_bk_biz_id)
+            except (AttributeError, TypeError, ValueError) as err:
                 logger.warning(
-                    "_compose_log_global_table_ids: invalid query_router_config, "
+                    "_compose_global_table_ids: invalid query_router_config, "
                     "table_id->[%s], bk_tenant_id->[%s], error->[%s]",
                     table_id,
                     space.bk_tenant_id,
@@ -1301,65 +1328,38 @@ class SpaceTableIDRedis:
                 )
                 continue
 
-            if router_space_type not in [SpaceTypes.ALL.value, space.space_type_id]:
-                continue
-
-            filter_value_type = config[models.VMShortLinkRecord.QUERY_ROUTER_FILTER_VALUE]
-            filter_value = (
-                space.space_id
-                if filter_value_type == models.VMShortLinkRecord.FILTER_VALUE_SPACE_ID
-                else current_bk_biz_id
-            )
-            values[table_id] = {"filters": [{config[models.VMShortLinkRecord.QUERY_ROUTER_FILTER_KEY]: filter_value}]}
-
+            if route is not None:
+                values[table_id] = route
         return values
 
-    def _compose_vm_short_link_table_ids(
-        self, space_type: str, space_id: str, bk_tenant_id: str = DEFAULT_TENANT_ID
-    ) -> dict[str, dict[str, list[dict[str, Any]]]]:
-        """组装 VM 短链路结果表。
-
-        单业务短链路只进入归属空间；全局短链路按 query_router_config.space_type 进入目标空间。
-        归属空间可查询全量数据，非归属空间沿用业务过滤语义。
-        """
-        logger.info(
-            "_compose_vm_short_link_table_ids: space_type->[%s], space_id->[%s], bk_tenant_id->[%s]",
-            space_type,
-            space_id,
-            bk_tenant_id,
-        )
+    def _compose_vm_short_link_table_ids(self, space: models.Space) -> dict:
+        """单业务短链路只进入归属空间；全局短链路按 query_router_config 共享。"""
         records = models.VMShortLinkRecord.objects.filter(
-            bk_tenant_id=bk_tenant_id,
-            is_enabled=True,
-            is_deleted=False,
-        ).filter(Q(space_type=space_type, space_id=space_id) | Q(is_global=True))
-        if not records:
-            return {}
+            bk_tenant_id=space.bk_tenant_id, is_enabled=True, is_deleted=False
+        ).filter(Q(space_type=space.space_type_id, space_id=space.space_id) | Q(is_global=True))
 
-        values: dict[str, dict[str, list[dict[str, Any]]]] = {}
+        values = {}
         for record in records:
-            table_id = record.table_id
-            # 单业务表只会命中归属空间；全局表在归属空间也不需要额外业务过滤。
-            if not record.is_global or (record.space_type == space_type and record.space_id == space_id):
-                values[table_id] = {"filters": []}
+            if not record.is_global:
+                values[record.table_id] = {"filters": []}
                 continue
-
-            if not record.match_query_router_space_type(space_type):
-                continue
-
-            # 非归属空间访问全局表时按 query_router_config 生成过滤条件。
-            query_filter = record.get_query_router_filter(space_type, space_id)
-            if query_filter is None:
+            try:
+                route = compose_query_route(
+                    record.normalized_query_router_config,
+                    space,
+                    is_owner=record.space_type == space.space_type_id and record.space_id == space.space_id,
+                    short_link=True,
+                )
+            except (AttributeError, TypeError, ValueError) as err:
                 logger.warning(
-                    "_compose_vm_short_link_table_ids: table_id->[%s] cannot compose filter for "
-                    "space_type->[%s], space_id->[%s]",
-                    table_id,
-                    space_type,
-                    space_id,
+                    "_compose_vm_short_link_table_ids: invalid query_router_config, table_id->[%s], tenant->[%s]: %s",
+                    record.table_id,
+                    space.bk_tenant_id,
+                    err,
                 )
                 continue
-            values[table_id] = {"filters": [query_filter]}
-
+            if route is not None:
+                values[record.table_id] = route
         return values
 
     def _compose_bcs_space_biz_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID) -> dict:
@@ -1479,13 +1479,21 @@ class SpaceTableIDRedis:
 
     def _compose_bkci_other_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID) -> dict:
         logger.info("start to push bkci space other table_id, space_type: %s, space_id: %s", space_type, space_id)
-        exclude_data_id_list = utils.cached_cluster_data_id_list()
+        # 实时排除容器 DataID，避免旧缓存遗漏新集群或变更后的 DataID，覆盖容器过滤。
+        exclude_data_id_list = [
+            data_id
+            for data_ids in models.BCSClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id).values_list(
+                "K8sMetricDataID", "CustomMetricDataID"
+            )
+            for data_id in data_ids
+        ]
         table_id_data_id = get_space_table_id_data_id(
             space_type,
             space_id,
             exclude_data_id_list=exclude_data_id_list,
             include_platform_data_id=False,
-            from_authorization=False,
+            # 普通数据源包含显式授权；容器数据源仍由专用分支生成集群和命名空间过滤。
+            from_authorization=None,
             bk_tenant_id=bk_tenant_id,
         )
         _values = {}

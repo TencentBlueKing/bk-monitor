@@ -29,6 +29,8 @@ import { defineComponent, nextTick, shallowRef } from 'vue';
 
 import { Input, Loading } from 'bkui-vue';
 
+import { ISSUES_STATUS_MAP, IssueStatusEnum } from '../../../constant';
+
 import './issue-name-cell.scss';
 
 /**
@@ -50,6 +52,7 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    resolved: Boolean,
     /** 提交重命名，返回 Promise */
     onSubmit: {
       type: Function as PropType<(newName: string) => Promise<void>>,
@@ -184,6 +187,7 @@ export default defineComponent({
       );
     }
 
+    const resolvedStatus = ISSUES_STATUS_MAP[IssueStatusEnum.RESOLVED];
     return (
       <div class='issue-name-cell-view'>
         <span
@@ -192,6 +196,14 @@ export default defineComponent({
         >
           {this.name || '--'}
         </span>
+        {this.resolved && (
+          <i
+            style={{ color: resolvedStatus.color }}
+            class={['issue-name-cell-resolved-icon', resolvedStatus.icon]}
+            aria-label={resolvedStatus.alias}
+            role='img'
+          />
+        )}
         <span
           class='issue-name-cell-edit-btn'
           onClick={(e: MouseEvent) => {

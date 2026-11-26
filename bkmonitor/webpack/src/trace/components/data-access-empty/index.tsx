@@ -124,9 +124,18 @@ export default defineComponent({
 
     return () => {
       const hasProductDoc = !!props.productDocLink?.trim();
-      const darkDescKeypath = hasProductDoc
+      const hasWxCsLink = !!props.wxCsLink?.trim();
+      const darkLinkDescKeypath = hasProductDoc
         ? '参考下表接入数据，如有疑问请联系 {link} {doc}'
         : '参考下表接入数据，如有疑问请联系 {link}';
+      const darkAdminDescKeypath = hasProductDoc
+        ? '参考下表接入数据，如有疑问请联系管理员 {doc}'
+        : '参考下表接入数据，如有疑问请联系管理员';
+      /** 无 BK 助手链接时改用固定措辞，避免文案出现断句 */
+      const darkDescKeypath = hasWxCsLink ? darkLinkDescKeypath : darkAdminDescKeypath;
+      const lightDescKeypath = hasWxCsLink
+        ? '请参考下表接入数据，如有疑问请联系 {link}'
+        : '请参考下表接入数据，如有疑问请联系管理员';
       /** 有「一键开启」时提示未开启功能，否则提示数据接入不满足 RCA 要求 */
       const emptyTagTitleText = props.showEnableButton
         ? t('空间未开启故障分析功能')
@@ -185,18 +194,22 @@ export default defineComponent({
               )}
               <div class='empty-desc'>
                 <i18n-t
-                  keypath={props.isDarkTheme ? darkDescKeypath : '请参考下表接入数据，如有疑问请联系 {link}'}
+                  keypath={props.isDarkTheme ? darkDescKeypath : lightDescKeypath}
                   tag='span'
                 >
                   {{
-                    link: () => (
-                      <span
-                        class='bk-assistant-link'
-                        onClick={() => openExternalLink(props.wxCsLink)}
-                      >
-                        {t('BK 助手')}
-                      </span>
-                    ),
+                    ...(hasWxCsLink
+                      ? {
+                          link: () => (
+                            <span
+                              class='bk-assistant-link'
+                              onClick={() => openExternalLink(props.wxCsLink)}
+                            >
+                              {t('BK 助手')}
+                            </span>
+                          ),
+                        }
+                      : {}),
                     // 产品白皮书：仅 value 非空时展示
                     ...(hasProductDoc
                       ? {

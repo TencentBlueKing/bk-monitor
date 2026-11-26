@@ -12,12 +12,15 @@ import pytest
 
 from semconv.constants import SpanKind, SpanStatusCode
 from semconv.rum.constants import (
+    ActionEndReason,
+    ErrorSource,
+    ResourceType,
     RumSpanType,
     SdkLanguage,
     ViewLoadingType,
     VitalMetric,
-    OutcomeType,
     NetworkStatus,
+    OutcomeType,
     NetworkConnectionType,
 )
 from semconv.rum.attributes import (
@@ -32,6 +35,7 @@ from semconv.rum.field import FieldSpec, RatingThreshold
 from semconv.rum.registry import FieldRegistry
 from semconv.rum.trace import SpanSpec
 from semconv.rum.trace.status import Status
+from semconv.rum.view import ViewSpec
 
 
 class TestRatingThreshold:
@@ -167,12 +171,9 @@ class TestSpanSpec:
             "attributes.browser.viewport.width",
             "attributes.code.lineno",
             "attributes.code.filepath",
-            "attributes.device.id",
-            "attributes.error.message",
             "attributes.error.source",
-            "attributes.error.handled",
             "attributes.session.id",
-            "attributes.session.has_replay",
+            "attributes.tab.id",
             "attributes.blank_screen.reason",
             "attributes.blank_screen.empty_ratio",
             "attributes.view.id",
@@ -180,19 +181,22 @@ class TestSpanSpec:
             "attributes.view.url",
             "attributes.view.url_template",
             "attributes.view.end_reason",
-            "attributes.resource.decoded_body_size",
             "attributes.resource.encoded_body_size",
             "attributes.resource.transfer_size",
             "attributes.resource.delivery_type",
             "attributes.resource.render_blocking_status",
-            "attributes.resource.cache.hit",
+            "attributes.resource.initiator_type",
+            "attributes.action.name",
+            "attributes.action.ids",
+            "attributes.action.target.path",
             "attributes.network.effective_type",
             "attributes.outcome.type",
             "attributes.vital.id",
+            "attributes.vital.version",
             "attributes.vital.lcp.target",
-            "attributes.vital.lcp.element_render_delay",
-            "attributes.vital.inp.input_delay",
-            "attributes.vital.ttfb.dns_duration",
+            "attributes.vital.inp.target_selector",
+            "attributes.vital.cls.target_selector",
+            "attributes.timing.incomplete",
             # resource.*
             "resource.user_agent.name",
             "resource.device.type",
@@ -201,7 +205,6 @@ class TestSpanSpec:
             # events.*
             "events.name",
             "events.timestamp",
-            "events.attributes.exception.message",
             "events.attributes.exception.type",
             # Web Vitals 虚拟字段（根级）
             "LCP",
@@ -213,7 +216,9 @@ class TestSpanSpec:
     )
     def test_field_full_name(self, path: str):
         """所有已注册字段路径，get_full_field_name() 均返回完整路径。"""
-        assert SpanSpec.from_field(path).get_full_field_name() == path
+        spec = SpanSpec.from_field(path)
+        assert spec in SpanSpec.fields()
+        assert spec.get_full_field_name() == path
 
     # ------------------------------------------------------------------
     # 字段语义与原始 spec 一致（field_name 对齐）
@@ -255,6 +260,9 @@ class TestSpanSpec:
             ("attributes.vital.metric", VitalMetric),
             ("attributes.network.status", NetworkStatus),
             ("attributes.network.connection.type", NetworkConnectionType),
+            ("attributes.action.end_reason", ActionEndReason),
+            ("attributes.error.source", ErrorSource),
+            ("attributes.resource.type", ResourceType),
             ("attributes.outcome.type", OutcomeType),
             ("resource.telemetry.sdk.language", SdkLanguage),
         ],
@@ -283,6 +291,8 @@ class TestSpanSpec:
             ("start_time", "us", "datetime"),
             ("end_time", "us", "datetime"),
             ("elapsed_time", "us", "duration"),
+            ("attributes.timing.fetch_start", "ms", "duration"),
+            ("attributes.view.custom_timings.checkout_ready", "ms", "duration"),
         ],
     )
     def test_time_field_metadata(self, path: str, unit: str, display_type):
@@ -290,6 +300,18 @@ class TestSpanSpec:
         spec = SpanSpec.from_field(path)
         assert spec.field_unit == unit
         assert spec.field_display_type == display_type
+
+    def test_deprecated_fields_are_unregistered(self):
+        fields = {spec.get_full_field_name() for spec in SpanSpec.fields()}
+        assert fields.isdisjoint(
+            {
+                "attributes.error.handled",
+                "attributes.session.has_replay",
+                "attributes.view.previous",
+                "attributes.resource.cache.hit",
+                "events.attributes.exception.message",
+            }
+        )
 
     # ------------------------------------------------------------------
     # Web Vitals 单位、展示类型与评级阈值
@@ -327,6 +349,16 @@ class TestSpanSpec:
         assert cls_spec.rating_config[0] == RatingThreshold(rating="good", value=0.1)
         assert cls_spec.rating_config[1] == RatingThreshold(rating="needs_improvement", value=0.25)
         assert cls_spec.rating_config[2] == RatingThreshold(rating="poor")
+
+    @pytest.mark.parametrize("metric", ["LCP", "INP", "CLS", "FCP", "TTFB"])
+    def test_web_vitals_short_alias_and_hover(self, metric):
+        """Web Vitals 别名为简称，Span 与 View 层级共用 extra_config.hover。"""
+        span_spec = SpanSpec.from_field(metric)
+        view_spec = ViewSpec.from_field(f"web_vitals.{metric.lower()}")
+        assert span_spec.field_alias == view_spec.field_alias == metric
+        assert span_spec.extra_config["hover"] is view_spec.extra_config["hover"]
+        assert str(span_spec.extra_config["hover"]["title"]).startswith(f"{metric}（")
+        assert span_spec.extra_config["hover"]["source"]["url"] == f"https://web.dev/articles/{metric.lower()}"
 
     # ------------------------------------------------------------------
     # 未注册字段

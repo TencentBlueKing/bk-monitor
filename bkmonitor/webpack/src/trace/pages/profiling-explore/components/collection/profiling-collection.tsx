@@ -150,7 +150,7 @@ export default defineComponent({
           <CollectionOnboarding
             disabled={c.readonly || c.loading.value}
             loading={c.loading.value}
-            onStart={() => c.openEditor()}
+            onStart={c.startActiveCollection}
           />
         ) : (
           <>
@@ -268,6 +268,7 @@ export default defineComponent({
                 onBusy={value => this.$emit('busy', value)}
                 onChange={c.changeHistory}
                 onCreated={() => this.$emit('created')}
+                onPrefill={value => c.openEditor(undefined, value)}
                 onResult={(value, newPage) => this.$emit('result', value, newPage)}
                 onShare={value => this.$emit('share', value)}
               />
@@ -278,6 +279,7 @@ export default defineComponent({
                 range={this.range}
                 rangeError={this.rangeError}
                 readonly={c.readonly}
+                resolveRange={this.resolveRange}
                 revision={this.revision}
                 selection={state.result}
                 state={state.results}
@@ -295,11 +297,13 @@ export default defineComponent({
             )}
           </>
         )}
-        {c.editorOpen.value && c.meta.value && (
+        {c.meta.value && c.editorSession.value > 0 && (
           <CollectionTaskForm
-            key={`${this.bizId}:${c.editing.value?.task_id || 'new'}`}
+            key={`${this.bizId}:${c.editing.value?.task_id || 'new'}:${c.editorSession.value}`}
             bizId={this.bizId}
             meta={c.meta.value}
+            prefill={c.prefill.value}
+            show={c.editorOpen.value}
             task={c.editing.value}
             timezone={this.timezone}
             onClose={() => {
@@ -308,25 +312,24 @@ export default defineComponent({
             onSaved={c.saved}
           />
         )}
-        {c.detail.value && (
-          <CollectionTaskDetail
-            busy={!!c.busy.value}
-            hostError={c.detailHostError.value}
-            hostLoading={c.detailHostLoading.value}
-            hosts={c.detailHosts.value}
-            readonly={c.readonly}
-            task={c.detail.value}
-            onClose={() => {
-              c.detailId.value = undefined;
-            }}
-            onDelete={() => {
-              c.deleting.value = c.detail.value;
-            }}
-            onEdit={() => c.openEditor(c.detail.value)}
-            onHistory={() => c.openHistory(c.detail.value)}
-            onRetryHosts={c.loadDetailHosts}
-          />
-        )}
+        <CollectionTaskDetail
+          busy={!!c.busy.value}
+          hostError={c.detailHostError.value}
+          hostLoading={c.detailHostLoading.value}
+          hosts={c.detailHosts.value}
+          readonly={c.readonly}
+          show={!!c.detail.value}
+          task={c.detail.value}
+          onClose={() => {
+            c.detailId.value = undefined;
+          }}
+          onDelete={() => {
+            c.deleting.value = c.detail.value;
+          }}
+          onEdit={() => c.openEditor(c.detail.value)}
+          onHistory={() => c.openHistory(c.detail.value)}
+          onRetryHosts={c.loadDetailHosts}
+        />
         <Dialog
           beforeClose={() => !c.busy.value}
           isShow={!!c.deleting.value}

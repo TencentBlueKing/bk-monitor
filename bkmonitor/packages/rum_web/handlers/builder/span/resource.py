@@ -9,18 +9,19 @@ specific language governing permissions and limitations under the License.
 """
 
 from collections.abc import Sequence
-from dataclasses import dataclass
 from typing import Any
 
 from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.data_source.format import flatten_dict_data
 from semconv.rum.constants import ResourceType
-from rum_web.handlers.builder.base import BaseSection, KeyInfoSection, KeyValueItem, WaterfallSection, group
+from rum_web.handlers.builder.base import BaseSection, KeyInfoSection, WaterfallSection, group
 from rum_web.handlers.builder.constants import SectionType
 from rum_web.handlers.builder.hover import RESOURCE_PHASE_HOVERS
 from rum_web.handlers.builder.span.base import SpanBuilder, SpanOverview, named
-from rum_web.handlers.builder.span.resource_timing import (
+from rum_web.handlers.builder.span.timing.resource import (
+    CURRENT_TIMING_PREFIX,
+    OLD_TIMING_PREFIX,
     CrossOriginLayout,
     LocalLayout,
     NetworkLayout,
@@ -30,16 +31,55 @@ from rum_web.handlers.builder.span.resource_timing import (
 from rum_web.handlers.builder.utils import get_safe_number, safe_diff, waterfall
 
 
-@dataclass(frozen=True, slots=True)
-class CompressionRatioItem(KeyValueItem):
-    """正文压缩率不含协议头；缺失或分母为零时返回 None。"""
+def _decoded_body_size(flatten_data: dict[str, Any]) -> Any:
+    size = flatten_data.get("attributes.resource.size")
+    return size if size is not None else flatten_data.get("attributes.resource.decoded_body_size")
 
-    key: str = "display.compression_ratio"
+
+class ResponseBodySizeItem:
+    """解压后大小和正文压缩率共用同一个来源。"""
 
     def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
+        decoded_size = _decoded_body_size(flatten_data)
         encoded = get_safe_number(flatten_data.get("attributes.resource.encoded_body_size"), None)
-        decoded = get_safe_number(flatten_data.get("attributes.resource.decoded_body_size"), None)
-        return {self.key: None if encoded is None or not decoded else 1 - encoded / decoded}
+        decoded = get_safe_number(decoded_size, None)
+        return {
+            "attributes.resource.decoded_body_size": decoded_size,
+            "display.compression_ratio": None if encoded is None or not decoded else 1 - encoded / decoded,
+        }
+
+
+class ResourceCacheHitItem:
+    def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
+        return {"display.resource.cache_hit": self._infer_cache_hit(flatten_data)}
+
+    @staticmethod
+    def _infer_cache_hit(flatten_data: dict[str, Any]) -> bool | None:
+        delivery_type = flatten_data.get("attributes.resource.delivery_type")
+        timing_prefixes = (CURRENT_TIMING_PREFIX, OLD_TIMING_PREFIX)
+        # Service Worker 静态路由也可能返回缓存，此时无法确认 HTTP 缓存命中。
+        for prefix in timing_prefixes:
+            if any(
+                get_safe_number(flatten_data.get(f"{prefix}{field}")) > 0
+                for field in ("worker_start", "worker_router_evaluation_start", "worker_cache_lookup_start")
+            ) or any(
+                flatten_data.get(f"{prefix}{field}")
+                for field in ("worker_matched_router_source", "worker_final_router_source")
+            ):
+                return None
+        if delivery_type == "cache":
+            return True
+
+        transfer_size = get_safe_number(flatten_data.get("attributes.resource.transfer_size"), None)
+        decoded_size = get_safe_number(_decoded_body_size(flatten_data))
+        if delivery_type or transfer_size != 0 or decoded_size <= 0:
+            return None
+        for prefix in timing_prefixes:
+            request_start = get_safe_number(flatten_data.get(f"{prefix}request_start"))
+            response_start = get_safe_number(flatten_data.get(f"{prefix}response_start"))
+            if request_start > 0 and response_start > 0:
+                return True
+        return None
 
 
 class ResourceSpanOverview(SpanOverview):
@@ -50,10 +90,9 @@ DURATION = group("duration", "elapsed_time")
 HTTP_RESULT = group("http_result", "attributes.http.response.status_code", "attributes.outcome.type")
 TRANSFER = group(
     "transfer",
-    CompressionRatioItem(),
     "attributes.resource.transfer_size",
     "attributes.resource.encoded_body_size",
-    "attributes.resource.decoded_body_size",
+    ResponseBodySizeItem(),
 )
 
 
@@ -73,7 +112,7 @@ class ResourceXhrAndFetchKeyInfoSection(KeyInfoSection):
 
 
 class LoadingTimingSection(WaterfallSection):
-    """按 A→E 瀑布图类型输出阶段；缺少新时间点时独立兼容旧阶段字段。"""
+    """按 Resource Span 的时序字段渲染瀑布图，兼容 V1 和 V2。"""
 
     KEY = "loading_timing"
     PHASE_HOVERS = RESOURCE_PHASE_HOVERS
@@ -85,29 +124,33 @@ class LoadingTimingSection(WaterfallSection):
         "sw_startup": _("[ServiceWorker] 启动"),
         "sw_request": _("[ServiceWorker] 发送请求"),
         "sw_respond_with": _("[ServiceWorker] respondWith"),
-        "dns": _("DNS"),
+        "dns": _("DNS 查询"),
         "connect": _("连接建立"),
-        "tls": _("TLS"),
+        "tls": _("TLS 建连"),
         "first_byte": _("等待首字节"),
-        "download": _("内容下载"),
+        "download": _("内容传输"),
     }
 
-    # 按 A→E 顺序匹配，E 的「未匹配 A–D」由顺序保证；ReusedLayout 继承 NetworkLayout，必须排在其前。
+    # 按 A→E 顺序匹配，连接复用需要优先于普通网络请求。
     LAYOUTS = (CrossOriginLayout, ServiceWorkerLayout, LocalLayout, ReusedLayout, NetworkLayout)
 
     def get_data(self) -> dict[str, Any] | None:
-        start = self.numeric_or_none("attributes.resource.timing.start_time")
-        end = self.numeric_or_none("attributes.resource.timing.response_end")
-        if start is None or end is None:
+        # SDK 双写期间优先使用旧时间点，沿用旧版瀑布图的判定和分段。
+        for timing_prefix in (OLD_TIMING_PREFIX, CURRENT_TIMING_PREFIX):
+            start = self.numeric_or_none(f"{timing_prefix}start_time")
+            end = self.numeric_or_none(f"{timing_prefix}response_end")
+            if start is not None and end is not None:
+                break
+        else:
             return self._legacy_waterfall()
-        if end <= start:
+        if not 0 <= start < end:
             return None
         for layout_cls in self.LAYOUTS:
-            if (layout := layout_cls(self.flatten_data)).matches():
+            if (layout := layout_cls(self.flatten_data, timing_prefix=timing_prefix)).matches():
                 break
         else:
             # 未匹配任何类型时只展示总耗时。
-            layout = CrossOriginLayout(self.flatten_data)
+            layout = CrossOriginLayout(self.flatten_data, timing_prefix=timing_prefix)
         # 可选阶段（如未发生重定向）、乱序阶段在 span 中返回 None，这里统一过滤。
         specs = [spec for spec in layout.phases() if spec is not None]
         return waterfall(self.phases(specs), total=end - start)
@@ -155,7 +198,7 @@ class ResourceOthersKeyInfoSection(KeyInfoSection):
         HTTP_RESULT,
         DURATION,
         TRANSFER,
-        group("delivery", "attributes.resource.delivery_type", "attributes.resource.cache.hit"),
+        group("delivery", "attributes.resource.delivery_type", ResourceCacheHitItem()),
         group("blocking", "attributes.resource.render_blocking_status"),
     )
 
@@ -166,8 +209,6 @@ class ResourceOthersResourceInfoSection(BaseSection):
     ITEMS = named(
         "attributes.resource.type",
         "attributes.url.template",
-        "attributes.server.address",
-        "attributes.http.request.method",
         "attributes.resource.protocol",
     )
 

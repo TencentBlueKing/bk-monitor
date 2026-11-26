@@ -82,6 +82,10 @@ PROCESS_SELECTOR_SEPARATOR = ";"
 
 BKMONITORBEAT_RELATIVE_PATH = "plugins/bin/bkmonitorbeat"
 
+# 主动 Profiling 依赖的插件最低版本，低于该版本的主机可能下发失败或无数据上报
+# TODO: 最低版本尚未确定，先占位，确定后替换
+PLUGIN_MIN_VERSION = {"bkmonitorbeat": "3.73.4909"}
+
 # 脚本体是常量，选择器经 base64 从脚本参数进 stdin，用户输入不落到 shell 可解释的位置
 PROCESS_MATCH_SCRIPT = 'echo "$1" | base64 -d | {beat_path} -active-profile-match\n'
 
@@ -123,8 +127,8 @@ PROCESS_PREVIEW_COLUMNS = [
 TASK_LIST_COLUMNS = [
     {"field": "name", "name": "任务名称", "type": "text"},
     {"field": "schedule", "name": "执行方式", "type": "schedule"},
-    {"field": "schedule", "name": "执行时间", "type": "schedule_time"},
-    {"field": "task_status", "name": "状态", "type": "status"},
+    {"field": "schedule_time", "name": "执行时间", "type": "schedule_time"},
+    {"field": "task_status", "name": "启/停", "type": "status"},
     {"field": "deployment_status", "name": "部署状态", "type": "status"},
     {"field": "collection_method", "name": "采集方式", "type": "text"},
     {"field": "collection_type", "name": "采集类型", "type": "text"},
@@ -146,7 +150,9 @@ HOST_QUERY_COLUMNS = [
     {"field": "status", "name": "状态", "type": "status"},
 ]
 
+# id 是执行表的行 id，一次执行一个，同名执行靠它区分；预计算落后时执行表还没建行的执行为空
 EXECUTION_LIST_TASK_COLUMNS = [
+    {"field": "id", "name": "ID", "type": "number"},
     {"field": "task_name", "name": "任务名称", "type": "text"},
     {"field": "schedule_type", "name": "执行方式", "type": "text"},
     {"field": "collection_method", "name": "采集方式", "type": "text"},
@@ -175,7 +181,6 @@ EXECUTION_DETAIL_HOST_COLUMNS = [
     {"field": "ip", "name": "目标 IP", "type": "text"},
     {"field": "processes", "name": "采集进程", "type": "process_list"},
     {"field": "status", "name": "状态", "type": "status"},
-    {"field": "message", "name": "执行信息", "type": "text"},
     {"field": "started_at", "name": "开始时间", "type": "datetime"},
     {"field": "finished_at", "name": "结束时间", "type": "datetime"},
     {"field": "duration_ms", "name": "采集时长", "type": "duration"},

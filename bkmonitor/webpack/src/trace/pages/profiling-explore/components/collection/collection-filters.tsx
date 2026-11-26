@@ -25,37 +25,17 @@
  */
 import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
 
-import { useDebounceFn } from '@vueuse/core';
-import { Alert, Button, Select } from 'bkui-vue';
+import { Alert, Button } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import { useCollectionCandidates } from '../../composables/use-collection-candidates';
-import {
-  createHistoryFilters,
-  parseProcessSelection,
-  processCandidateOptions,
-  restoreProcessSelection,
-} from '../../utils/collection-history';
-import EmptyStatus from '@/components/empty-status/empty-status';
-import { TraceCellSkeleton } from '@/pages/trace-explore/components/trace-explore-skeleton';
+import { createHistoryFilters, parseProcessSelection } from '../../utils/collection-history';
+import CollectionSingleSelect from './collection-single-select';
+import CollectionValueTagSelector from './collection-value-tag-selector';
 
 import type { SelectionRange } from '../../types';
 import type { CollectionHistoryFilters } from '../../types/collection-history';
 
 import './collection-filters.scss';
-
-// 输入停顿后才请求候选值，避免逐字符调用 topk 接口
-const SEARCH_DEBOUNCE_TIME = 300;
-// 候选加载中的骨架行数，与下拉高度 200px 下的选项行数一致
-const SKELETON_ROWS = 6;
-
-// allowCreate 的触发器输入清空时，Select 会抛出与内部选中态不一致的空 change（handleInputChange 副作用）；
-// 空值先与组件内部 selected 核对（兼容 ref 未解包形态），仅内部也为空才视为真实清空
-function isInternalSelectionEmpty(refs: Record<string, unknown>, name: string) {
-  const raw = (refs[name] as undefined | { selected?: unknown })?.selected;
-  const selected = (raw as undefined | { value?: unknown })?.value ?? raw;
-  return !Array.isArray(selected) || selected.length === 0;
-}
 
 export default defineComponent({
   name: 'CollectionFilters',
@@ -73,72 +53,40 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const draft = shallowRef(createHistoryFilters());
-    const processes = shallowRef<string[]>([]);
-    const bizId = computed(() => props.bizId);
-    const range = computed(() => props.range);
-    // 三个下拉各自维护候选值，按需远程搜索与滚动加载
-    const targetCandidates = useCollectionCandidates(bizId, range, ['target']);
-    const taskCandidates = useCollectionCandidates(bizId, range, ['task_name']);
-    const processCandidates = useCollectionCandidates(bizId, range, ['process_names', 'process_pids']);
-    const searchTargets = useDebounceFn((keyword: string) => targetCandidates.search(keyword), SEARCH_DEBOUNCE_TIME);
-    const searchTasks = useDebounceFn((keyword: string) => taskCandidates.search(keyword), SEARCH_DEBOUNCE_TIME);
-    const searchProcesses = useDebounceFn((keyword: string) => processCandidates.search(keyword), SEARCH_DEBOUNCE_TIME);
-    // 下拉的远程搜索回调需要返回 Promise，防抖函数返回的 Promise 类型带额外成员，用普通函数转一次
-    async function remoteTargets(keyword: string) {
-      await searchTargets(keyword);
+    // IP、进程、任务的候选值都由各自的选择器加载
+    const ipError = shallowRef(false);
+    const processError = shallowRef(false);
+    const taskError = shallowRef(false);
+    // 已选值按候选字段分组传给新选择器，PID 的前缀由选择器内部维护
+    const ipValue = computed(() => [{ field: 'target' as const, values: draft.value.ips }]);
+    const processValue = computed(() => [
+      { field: 'process_names' as const, values: draft.value.process_names },
+      { field: 'process_pids' as const, values: draft.value.process_pids },
+    ]);
+    function setIpError(hasError: boolean) {
+      if (ipError.value !== hasError) ipError.value = hasError;
     }
-    async function remoteTasks(keyword: string) {
-      await searchTasks(keyword);
+    function setProcessError(hasError: boolean) {
+      if (processError.value !== hasError) processError.value = hasError;
     }
-    async function remoteProcesses(keyword: string) {
-      await searchProcesses(keyword);
+    function setTaskError(hasError: boolean) {
+      if (taskError.value !== hasError) taskError.value = hasError;
     }
-    // 任一候选接口失败即提示，具体文案与重试入口由渲染层提供
-    const candidateError = computed(
-      () => targetCandidates.error.value || taskCandidates.error.value || processCandidates.error.value
-    );
-    // 候选值加载中的骨架行
-    function renderSkeleton() {
-      return (
-        <li class='collection-filter-loading'>
-          {Array.from({ length: SKELETON_ROWS }, (_, index) => (
-            <div
-              key={index}
-              class='collection-filter-loading-row'
-            >
-              <TraceCellSkeleton
-                field='name'
-                index={index}
-              />
-            </div>
-          ))}
-        </li>
-      );
-    }
-    // 下拉没有候选值时统一用空态：加载中显示骨架行，带关键字时按「搜索结果为空」区分文案
-    function renderEmpty(state: ReturnType<typeof useCollectionCandidates>) {
-      if (state.loading.value) return renderSkeleton();
-      return (
-        <li class='collection-filter-empty'>
-          <EmptyStatus
-            showOperation={false}
-            type={state.keyword.value ? 'search-empty' : 'empty'}
-          />
-        </li>
-      );
-    }
-    // 重试时三个下拉一起重查，失败提示也随之统一消失
+    // 任一候选接口失败即提示，具体文案由渲染层提供
+    const candidateError = computed(() => ipError.value || processError.value || taskError.value);
+    // 重试时清掉失败标记并递增版本号，强制重挂选择器重新预加载、重新拉取候选
+    const revision = shallowRef(0);
     function reloadCandidates() {
-      targetCandidates.reload();
-      taskCandidates.reload();
-      processCandidates.reload();
+      ipError.value = false;
+      processError.value = false;
+      taskError.value = false;
+      revision.value += 1;
     }
-    // 外部筛选变化时同步草稿，并按新条件恢复进程下拉的回显值
+    // 外部筛选变化时同步草稿
     watch(
       () => props.filters,
       value => {
         draft.value = { ...value };
-        processes.value = restoreProcessSelection(value, processes.value);
       },
       { immediate: true }
     );
@@ -155,23 +103,22 @@ export default defineComponent({
     // 重置后立即按空条件重新查询，不保留上一次的筛选状态
     function reset() {
       draft.value = createHistoryFilters();
-      processes.value = [];
       submit();
     }
     return {
       t,
       draft,
-      processes,
-      targetCandidates,
-      taskCandidates,
-      processCandidates,
-      remoteTargets,
-      remoteTasks,
-      remoteProcesses,
+      ipError,
+      processError,
+      taskError,
+      ipValue,
+      processValue,
+      setIpError,
+      setProcessError,
+      setTaskError,
       candidateError,
+      revision,
       reloadCandidates,
-      renderEmpty,
-      renderSkeleton,
       submit,
       apply,
       reset,
@@ -179,134 +126,51 @@ export default defineComponent({
   },
   render() {
     const { draft } = this;
-    // 已选值可能不在当前候选里（远程搜索替换了列表），补成选项保证回显
-    const targetOptions = () => {
-      const items = this.targetCandidates.candidates.value.target || [];
-      const options = items.map(item => (
-        <Select.Option
-          id={String(item.value)}
-          key={`target:${item.value}`}
-          name={item.alias || String(item.value)}
-        />
-      ));
-      for (const ip of draft.ips) {
-        if (!items.some(item => String(item.value) === ip)) {
-          options.unshift(
-            <Select.Option
-              id={ip}
-              key={`target:${ip}`}
-              name={ip}
-            />
-          );
-        }
-      }
-      return options.length ? options : [this.renderEmpty(this.targetCandidates)];
-    };
-    // 按任务 ID 进入或选中值不在候选里时，补一个选项让任务下拉回显名称
-    const taskOptions = () => {
-      const items = this.taskCandidates.candidates.value.task_name || [];
-      const options = items.map(item => (
-        <Select.Option
-          id={String(item.value)}
-          key={`task_name:${item.value}`}
-          name={item.alias || String(item.value)}
-        />
-      ));
-      const name = draft.task_id ? this.taskName : draft.task_name;
-      if (name && !items.some(item => String(item.value) === name)) {
-        options.unshift(
-          <Select.Option
-            id={name}
-            key={`task_name:${name}`}
-            name={name}
-          />
-        );
-      }
-      return options.length ? options : [this.renderEmpty(this.taskCandidates)];
-    };
-    // 进程名与 PID 共用一份候选，已选值不在候选里时由 processCandidateOptions 补回显
-    const processOptions = () => {
-      const options = processCandidateOptions(this.processCandidates.candidates.value, this.processes).map(option => (
-        <Select.Option
-          id={option.id}
-          key={option.id}
-          name={option.name}
-        />
-      ));
-      return options.length ? options : [this.renderEmpty(this.processCandidates)];
-    };
     return (
       <>
         <div class='collection-history-filters'>
-          <label>
+          <div class='collection-history-filter-item'>
             <span>IP</span>
-            <Select
-              ref='ipSelect'
-              inputSearch={false}
-              loading={this.targetCandidates.loading.value}
-              modelValue={draft.ips}
-              remoteMethod={this.remoteTargets}
-              scrollLoading={this.targetCandidates.loading.value && !this.targetCandidates.searching.value}
-              allowCreate
-              collapseTags
-              customContent
-              filterable
-              multiple
-              onChange={ips => {
-                const next = ips || [];
-                if (next.length || isInternalSelectionEmpty(this.$refs, 'ipSelect')) this.apply({ ips: next });
-              }}
-              onScroll-end={() => this.targetCandidates.loadMore()}
-            >
-              {this.targetCandidates.searching.value ? this.renderSkeleton() : targetOptions()}
-            </Select>
-          </label>
-          <label>
+            <CollectionValueTagSelector
+              key={this.revision}
+              bizId={this.bizId}
+              fields={['target']}
+              range={this.range}
+              value={this.ipValue}
+              onChange={ips => this.apply({ ips })}
+              onError={this.setIpError}
+            />
+          </div>
+          <div class='collection-history-filter-item'>
             <span>{this.t('任务')}</span>
-            <Select
-              ref='taskSelect'
-              inputSearch={false}
-              loading={this.taskCandidates.loading.value}
+            <CollectionSingleSelect
+              key={this.revision}
+              bizId={this.bizId}
               modelValue={draft.task_id ? this.taskName : draft.task_name}
-              remoteMethod={this.remoteTasks}
-              scrollLoading={this.taskCandidates.loading.value && !this.taskCandidates.searching.value}
-              allowCreate
-              customContent
-              filterable
+              placeholder={this.t('请选择')}
+              range={this.range}
               onChange={value => {
                 // 选择任务名后改为按名称筛选，不再按任务 ID 定位
-                if (value || isInternalSelectionEmpty(this.$refs, 'taskSelect')) {
-                  this.apply({ task_id: null, task_name: String(value || '') });
-                }
+                this.apply({ task_id: null, task_name: value });
               }}
-              onScroll-end={() => this.taskCandidates.loadMore()}
-            >
-              {this.taskCandidates.searching.value ? this.renderSkeleton() : taskOptions()}
-            </Select>
-          </label>
-          <label>
+              onError={this.setTaskError}
+            />
+          </div>
+          <div class='collection-history-filter-item'>
             <span>{this.t('进程')}</span>
-            <Select
-              inputSearch={false}
-              loading={this.processCandidates.loading.value}
-              modelValue={this.processes}
-              multipleMode='tag'
+            <CollectionValueTagSelector
+              key={this.revision}
+              bizId={this.bizId}
+              fields={['process_names', 'process_pids']}
               placeholder={this.t('进程名或 PID')}
-              remoteMethod={this.remoteProcesses}
-              scrollLoading={this.processCandidates.loading.value && !this.processCandidates.searching.value}
-              allowCreate
-              customContent
-              filterable
-              multiple
+              range={this.range}
+              value={this.processValue}
               onChange={values => {
-                this.processes = values || [];
-                this.apply(parseProcessSelection(this.processes));
+                this.apply(parseProcessSelection(values));
               }}
-              onScroll-end={() => this.processCandidates.loadMore()}
-            >
-              {this.processCandidates.searching.value ? this.renderSkeleton() : processOptions()}
-            </Select>
-          </label>
+              onError={this.setProcessError}
+            />
+          </div>
           <div class='collection-history-query'>
             <Button
               v-tippy={this.t('按当前筛选条件查询')}

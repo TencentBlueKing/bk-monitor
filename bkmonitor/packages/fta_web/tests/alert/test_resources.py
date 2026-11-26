@@ -151,7 +151,7 @@ class TestAlertDetailResource:
         self, monkeypatch, relation_info, expected_relation_info, expected_relation_data
     ):
         alert_id = "17742505258462064"
-        fake_alert = SimpleNamespace(event=SimpleNamespace(bk_biz_id=8))
+        fake_alert = SimpleNamespace(event=SimpleNamespace(bk_biz_id=8), strategy=None)
         related_info_calls = []
 
         def fake_alert_related_info(**kwargs):

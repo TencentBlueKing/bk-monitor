@@ -1,0 +1,32 @@
+// 采集器版本校验弹窗（host-plugin-check-dialog.tsx）
+// 弹窗渲染到 body，类名保持全局唯一，不挂侧栏根类
+.collection-check-dialog-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+
+  .collection-check-dialog-icon {
+    font-size: 42px;
+    color: #ff9c01;
+  }
+
+  .collection-check-dialog-title {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 28px;
+    color: #313238;
+  }
+}
+
+.collection-check-dialog-content {
+  display: flex;
+  flex-direction: column;
+
+  .collection-check-dialog-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 24px;
+  }
+}

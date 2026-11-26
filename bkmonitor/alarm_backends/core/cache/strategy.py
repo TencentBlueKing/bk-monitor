@@ -391,7 +391,8 @@ class StrategyCacheManager(CacheManager):
                 params["data_source_label"] == DataSourceLabel.CUSTOM
                 and params["data_type_label"] == DataTypeLabel.EVENT
             ):
-                if query_config["custom_event_name"]:
+                # 存量配置可能缺失 custom_event_name（历史版本该字段允许缺省），为空时不过滤事件名
+                if query_config.get("custom_event_name"):
                     params["custom_event_name"] = query_config["custom_event_name"]
             elif params["data_source_label"] == DataSourceLabel.BK_FTA:
                 params["alert_name"] = query_config["alert_name"]
@@ -1244,6 +1245,10 @@ class StrategyCacheManager(CacheManager):
         return target_biz_set, to_be_deleted_strategy_ids
 
     @classmethod
+    def pin_initial_refresh_window(cls, start_time):
+        return cls.cache.set(cls.LAST_UPDATED_CACHE_KEY, int(start_time) - 300, cls.CACHE_TIMEOUT, nx=True)
+
+    @classmethod
     def smart_refresh(cls):
         """
         增量更新，默认300s内变更的业务将被更新。 更新后将设置最后更新时间。
@@ -1255,7 +1260,8 @@ class StrategyCacheManager(CacheManager):
         if not last_updated:
             # 首次执行也固定查询起点，失败重试不能随时间滑出默认窗口。
             last_updated = int(start_time) - 300
-            cls.cache.set(cls.LAST_UPDATED_CACHE_KEY, last_updated, cls.CACHE_TIMEOUT)
+            if not cls.pin_initial_refresh_window(start_time):
+                last_updated = cls.cache.get(cls.LAST_UPDATED_CACHE_KEY) or last_updated
         timeshift = start_time - int(last_updated)
         # 获取策略列表并缓存
         histories = StrategyHistoryModel.objects.filter(create_time__gt=datetime.fromtimestamp(int(last_updated)))
@@ -1542,7 +1548,11 @@ class TargetShieldProcessor:
 
 def smart_refresh():
     # 先刷新近期变更套餐，再发布增量策略，避免新策略先读到尚未更新的套餐缓存。
-    ActionConfigCacheManager.refresh(minutes=5)
+    start_time = time.time()
+    if not ActionConfigCacheManager.refresh(minutes=5):
+        # 即使首次遇到全量占锁，也保留本轮策略历史下界；已有游标和 TTL 不变。
+        StrategyCacheManager.pin_initial_refresh_window(start_time)
+        return
     StrategyCacheManager.smart_refresh()
 
 

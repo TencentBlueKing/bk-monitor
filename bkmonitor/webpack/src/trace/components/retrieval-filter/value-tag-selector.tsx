@@ -204,6 +204,7 @@ export default defineComponent({
           await promiseTimeout(300);
           handleClick();
         }
+        handleChange();
       }
     }
     /**

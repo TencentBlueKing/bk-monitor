@@ -428,8 +428,8 @@ class AgentStatusV3Test(TestCase):
         self.assertEqual(result, {})
         self.assertEqual(client.payloads, [])
 
-    @nodeman_v3_toggle("on", enabled=False)
-    def test_total_switch_off_routes_agent_status_to_v2(self):
+    @nodeman_v3_toggle("off", enabled=False)
+    def test_toggle_off_routes_agent_status_to_v2(self):
         from apps.log_search.handlers.biz import BizHandler
 
         with (
@@ -441,7 +441,7 @@ class AgentStatusV3Test(TestCase):
             patch.object(
                 BizHandler,
                 "_get_agent_status_v3",
-                side_effect=AssertionError("环境总开关关闭时不应查询 NodeMan V3"),
+                side_effect=AssertionError("未准入 V3 时不应查询 NodeMan V3"),
             ),
         ):
             result = BizHandler(BK_BIZ_ID).get_agent_status([{"bk_host_id": 1}])

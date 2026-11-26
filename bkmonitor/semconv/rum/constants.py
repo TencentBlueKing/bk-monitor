@@ -14,7 +14,14 @@ from django.utils.translation import gettext_lazy as _
 
 from constants.apm import CachedEnum
 
-SPAN_TYPE_COMMON_DISPLAY_FIELDS = ["span_name", "attributes.span_type", "end_time", "attributes.outcome.type"]
+SPAN_TYPE_COMMON_DISPLAY_FIELDS = [
+    "span_name",
+    "attributes.span_type",
+    "elapsed_time",
+    "virtual.browser",
+    "attributes.user.id",
+    "end_time",
+]
 
 
 class RumSpanType(CachedEnum):
@@ -64,7 +71,6 @@ class RumSpanType(CachedEnum):
                 "resource.deployment.environment.name",
                 "resource.user_agent.name",
                 "attributes.user.id",
-                "attributes.outcome.type",
                 "attributes.view.loading_time",
             ],
             self.RESOURCE: [
@@ -82,7 +88,6 @@ class RumSpanType(CachedEnum):
                 "attributes.view.url_template",
                 "events.attributes.exception.type",
                 "attributes.error.source",
-                "attributes.error.handled",
                 "resource.deployment.environment.name",
                 "resource.user_agent.name",
                 "attributes.user.id",
@@ -95,7 +100,6 @@ class RumSpanType(CachedEnum):
                 "resource.deployment.environment.name",
                 "resource.user_agent.name",
                 "attributes.user.id",
-                "attributes.outcome.type",
             ],
             self.LONG_TASK: [
                 "attributes.session.id",
@@ -119,7 +123,6 @@ class RumSpanType(CachedEnum):
                 "span_name",
                 "attributes.url.full",
                 "attributes.server.address",
-                "attributes.outcome.type",
                 "attributes.view.url_template",
                 "resource.user_agent.name",
                 "resource.service.version",
@@ -127,7 +130,6 @@ class RumSpanType(CachedEnum):
             ],
             self.CUSTOM: [
                 "span_name",
-                "attributes.outcome.type",
                 "elapsed_time",
                 "attributes.view.url_template",
                 "attributes.user.id",
@@ -150,79 +152,68 @@ class RumSpanType(CachedEnum):
         return {
             self.VIEW: [
                 "span_name",
-                "end_time",
-                "attributes.outcome.type",
-                "attributes.view.url_template",
-                "attributes.view.loading_type",
                 "attributes.view.loading_time",
-                "resource.user_agent.name",
+                "virtual.browser",
                 "attributes.user.id",
+                "end_time",
             ],
             self.RESOURCE: [
                 "span_name",
-                "attributes.span_type",
-                "end_time",
-                "attributes.url.full",
                 "elapsed_time",
                 "attributes.resource.size",
-                "attributes.resource.cache.hit",
-                "attributes.http.request.method",
-                "attributes.http.response.status_code",
-                "resource.user_agent.name",
+                "attributes.view.url_template",
+                "virtual.browser",
                 "attributes.user.id",
+                "end_time",
             ],
             self.ERROR: [
                 "span_name",
-                "end_time",
-                "attributes.view.url_template",
-                "events.attributes.exception.type",
                 "attributes.error.source",
-                "resource.user_agent.name",
+                "attributes.view.url_template",
+                "virtual.browser",
                 "attributes.user.id",
+                "end_time",
             ],
             self.VITAL: [
                 "span_name",
-                "end_time",
-                "attributes.view.url_template",
-                "attributes.network.effective_type",
-                "attributes.vital.metric",
                 "attributes.vital.value",
-                "resource.user_agent.name",
+                "attributes.view.url_template",
+                "virtual.browser",
                 "attributes.user.id",
+                "end_time",
             ],
             self.LONG_TASK: [
                 "span_name",
-                "end_time",
-                "attributes.outcome.type",
-                "attributes.view.url_template",
-                "attributes.long_task.entry_type",
-                "attributes.long_task.name",
+                "elapsed_time",
                 "attributes.long_task.blocking_duration",
-                "resource.user_agent.name",
+                "events.attributes.long_task.script.source_url",
+                "attributes.view.url_template",
+                "virtual.browser",
                 "attributes.user.id",
+                "end_time",
             ],
             self.ACTION: [
                 "span_name",
-                "end_time",
-                "attributes.outcome.type",
-                "attributes.view.url_template",
                 "elapsed_time",
-                "attributes.action.type",
-                "attributes.action.frustration.type",
-                "resource.user_agent.name",
+                "attributes.view.url_template",
+                "virtual.browser",
                 "attributes.user.id",
+                "end_time",
             ],
             self.WEBSOCKET: [
-                *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
+                "span_name",
                 "attributes.view.url_template",
-                "resource.user_agent.name",
+                "virtual.browser",
                 "attributes.user.id",
+                "end_time",
             ],
             self.CUSTOM: [
-                *SPAN_TYPE_COMMON_DISPLAY_FIELDS,
+                "span_name",
                 "elapsed_time",
-                "resource.user_agent.name",
+                "attributes.view.url_template",
+                "virtual.browser",
                 "attributes.user.id",
+                "end_time",
             ],
         }.get(self, SPAN_TYPE_COMMON_DISPLAY_FIELDS)
 
@@ -297,12 +288,7 @@ class VitalInpInteractionType(CachedEnum):
 
     @cached_property
     def label(self) -> str:
-        return {
-            self.KEYUP: _("松开按键"),
-            self.KEYDOWN: _("按下按键"),
-            self.POINTERDOWN: _("指针按下"),
-            self.POINTERUP: _("指针松开"),
-        }.get(self, self.value)
+        return self.value
 
     @classmethod
     def choices(cls) -> list[tuple[str, str]]:
@@ -351,13 +337,21 @@ class ErrorSource(CachedEnum):
     WINDOW_ERROR = "window.error"
     RESOURCE = "resource"
     UNHANDLED_REJECTION = "unhandledrejection"
+    CONSOLE = "console"
+    CUSTOM = "custom"
+    CSP = "csp"
+    BLANK_SCREEN = "blank_screen"
 
     @cached_property
     def label(self) -> str:
         return {
-            self.WINDOW_ERROR: _("脚本错误"),
+            self.WINDOW_ERROR: _("未捕获的 JS 异常"),
             self.RESOURCE: _("资源加载错误"),
             self.UNHANDLED_REJECTION: _("未处理的 Promise 异常"),
+            self.CONSOLE: _("控制台错误"),
+            self.CUSTOM: _("业务主动上报的错误"),
+            self.CSP: _("CSP 违规"),
+            self.BLANK_SCREEN: _("白屏"),
         }.get(self, self.value)
 
     @classmethod
@@ -406,7 +400,10 @@ class NetworkStatus(CachedEnum):
 
 
 class NetworkEffectiveType(CachedEnum):
-    """网络有效类型，对应浏览器 navigator.connection.effective_type 的原始值"""
+    """网络质量等级，对应浏览器 navigator.connection.effectiveType 的原始值。
+
+    由近期往返时延和下行吞吐量估算，与 Wi-Fi、蜂窝等连接类型无关。
+    """
 
     SLOW_2G = "slow-2g"
     G2 = "2g"
@@ -416,10 +413,10 @@ class NetworkEffectiveType(CachedEnum):
     @cached_property
     def label(self) -> str:
         return {
-            self.SLOW_2G: _("极慢"),
-            self.G2: _("较慢"),
-            self.G3: _("中等"),
-            self.G4: _("较快"),
+            self.SLOW_2G: _("极慢的网络（类似于低速 2G）"),
+            self.G2: _("2G 左右的网络速度"),
+            self.G3: _("3G 左右的网络速度"),
+            self.G4: _("4G / 高速网络"),
         }.get(self, self.value)
 
     @classmethod
@@ -452,22 +449,6 @@ class NetworkConnectionType(CachedEnum):
             self.UNKNOWN: _("未知"),
             self.WIFI: _("Wi-Fi"),
             self.WIMAX: _("WiMAX"),
-        }.get(self, self.value)
-
-    @classmethod
-    def choices(cls) -> list[tuple[str, str]]:
-        return [(member.value, member.label) for member in cls]
-
-
-class NetworkProtocolName(CachedEnum):
-    """应用层网络协议"""
-
-    WEBSOCKET = "websocket"
-
-    @cached_property
-    def label(self) -> str:
-        return {
-            self.WEBSOCKET: _("WebSocket"),
         }.get(self, self.value)
 
     @classmethod
@@ -559,6 +540,7 @@ class OutcomeType(CachedEnum):
     ERROR = "error"
     TIMEOUT = "timeout"
     ABORT = "abort"
+    UNKNOWN = "unknown"
 
     @cached_property
     def label(self) -> str:
@@ -568,6 +550,7 @@ class OutcomeType(CachedEnum):
             self.ERROR: _("失败"),
             self.TIMEOUT: _("超时"),
             self.ABORT: _("中止"),
+            self.UNKNOWN: _("未知"),
         }.get(self, self.value)
 
     @classmethod
@@ -580,13 +563,13 @@ class ResourceType(CachedEnum):
 
     FETCH = "fetch"
     XHR = "xhr"
-    SCRIPT = "script"
-    LINK = "link"
-    IMG = "img"
-    IMAGE = "image"
+    BEACON = "beacon"
+    DOCUMENT = "document"
     CSS = "css"
-    IFRAME = "iframe"
-    FRAME = "frame"
+    JS = "js"
+    IMAGE = "image"
+    FONT = "font"
+    MEDIA = "media"
     OTHER = "other"
 
     @cached_property
@@ -594,13 +577,13 @@ class ResourceType(CachedEnum):
         return {
             self.FETCH: _("Fetch 请求"),
             self.XHR: _("XHR 请求"),
-            self.SCRIPT: _("脚本加载"),
-            self.LINK: _("Link 标签加载"),
-            self.IMG: _("图片"),
+            self.BEACON: _("Beacon 请求"),
+            self.DOCUMENT: _("文档"),
+            self.CSS: _("样式表"),
+            self.JS: _("脚本"),
             self.IMAGE: _("图片"),
-            self.CSS: _("CSS 规则加载"),
-            self.IFRAME: _("内嵌页面"),
-            self.FRAME: _("内嵌页面"),
+            self.FONT: _("字体"),
+            self.MEDIA: _("音视频"),
             self.OTHER: _("其他"),
         }.get(self, self.value)
 
@@ -647,57 +630,33 @@ class FrustrationType(CachedEnum):
         return [(member.value, member.label) for member in cls]
 
 
-class ResourceCacheHit(CachedEnum):
-    """布尔值"""
+class ActionEndReason(CachedEnum):
+    """操作观察结束原因"""
 
-    TRUE = True
-    FALSE = False
-
-    @cached_property
-    def label(self) -> str:
-        return {
-            self.TRUE: _("缓存命中"),
-            self.FALSE: _("缓存未命中"),
-        }.get(self, str(self.value))
-
-    @classmethod
-    def choices(cls) -> list[tuple[bool, str]]:
-        return [(member.value, member.label) for member in cls]
-
-
-class ErrorHandled(CachedEnum):
-    """错误是否被捕获"""
-
-    TRUE = True
-    FALSE = False
+    ACTIVITY_END = "activity_end"
+    NO_ACTIVITY = "no_activity"
+    TIMEOUT = "timeout"
+    VIEW_CHANGE = "view_change"
+    SESSION_EXPIRED = "session_expired"
+    PAGE_HIDDEN = "page_hidden"
+    PAGE_EXIT = "page_exit"
+    SHUTDOWN = "shutdown"
 
     @cached_property
     def label(self) -> str:
         return {
-            self.TRUE: _("错误已捕获"),
-            self.FALSE: _("错误未捕获"),
-        }.get(self, str(self.value))
+            self.ACTIVITY_END: _("活动结束"),
+            self.NO_ACTIVITY: _("无后续活动"),
+            self.TIMEOUT: _("观察超时"),
+            self.VIEW_CHANGE: _("视图切换"),
+            self.SESSION_EXPIRED: _("会话过期"),
+            self.PAGE_HIDDEN: _("页面隐藏"),
+            self.PAGE_EXIT: _("页面退出"),
+            self.SHUTDOWN: _("SDK 停止"),
+        }.get(self, self.value)
 
     @classmethod
-    def choices(cls) -> list[tuple[bool, str]]:
-        return [(member.value, member.label) for member in cls]
-
-
-class SessionHasReplay(CachedEnum):
-    """有无回放"""
-
-    TRUE = True
-    FALSE = False
-
-    @cached_property
-    def label(self) -> str:
-        return {
-            self.TRUE: _("有回放"),
-            self.FALSE: _("无回放"),
-        }.get(self, str(self.value))
-
-    @classmethod
-    def choices(cls) -> list[tuple[bool, str]]:
+    def choices(cls) -> list[tuple[str, str]]:
         return [(member.value, member.label) for member in cls]
 
 

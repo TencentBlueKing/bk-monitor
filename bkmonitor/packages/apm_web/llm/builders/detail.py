@@ -20,6 +20,8 @@ from constants.apm import OtlpKey
 
 from apm_web.llm.adapter import adapt_spans
 from apm_web.llm.adapter.fields import flow_attribute_fields, resolve_product
+from apm_web.llm.constants import SpanType
+from apm_web.llm.tokens import build_token_matrix
 from apm_web.strategy.dispatch.entity import EntitySet
 from bkmonitor.utils.request import get_request_username
 
@@ -105,6 +107,10 @@ def attach_llm_detail(
         details = {
             span[OtlpKey.SPAN_ID]: span for span in adapt_spans(llm_raw_spans, entity_set) if "span_type" in span
         }
+    if not compact:
+        for detail in details.values():
+            if detail.get("span_type") == SpanType.LLM:
+                detail["token_matrix"] = build_token_matrix([detail])
     for span in trace_tree.get("spans") or []:
         if detail := details.get(span.get("spanID")):
             span["llm_detail"] = detail

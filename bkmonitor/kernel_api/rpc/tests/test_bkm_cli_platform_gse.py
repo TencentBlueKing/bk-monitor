@@ -585,3 +585,14 @@ def test_gse_projectors_do_not_leak_sensitive_or_unknown_canaries():
         "canary-path",
     ]:
         assert canary not in serialized
+
+
+def test_configured_single_tenant_gse_operator(settings, mocker):
+    settings.ENABLE_MULTI_TENANT_MODE = False
+    settings.BK_ADMIN_USERNAME = "gse-service-login"
+    lookup = mocker.patch.object(
+        gse.api.bk_login, "batch_lookup_virtual_user", return_value=[{"bk_username": "resolved"}]
+    )
+    assert gse.guard_query_route({"channel_id": 1})["operation"]["operator_name"] == "resolved"
+    assert gse.guard_query_stream_to({"stream_to_id": 2})["operation"]["operator_name"] == "resolved"
+    lookup.assert_called_once_with(bk_tenant_id="default", lookup_field="login_name", lookups="gse-service-login")

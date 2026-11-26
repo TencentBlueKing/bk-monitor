@@ -8,8 +8,9 @@
 |---|---|---|---|
 | bk_biz_id | int | 是 | 业务 ID |
 | app_name | string | 是 | APM 应用名称 |
-| trace_id | string | 否 | Trace ID，精确匹配；与 `span_id` 至少传一个 |
-| span_id | string | 否 | Span ID，精确匹配；与 `trace_id` 至少传一个 |
+| trace_id | string | 否 | Trace ID，精确匹配；与 `span_id`、`span_ids` 至少传一个 |
+| span_id | string | 否 | 单个 Span ID，精确匹配；与 `trace_id`、`span_ids` 至少传一个 |
+| span_ids | list | 否 | Span ID 列表，批量精确匹配；与 `trace_id`、`span_id` 至少传一个 |
 
 ### 请求参数示例
 
@@ -48,7 +49,6 @@
 
 | 字段名 | 类型 | 描述 |
 |---|---|---|
-| trace_id | string | Trace ID；只传 `span_id` 时取匹配结果中的 Trace ID，未匹配时为空字符串 |
 | total | int | 转换后返回的 Span 数量 |
 | spans | list | 按 `start_time` 正序排列的标准化 Span |
 
@@ -193,7 +193,6 @@
     "code": 200,
     "message": "OK",
     "data": {
-        "trace_id": "9519ce8934ad4c2f04753eef6ce44b08",
         "total": 4,
         "spans": [
             {
@@ -521,3 +520,9 @@
 1. `total` 是当前 Trace 转换后 Span 的数量，不是分页总数。
 2. Adapter 会过滤与 Agent/LLM 展示无关的厂商私有属性，因此 `attributes` 是稀疏对象，不保证每个字段都存在。
 3. `resource` 保留 Span 上报的 OTel Resource 信息，具体键由 SDK 决定。
+
+### Span 详情中的 Token 统计
+
+模型 Span 的 `span_detail` 在 `llm_detail` 中返回 `token_matrix`、`token_categories` 和补齐后的用量。完整 JSON 样例和字段定义见 [LLM Token 统计](https://github.com/TencentBlueKing/bk-monitor/blob/master/bkmonitor/packages/apm_web/llm/docs/llm_token_matrix.md)。
+
+- *[1] `list_spans` 列表检索不计算正文 Token。*

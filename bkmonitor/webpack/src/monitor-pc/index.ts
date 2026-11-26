@@ -26,7 +26,7 @@
  */
 
 import './public-path';
-import { bkOTInstance } from './open-telemetry';
+import { initOpenTelemetry } from './open-telemetry';
 import 'monitor-common/polyfill';
 
 import i18n from './i18n/i18n';
@@ -40,7 +40,7 @@ import Api from 'monitor-api/api';
 import Axios from 'monitor-api/axios/axios';
 import { type VueInstance, setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-worker';
-import { getUrlParam, mergeSpaceList, parseBizId, setGlobalBizId } from 'monitor-common/utils';
+import { getUrlParam, mergeSpaceList, parseBizId, resolveEntryBizId, setGlobalBizId } from 'monitor-common/utils';
 import { assignWindowField } from 'monitor-common/utils/assign-window';
 import { initIframeBroadcast } from 'monitor-common/utils/iframe-bridge';
 
@@ -58,6 +58,9 @@ import 'monitor-static/icons/monitor-icons.css';
 // import './tailwind.css';
 // todo: 子应用externals
 // import './common/externals';
+// 复用已创建的 Router，在首个上下文请求与 Vue 挂载前启动 RUM。
+const bkOTInstance = initOpenTelemetry(router, store, Axios.defaults.baseURL);
+
 // app 标识
 window.source_app = 'monitor';
 // 全局图表数量变量
@@ -95,7 +98,7 @@ if (hasRouteHash) {
     Api.model
       .enhancedContext({
         space_uid: spaceUid || undefined,
-        bk_biz_id: !spaceUid ? +bizId || process.env.defaultBizId : undefined,
+        bk_biz_id: !spaceUid ? resolveEntryBizId(bizId) || process.env.defaultBizId : undefined,
         context_type: 'basic',
       })
       .then(data => {
@@ -141,6 +144,9 @@ if (hasRouteHash) {
           store,
           i18n,
           render: h => h(App),
+          beforeDestroy() {
+            void bkOTInstance?.shutdown();
+          },
         });
         Vue.prototype.$bus = new Vue();
         Vue.prototype.$platform = window.platform;

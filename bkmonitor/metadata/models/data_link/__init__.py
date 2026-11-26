@@ -14,11 +14,15 @@ from .data_link_configs import (  # noqa
     LogDataBusConfig,
     GraphRelationBindingConfig,
     SurrealDBBindingConfig,
+    LogClusteringSinkConfig,
 )
 
+from .doris_job import DorisJobConfig, DorisJobTableRelation
 from .vm_query_cluster import VmQueryClusterConfig
 
 __all__ = [
+    "DorisJobConfig",
+    "DorisJobTableRelation",
     "VmQueryClusterConfig",
     "DataLinkResourceConfigBase",
     "DataLink",
@@ -35,4 +39,5 @@ __all__ = [
     "DorisStorageBindingConfig",
     "GraphRelationBindingConfig",
     "SurrealDBBindingConfig",
+    "LogClusteringSinkConfig",
 ]

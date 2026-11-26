@@ -2,11 +2,14 @@ from unittest.mock import Mock, call, patch
 
 from django.test import SimpleTestCase, TestCase
 
+from apps.feature_toggle.models import FeatureToggle
+from apps.feature_toggle.plugins.constants import MINI_CLUSTERING_CONFIG
 from apps.log_clustering.constants import RegexRuleTypeEnum, StorageTypeEnum
-from apps.log_clustering.exceptions import RegexTemplateNotExistException
+from apps.log_clustering.exceptions import ClusteringConfigHasExistException, RegexTemplateNotExistException
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
 from apps.log_clustering.models import ClusteringConfig, RegexTemplate
-from apps.log_search.models import LogIndexSet
+from apps.log_databus.models import CollectorConfig
+from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
 
 TEST_INDEX_SET_ID = 1
 TEST_BK_BIZ_ID = 2
@@ -34,6 +37,34 @@ class TestClusteringConfigHandler(SimpleTestCase):
         result = ClusteringConfigHandler.list_all_configs()
 
         self.assertTrue(result[0]["placeholder_analysis_supported"])
+
+    @patch("apps.log_clustering.handlers.clustering_config.FeatureToggleObject.switch", return_value=False)
+    def test_mini_clustering_toggle_off_keeps_online_flow(self, mock_switch):
+        index_set = LogIndexSet(index_set_id=TEST_INDEX_SET_ID, scenario_id=Scenario.LOG, space_uid="bkcc__2")
+
+        self.assertFalse(ClusteringConfigHandler._use_quix_clustering(index_set))
+
+    @patch("apps.log_clustering.handlers.clustering_config.FeatureToggleObject.switch", return_value=True)
+    def test_mini_clustering_toggle_ignores_bkdata_index_set(self, mock_switch):
+        index_set = LogIndexSet(index_set_id=TEST_INDEX_SET_ID, scenario_id=Scenario.BKDATA, space_uid="bkcc__2")
+
+        self.assertFalse(ClusteringConfigHandler._use_quix_clustering(index_set))
+        mock_switch.assert_not_called()
+
+    @patch("apps.log_clustering.handlers.clustering_config.LogIndexSet.objects.get")
+    @patch("apps.log_clustering.handlers.clustering_config.QuixClusteringHandler")
+    @patch("apps.log_clustering.handlers.clustering_config.LogClusteringRuntime.objects.filter")
+    @patch("apps.log_clustering.handlers.clustering_config.ClusteringConfig.get_by_index_set_id")
+    def test_update_routes_to_quix_runtime(
+        self, mock_get_clustering_config, mock_runtime_filter, mock_quix_handler, mock_get_index_set
+    ):
+        mock_runtime_filter.return_value.exists.return_value = True
+        mock_quix_handler.return_value.update.return_value = "operation-id"
+
+        result = ClusteringConfigHandler(index_set_id=TEST_INDEX_SET_ID).update({"filter_rules": []})
+
+        self.assertEqual(result, "operation-id")
+        mock_quix_handler.return_value.update.assert_called_once_with({"filter_rules": []})
 
     def test_placeholder_analysis_supported_property(self):
         supported_config = ClusteringConfig(storage_type=StorageTypeEnum.DORIS.value, clustered_rt=TEST_CLUSTERED_RT)
@@ -64,8 +95,27 @@ class TestClusteringConfigHandler(SimpleTestCase):
             }
         )
 
+    @patch("apps.log_clustering.handlers.clustering_config.LogIndexSet.objects.get")
+    @patch("apps.log_clustering.handlers.clustering_config.QuixClusteringHandler")
+    @patch("apps.log_clustering.handlers.clustering_config.LogClusteringRuntime.objects.filter")
     @patch("apps.log_clustering.handlers.clustering_config.ClusteringConfig.get_by_index_set_id")
-    def test_get_access_status_uses_unified_count_for_origin_and_clustered(self, mock_get_clustering_config):
+    def test_get_access_status_routes_to_quix_runtime(
+        self, mock_get_clustering_config, mock_runtime_filter, mock_quix_handler, mock_get_index_set
+    ):
+        mock_runtime_filter.return_value.exists.return_value = True
+        mock_quix_handler.return_value.get_access_status.return_value = {"access_finished": False}
+
+        result = ClusteringConfigHandler(index_set_id=TEST_INDEX_SET_ID).get_access_status()
+
+        self.assertEqual(result, {"access_finished": False})
+        mock_quix_handler.assert_called_once_with(mock_get_index_set.return_value)
+
+    @patch("apps.log_clustering.handlers.clustering_config.LogClusteringRuntime.objects.filter")
+    @patch("apps.log_clustering.handlers.clustering_config.ClusteringConfig.get_by_index_set_id")
+    def test_get_access_status_uses_unified_count_for_origin_and_clustered(
+        self, mock_get_clustering_config, mock_runtime_filter
+    ):
+        mock_runtime_filter.return_value.exists.return_value = False
         clustering_config = Mock(
             index_set_id=TEST_INDEX_SET_ID,
             bk_biz_id=TEST_BK_BIZ_ID,
@@ -110,6 +160,82 @@ class TestClusteringConfigHandler(SimpleTestCase):
         result = ClusteringConfigHandler(index_set_id=TEST_INDEX_SET_ID).retrieve()
 
         self.assertTrue(result["placeholder_analysis_supported"])
+
+
+class TestCreateClusteringInGrayBusiness(TestCase):
+    def test_first_creation_persists_es_settings_and_duplicate_keeps_the_binding(self):
+        index_set = LogIndexSet.objects.create(
+            index_set_name="bkdata_es", space_uid=f"bkcc__{TEST_BK_BIZ_ID}", scenario_id=Scenario.BKDATA
+        )
+        LogIndexSetData.objects.create(index_set_id=index_set.index_set_id, result_table_id="2_source")
+        params = {"clustering_fields": "log", "new_cls_strategy_enable": False, "normal_strategy_enable": False}
+        with (
+            patch("apps.log_clustering.handlers.clustering_config.access_clustering.delay") as start,
+            patch("apps.log_clustering.handlers.clustering_config.get_online_clustering_config") as get_config,
+            patch(
+                "apps.log_clustering.handlers.clustering_config.RegexTemplateHandler.list_templates",
+                return_value=[{"id": 1, "predefined_varibles": "W10="}],
+            ),
+        ):
+            get_config.return_value = {"predict_es_storage": "first_es"}
+            ClusteringConfigHandler().create(index_set.index_set_id, params)
+            get_config.return_value = {"predict_es_storage": "different_es"}
+            with self.assertRaises(ClusteringConfigHasExistException):
+                ClusteringConfigHandler().create(index_set.index_set_id, params)
+
+        config = ClusteringConfig.get_by_index_set_id(index_set.index_set_id)
+        self.assertEqual(config.es_storage, "first_es")
+        start.assert_called_once_with(index_set_id=index_set.index_set_id)
+
+    def test_only_v4_collector_uses_quix(self):
+        FeatureToggle.objects.create(name=MINI_CLUSTERING_CONFIG, status="debug", biz_id_white_list=[TEST_BK_BIZ_ID])
+        params = {"clustering_fields": "log", "new_cls_strategy_enable": False, "normal_strategy_enable": False}
+        for enable_v4 in (False, True):
+            with self.subTest(enable_v4=enable_v4):
+                name = "test_v4" if enable_v4 else "test_v3"
+                table_id = f"{TEST_BK_BIZ_ID}_bklog.{name}"
+                collector = CollectorConfig.objects.create(
+                    bk_biz_id=TEST_BK_BIZ_ID,
+                    collector_config_name=name,
+                    collector_config_name_en=name,
+                    table_id=table_id,
+                    enable_v4=enable_v4,
+                )
+                index_set = LogIndexSet.objects.create(
+                    index_set_name=name,
+                    space_uid=f"bkcc__{TEST_BK_BIZ_ID}",
+                    scenario_id=Scenario.LOG,
+                    collector_config_id=collector.collector_config_id,
+                )
+                LogIndexSetData.objects.create(index_set_id=index_set.index_set_id, result_table_id=table_id)
+
+                with (
+                    patch("apps.log_clustering.handlers.clustering_config.QuixClusteringHandler") as quix,
+                    patch("apps.log_clustering.handlers.clustering_config.access_clustering.delay") as legacy_task,
+                    patch(
+                        "apps.log_clustering.handlers.clustering_config.get_online_clustering_config",
+                        return_value={
+                            "collector_clustering_es_storage": {"es_storage": "test_es"},
+                            "predict_es_storage": "tenant_es",
+                        },
+                    ),
+                    patch.object(CollectorConfig, "get_etl_config", return_value={"fields": [{"field_name": "log"}]}),
+                    patch(
+                        "apps.log_clustering.handlers.clustering_config.RegexTemplateHandler.list_templates",
+                        return_value=[{"id": 1, "predefined_varibles": "W10="}],
+                    ),
+                ):
+                    ClusteringConfigHandler().create(index_set.index_set_id, params)
+
+                if enable_v4:
+                    quix.assert_called_once_with(index_set)
+                    quix.return_value.enable.assert_called_once_with(params)
+                    legacy_task.assert_not_called()
+                else:
+                    quix.assert_not_called()
+                    legacy_task.assert_called_once_with(index_set_id=index_set.index_set_id)
+                    config = ClusteringConfig.get_by_index_set_id(index_set.index_set_id)
+                    self.assertEqual(config.es_storage, "tenant_es")
 
 
 class TestSynchronousUpdateRegexTemplateSpace(TestCase):

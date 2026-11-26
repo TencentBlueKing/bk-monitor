@@ -1567,6 +1567,32 @@ class ApmMetricProcessor:
 class ApmAlertHelper:
     """APM 告警相关工具函数"""
 
+    _DENOMINATOR = r">=?(?P<modifier>\s*)[0-9]+(?:\.0+)?"
+    _MASK = r">=?(?P<modifier>\s*bool\s+)[0-9]+(?:\.0+)?"
+    _THRESHOLD_EXPRESSIONS = (
+        re.compile(
+            rf"(?P<prefix>\(\s*a\s+or\s+b\s*(?:\*\s*0|<\s*bool\s+0)\s*\)\s*/\s*\(\s*b\s*)"
+            rf"{_DENOMINATOR}(?P<suffix>\s*\)\s*\*\s*100)"
+        ),
+        re.compile(
+            rf"(?P<prefix>b\s*==\s*0\s+or\s*\(\s*a\s*/\s*\(\s*b\s*){_DENOMINATOR}"
+            r"(?P<suffix>\s*\)\s*\)\s*\*\s*1000)"
+        ),
+        re.compile(rf"(?P<prefix>\(\s*b\s*){_MASK}(?P<suffix>\s*\)\s*\*\s*a(?:\s*\*\s*1000)?)"),
+        re.compile(rf"(?P<prefix>\(\s*a\s*){_MASK}(?P<suffix>\s*\)\s*\*\s*a)"),
+    )
+
+    @classmethod
+    def prepare_graph_query(cls, params: dict, strategy: dict | None) -> dict:
+        """展示告警指标时将 APM 起算值归零，以正请求量计算比率。"""
+        if not strategy or not cls.is_match(strategy):
+            return params
+        expression = params["expression"].strip()
+        for pattern in cls._THRESHOLD_EXPRESSIONS:
+            if match := pattern.fullmatch(expression):
+                return {**params, "expression": match.expand(r"\g<prefix>>\g<modifier>0\g<suffix>")}
+        return params
+
     _STRATEGY_APP_LABEL_REGEX = re.compile(r"APM-APP\((.*?)\)")
     _STRATEGY_SERVICE_LABEL_REGEX = re.compile(r"APM-SERVICE\((.*?)\)")
 

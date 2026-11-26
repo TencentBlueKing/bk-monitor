@@ -38,7 +38,7 @@ Server 的个人令牌开关与每个 API 资源的 `oauth2PersonalClientEnabled
 | alarm-handling | 18 | 17 | — | 18 |
 | dashboard-query | — | — | 2 | 2 |
 | dashboard-edit | — | — | 2 | 2 |
-| tracing | — | — | 7 | 7 |
+| tracing | — | — | 7 | 11 |
 | profiling-query | 4 | 4 | 4 | 4 |
 | relation-query | — | — | 2 | 2 |
 | log-collector | 17 | 17 | — | 17 |

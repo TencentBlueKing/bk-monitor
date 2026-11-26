@@ -16,6 +16,7 @@ from typing import Any
 
 from django.conf import settings
 
+from bkmonitor.utils.user import single_tenant_backend_username
 from core.drf_resource import api
 from metadata import config
 
@@ -59,7 +60,7 @@ def _guard_query(params: Any, *, param_name: str, allowed_keys: frozenset[str], 
             param_name: normalized,
             "plat_name": config.DEFAULT_GSE_API_PLAT_NAME,
         },
-        "operation": {"operator_name": settings.COMMON_USERNAME},
+        "operation": {"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
     }
 
 

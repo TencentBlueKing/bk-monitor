@@ -16,6 +16,7 @@ from django.conf import settings
 from rest_framework import serializers
 
 from bkmonitor.utils.request import get_request
+from bkmonitor.utils.user import single_tenant_backend_username
 from core.drf_resource.contrib.api import APIResource
 
 
@@ -28,7 +29,7 @@ class ITSMBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
             validated_request_data["_origin_user"] = get_request().user.username
         except Exception:  # pylint: disable=broad-except
             pass
-        self.bk_username = settings.COMMON_USERNAME
+        self.bk_username = single_tenant_backend_username(settings.COMMON_USERNAME)
         return super().full_request_data(validated_request_data)
 
 

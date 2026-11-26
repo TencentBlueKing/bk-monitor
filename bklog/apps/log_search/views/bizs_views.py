@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import InstanceActionPermission
@@ -34,7 +34,6 @@ from apps.log_search.serializers import (
     TopoSerializer,
 )
 from apps.utils.drf import detail_route, list_route
-from apps.utils.local import get_request_username
 from rest_framework.response import Response
 
 
@@ -72,8 +71,8 @@ class BizsViewSet(APIViewSet):
         """
         return Response(
             [
-                {"bk_biz_id": business["bk_biz_id"], "bk_biz_name": business["project_name"]}
-                for business in MetaHandler.get_user_projects(get_request_username())
+                {"bk_biz_id": project.bk_biz_id, "bk_biz_name": project.project_name}
+                for project in MetaHandler.get_projects()
             ]
         )
 

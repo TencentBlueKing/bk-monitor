@@ -12,14 +12,14 @@ from functools import partial
 
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder
 from rum_web.constants import RumQueryMode
-from rum_web.handlers.builder.utils import get_safe_number
-from rum_web.handlers.query.fallback import BaseFallbackRumQuery, Summaries, SummaryTasks
+from rum_web.handlers.builder.utils import select_latest_vitals
+from rum_web.handlers.query.fallback import BaseFallbackRumQuery, Record, Summaries, SummaryTasks
 from semconv.rum.constants import RumSpanType, ViewPhase, VitalMetric
 from semconv.rum.view import ViewSpec
 
 
 class ViewQuery(BaseFallbackRumQuery):
-    MODE = RumQueryMode.VIEW.value
+    MODE: str = RumQueryMode.VIEW.value
     RECORD_ID_FIELD = "attributes.view.id"
     SPEC = ViewSpec
     ANALYSIS_PHASE = ViewPhase.START.value
@@ -39,16 +39,22 @@ class ViewQuery(BaseFallbackRumQuery):
         q = q.filter(**{"attributes.span_type": [RumSpanType.VITAL.value]}).order_by("end_time desc")
         vital_q = q.filter(
             **{"attributes.vital.metric": [alias for metric in metrics for alias in (metric, metric.upper())]}
-        ).values(self.group_field, "attributes.vital.metric", "attributes.vital.value", "end_time")
+        ).values(
+            self.group_field,
+            "attributes.vital.id",
+            "attributes.vital.version",
+            "attributes.vital.metric",
+            "attributes.vital.value",
+            "end_time",
+        )
         records = self._query_list(self._get_summary_queries(vital_q), None, None, 0, self.QUERY_MAX_LIMIT)
+        grouped: dict[str, list[Record]] = {}
+        for record_id, record in self._group_records(records, ids):
+            grouped.setdefault(record_id, []).append(record)
+
+        # 与 View 详情 / 时间线共用选取规则，保证列表与详情展示同一快照。
         result: Summaries = {}
-        for record_id, record in sorted(
-            self._group_records(records, ids), key=lambda item: get_safe_number(item[1].get("end_time")), reverse=True
-        ):
-            metric = record.get("attributes.vital.metric")
-            if not isinstance(metric, str) or metric.lower() not in metrics:
-                continue
-            result.setdefault(record_id, {}).setdefault(
-                f"web_vitals.{metric.lower()}", record.get("attributes.vital.value")
-            )
+        for record_id, group in grouped.items():
+            for metric, record in select_latest_vitals(group, metrics).items():
+                result.setdefault(record_id, {})[f"web_vitals.{metric}"] = record.get("attributes.vital.value")
         return result

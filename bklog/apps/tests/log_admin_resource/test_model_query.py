@@ -7,6 +7,7 @@ from django.test import SimpleTestCase, TestCase, override_settings
 
 from apps.exceptions import ValidationError
 from apps.feature_toggle.models import FeatureToggle
+from apps.log_audit.models import UserOperationRecord
 from apps.log_clustering.models import AiopsSignatureAndPattern, ClusteringConfig
 from apps.log_databus.models import BcsRule, CollectorConfig, ContainerCollectorConfig
 from apps.log_extract.models import ExtractLink, ExtractLinkHost
@@ -38,12 +39,12 @@ from apps.log_search.models import BizProperty, GlobalConfig, LogIndexSet, Scena
 
 class ModelSpecContractTest(SimpleTestCase):
     def test_registry_declares_confirmed_models(self):
-        self.assertEqual(len(SPECS), 52)
+        self.assertEqual(len(SPECS), 53)
         self.assertIn("log_search.LogIndexSet", SPECS)
         self.assertIn("log_extract.ExtractLink", SPECS)
         self.assertIn("tgpa.TGPAReport", SPECS)
         self.assertNotIn("log_extract.Tasks", SPECS)
-        self.assertNotIn("log_search.UserOperationRecord", SPECS)
+        self.assertIn("log_audit.UserOperationRecord", SPECS)
 
     def test_no_allowlisted_field_matches_recursive_sensitive_key_rules(self):
         suspicious = [
@@ -63,7 +64,7 @@ class ModelSpecContractTest(SimpleTestCase):
             result = list_model_specs({})
 
         validate_params(result, FUNCTIONS["bklog.model.list"]["response_schema"], "response")
-        self.assertEqual(result["count"], 49)
+        self.assertEqual(result["count"], 50)
         self.assertTrue(all(item["domain"] != "tgpa" for item in result["items"]))
         self.assertEqual(result["next_call"]["func_name"], "bklog.model.detail")
 
@@ -92,7 +93,7 @@ class ModelSpecContractTest(SimpleTestCase):
                 self.assertIs(resolved, spec)
                 self.assertEqual(model._meta.object_name, spec.model_name)
                 available += 1
-        expected = 52 if _is_model_available(SPECS["tgpa.TGPAReport"]) else 49
+        expected = 53 if _is_model_available(SPECS["tgpa.TGPAReport"]) else 50
         self.assertEqual(available, expected)
 
     def test_detail_describes_per_field_lookups_scope_limits_and_example(self):
@@ -378,6 +379,43 @@ class ModelQueryScopeTest(TestCase):
         self.create_space(2, "tenant-1")
         self.create_space(4, "tenant-1", deleted=True)
         self.create_space(3, "tenant-2")
+
+    @patch("apps.log_admin_resource.handlers.model_query.get_request_tenant_id", return_value="tenant-1")
+    def test_audit_records_only_expose_owned_nonzero_businesses(self, _mock_tenant):
+        self.create_space(-5, "tenant-1")
+        self.create_space(0, "tenant-1")
+        for biz_id in (2, -5, 3, 0):
+            UserOperationRecord.objects.create(
+                bk_biz_id=biz_id,
+                record_type="etl",
+                record_object_id=11,
+                action="update",
+                params={"token": "example", "retention": 7},
+            )
+
+        model = "log_audit.UserOperationRecord"
+        items = query_model({"model": model})["items"]
+        self.assertEqual([item["bk_biz_id"] for item in items], [2, -5])
+        self.assertNotIn("params", items[0])
+        result = query_model(
+            {
+                "model": model,
+                "filter": {
+                    "record_type": "etl",
+                    "record_object_id__in": [11],
+                    "created_at__gte": items[0]["created_at"],
+                    "created_at__lte": items[-1]["created_at"],
+                },
+                "fields": ["bk_biz_id", "params"],
+            }
+        )
+        self.assertEqual(
+            result["items"],
+            [{"bk_biz_id": biz_id, "params": {"token": MASKED_VALUE, "retention": 7}} for biz_id in (2, -5)],
+        )
+        for filters in ({"bk_biz_id": 0}, {"bk_biz_id": 3}, {"record_type": "collector"}, {"record_object_id": 12}):
+            with self.subTest(filters=filters):
+                self.assertEqual(query_model({"model": model, "filter": filters})["items"], [])
 
     @patch("apps.log_admin_resource.handlers.model_query.get_request_tenant_id", return_value="tenant-1")
     def test_tenant_scope_includes_soft_deleted_evidence_and_excludes_other_tenant(self, _mock_tenant):

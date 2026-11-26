@@ -3,6 +3,8 @@
 
 .llm-collapse-section {
   width: 100%;
+  /* 色块定位时 scrollIntoView(block: 'start') 预留吸顶高度，避免分区标题被筛选条遮挡 */
+  scroll-margin-top: var(--llm-section-sticky-top, 90px);
 
   @include flex-column;
 
@@ -21,7 +23,7 @@
     @include flex-align(center);
 
     &:hover {
-      background: #C1CDE5;
+      background: #c1cde5;
     }
 
     .llm-collapse-section-arrow {
@@ -40,6 +42,21 @@
     color: #111214;
 
     @include flex-align(center);
+  }
+
+  &-aside {
+    flex-shrink: 0;
+    gap: 8px;
+
+    @include flex-align(center);
+  }
+
+  &-tokens {
+    font-family: arial, sans-serif;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: #66748f;
+    white-space: nowrap;
   }
 
   &-icon {

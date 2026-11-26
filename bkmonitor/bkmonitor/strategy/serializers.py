@@ -12,7 +12,7 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from bkmonitor.dataflow.constant import VisualType
-from constants.strategy import NewSeriesAlertMode
+from constants.strategy import MAX_NEW_SERIES_LIMIT, NewSeriesAlertMode
 from core.errors.alarm_backends.detect import (
     InvalidAdvancedRingRatioConfig,
     InvalidAdvancedYearRoundConfig,
@@ -137,7 +137,9 @@ class NewSeriesSerializer(serializers.Serializer):
 
     # 生效延迟(冷启动宽限)恒等于检测窗口(detect_range)：NewSeries 不设独立宽限期。传入值在 validate 里统一覆盖。
     effective_delay = serializers.IntegerField(label="生效延迟", required=False)
-    max_series = serializers.IntegerField(label="最大序列数", required=False, default=100000)
+    max_series = serializers.IntegerField(
+        label="最大序列数", required=False, default=100000, min_value=1, max_value=MAX_NEW_SERIES_LIMIT
+    )
     detect_range = serializers.IntegerField(label="检测范围", required=True)
     threshold = serializers.IntegerField(label="告警阈值", required=False, default=0)
     alert_mode = serializers.ChoiceField(
@@ -388,7 +390,8 @@ class CustomEventSerializer(QueryConfigSerializer):
     agg_interval = serializers.IntegerField(label="聚合周期", min_value=0)
     agg_dimension = serializers.ListField(allow_empty=True)
     agg_condition = serializers.ListField(label="查询条件", allow_empty=True, child=serializers.DictField())
-    custom_event_name = serializers.CharField(label="事件名", required=False, allow_blank=True)
+    # 缺省为空串而非不落库：下游（策略列表、告警后台缓存、AsCode 导出）均按 key 直接取值，缺失会抛 KeyError
+    custom_event_name = serializers.CharField(label="事件名", allow_blank=True, default="")
     query_string = serializers.CharField(label="查询语句", required=False)
 
 

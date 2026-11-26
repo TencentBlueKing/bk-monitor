@@ -145,12 +145,22 @@ class MetaHandler(APIModel):
         return projects
 
     @classmethod
-    def get_user_projects(cls, username):
+    def get_user_projects(cls, username, has_permission=False):
         result = []
-        business_list = MetaHandler.get_projects()
-        allowed_business_mapping = {project.bk_biz_id for project in business_list}
+        allowed_business_mapping = set()
+        # 兼容仅携带应用凭据的调用，缺少用户身份时不查询 IAM。
+        if username:
+            bk_tenant_id = get_request_tenant_id()
+            permission = Permission(username=username, bk_tenant_id=bk_tenant_id)
+            allowed_spaces = permission.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, bk_tenant_id)
+            allowed_business_mapping = {space["bk_biz_id"] for space in allowed_spaces}
+        if has_permission and not allowed_business_mapping:
+            return []
+        business_list = cls.get_projects()
 
         for project in business_list:
+            if has_permission and project.bk_biz_id not in allowed_business_mapping:
+                continue
             result.append(
                 {
                     "project_id": project.project_id,

@@ -35,10 +35,10 @@ USER_AGENT_OS_NAME = FieldSpec(field_name="user_agent.os.name", field_alias=_("�
 
 # exception
 EXCEPTION_TYPE = FieldSpec(field_name="exception.type", field_alias=_("异常类型"))
-EXCEPTION_MESSAGE = FieldSpec(field_name="exception.message", field_alias=_("异常消息"))
 EXCEPTION_STACKTRACE = FieldSpec(field_name="exception.stacktrace", field_alias=_("异常堆栈"))
 
 # user
 USER_ID = FieldSpec(field_name="user.id", field_alias=_("用户"))
+TAB_ID = FieldSpec(field_name="tab.id", field_alias=_("标签页 ID"))
 SPAN_TYPE = FieldSpec(field_name="span_type", field_alias=_("事件类型"), option_values=RumSpanType)
 OUTCOME_TYPE = FieldSpec(field_name="outcome.type", field_alias=_("结果"), option_values=OutcomeType)

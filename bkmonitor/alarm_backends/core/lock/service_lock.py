@@ -9,14 +9,72 @@ specific language governing permissions and limitations under the License.
 """
 
 import functools
+import logging
+import threading
 import time
 from contextlib import contextmanager
+
+from redis.exceptions import RedisError
 
 from alarm_backends.core.cache.key import RedisDataKey
 from alarm_backends.core.cluster import get_cluster
 from alarm_backends.core.lock import MultiRedisLock, RedisLock
 from alarm_backends.core.storage.redis import Cache
-from core.errors.alarm_backends import LockError
+from core.errors.alarm_backends import CronLeaseLost, LockError
+
+
+logger = logging.getLogger(__name__)
+
+
+def renewing_share_lock(identify, ttl=600):
+    """Use the share_lock key and yield an ownership check, or None when another task owns it."""
+    key = f"{get_cluster().name}_celery_lock_{identify}"
+    lock = Cache("service-lock").lock(key, timeout=ttl, thread_local=False)
+    return renewing_redis_lock(lock, ttl)
+
+
+@contextmanager
+def renewing_redis_lock(lock, ttl):
+    """Keep a nonblocking redis-py lock alive until the caller finishes."""
+    key = lock.name
+    deadline = time.monotonic() + ttl
+    if not lock.acquire(blocking=False):
+        yield None
+        return
+
+    stop = threading.Event()
+
+    def renew():
+        nonlocal deadline
+        while not stop.wait(ttl / 3):
+            # Count from the request start so a delayed Redis response never overstates the remaining lease.
+            next_deadline = time.monotonic() + ttl
+            try:
+                lock.reacquire()
+            except RedisError:
+                if not stop.is_set():
+                    stop.set()
+                    logger.exception("Failed to renew cron lock %s", key)
+                return
+            deadline = next_deadline
+
+    def check_lease():
+        if stop.is_set() or time.monotonic() >= deadline:
+            stop.set()
+            raise CronLeaseLost(f"Cron lock {key} could not be renewed")
+
+    worker = threading.Thread(target=renew, name=f"renew-{key}", daemon=True)
+    try:
+        worker.start()
+        yield check_lease
+        check_lease()
+    finally:
+        stop.set()
+        try:
+            # redis-py compares the owner's token and deletes atomically, including after expiry and takeover.
+            lock.release()
+        except RedisError:
+            logger.exception("Failed to release cron lock %s", key)
 
 
 @contextmanager

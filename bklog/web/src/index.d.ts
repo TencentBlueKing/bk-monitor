@@ -33,6 +33,11 @@ declare global {
     timezone: string;
     MONITOR_URL: string;
     BK_LOGIN_URL: string;
+    ESB_DISABLED?: boolean;
+    BK_USER_WEB_API_URL: string;
+    BK_USER_WEB_TENANT_ID: string;
+    BK_PAAS_API_HOST: string;
+
     BK_LOG_ACCESS_GUIDE_URL?: string;
     BK_LOG_PERMISSION_GUIDE_URL?: string;
     BK_SHARED_RES_URL: string;
@@ -44,10 +49,15 @@ declare global {
     __IS_MONITOR_COMPONENT__?: boolean; // 是否是监控组件
     __IS_MONITOR_TRACE__?: boolean; // 是否是监控Trace组件
     __IS_MONITOR_APM__?: boolean; // 是否是监控APM组件
+    __bk_zIndex_manager?: {
+      zIndex?: number;
+      nextZIndex?: () => number;
+    };
     IS_EXTERNAL: boolean | string; // 开发环境是 'false'，生产环境是 boolean
     __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: boolean;
     bk_log_search_url: string;
     BKDATA_URL: string;
+    BKBASE_V4_URL: string;
     $t: (key: string, params?: Record<string, any>) => string;
     scheduler?: Scheduler;
     RUN_VER: string;
@@ -92,5 +102,6 @@ declare module 'vue/types/vue' {
   interface Vue {
     $bkMessage?: (p: Partial<object>) => void;
     $bkPopover?: (...args: any[]) => void;
+    $BK_EL?: { zIndex?: number };
   }
 }

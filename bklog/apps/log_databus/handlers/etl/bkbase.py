@@ -49,7 +49,7 @@ class BKBaseEtlHandler(EtlHandler):
         BkDataDatabusApi.delete_tasks(
             params={
                 "result_table_id": bkdata_result_table_id,
-                "bk_username": get_request_username(),
+                "bk_username": get_request_username(use_backend=True),
             }
         )
 
@@ -63,7 +63,7 @@ class BKBaseEtlHandler(EtlHandler):
             params={
                 "result_table_id": bkdata_result_table_id,
                 "storages": ["kafka"],
-                "bk_username": get_request_username(),
+                "bk_username": get_request_username(use_backend=True),
             }
         )
 
@@ -114,7 +114,7 @@ class BKBaseEtlHandler(EtlHandler):
             "clean_config_name": instance.get_name(),
             "description": instance.description,
             "bk_biz_id": instance.get_bk_biz_id(),
-            "bk_username": get_request_username(),
+            "bk_username": get_request_username(use_backend=True),
             "fields": [
                 {
                     "field_name": field.get("alias_name") if field.get("alias_name") else field.get("field_name"),

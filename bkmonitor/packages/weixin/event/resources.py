@@ -23,6 +23,7 @@ from constants.shield import ShieldType
 from core.drf_resource import api, resource
 from core.errors.weixin.event import AlertCollectNotFound
 from fta_web.alert.handlers.base import AlertDimensionFormatter
+from fta_web.alert.promql import get_alert_graph_filter
 from fta_web.alert.resources import (
     AlertDetailResource,
     AlertPermissionResource,
@@ -167,6 +168,7 @@ class GetAlarmDetail(AlertPermissionResource, EventTargetMixin):
                     "title": title,
                     "level": alert.severity,
                     "data_type_label": data_type_label,
+                    "hide_graph": get_alert_graph_filter(alert) is None,
                 }
             )
         return result
@@ -234,6 +236,7 @@ class GetEventDetail(AlertPermissionResource, EventTargetMixin):
             "is_shield": alert.is_shielded,
             "shield_type": ShieldType.SAAS_CONFIG if alert.is_shielded else "",
             "data_type_label": data_type_label,
+            "hide_graph": get_alert_graph_filter(alert) is None,
         }
 
         return result

@@ -25,6 +25,7 @@ from django.utils.translation import gettext as _
 
 from bkmonitor.utils import consul
 from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
+from bkmonitor.utils.user import single_tenant_backend_username
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DATA_LINK_V3_VERSION_NAME, DATA_LINK_V4_VERSION_NAME
 from core.drf_resource import api
@@ -35,10 +36,12 @@ from metadata.models.space.constants import (
     LOG_EVENT_ETL_CONFIGS,
     SPACE_UID_HYPHEN,
     SYSTEM_BASE_DATA_ETL_CONFIGS,
+    EtlConfigs,
     SpaceTypes,
 )
 from metadata.utils import consul_tools, hash_util
 from metadata.utils.basic import get_space_uid_and_bk_biz_id_by_bk_data_id
+from metadata.utils.default_cluster import get_scene_default_cluster
 
 from .common import Label, OptionBase
 from .constants import (
@@ -346,6 +349,66 @@ class DataSource(models.Model):
         # data list 在consul中的作用被废弃，不再使用
         pass
 
+    def apply_to_namespace(self, target_namespace: str, bk_biz_id: int | None = None) -> dict:
+        """将已登记的 DataId 共享到目标项目，保留原始 Kafka 通道与 topic。"""
+        from metadata.models.data_link import DataIdConfig, utils
+
+        source_namespaces = (BKBASE_NAMESPACE_BK_MONITOR, BKBASE_NAMESPACE_BK_LOG)
+        if self.etl_config in LOG_EVENT_ETL_CONFIGS and self.etl_config != EtlConfigs.BK_CUSTOM_FORMAT.value:
+            source_namespaces = (BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR)
+        for source_namespace in source_namespaces:
+            name = utils.find_registered_bkdata_data_id_name(self, source_namespace)
+            if name:
+                break
+        else:
+            raise ValueError(f"数据源 {self.bk_data_id} 尚未在 bkmonitor 或 bklog 登记 DataId")
+
+        if bk_biz_id is None:
+            project = api.bkdata.get_namespace(bk_tenant_id=self.bk_tenant_id, name=target_namespace)
+            bk_biz_id = project["spec"].get("bk_biz_id", project["spec"].get("bkBizId"))
+            if bk_biz_id is None:
+                raise ValueError(f"目标项目 {target_namespace} 未配置所属业务")
+
+        source = api.bkdata.get_data_link(
+            bk_tenant_id=self.bk_tenant_id, namespace=source_namespace, kind="dataids", name=name
+        )
+        spec = {**source["spec"], "bizId": bk_biz_id}
+        if not (spec.get("predefined") or {}).get("topic"):
+            # 动态申请或未显式指定 topic 的 DataId，复用源项目实际绑定的通道和 topic。
+            binding = api.bkdata.get_data_link(
+                bk_tenant_id=self.bk_tenant_id,
+                namespace=source_namespace,
+                kind="channelbindings",
+                name=f"{name}_default",
+            )
+            spec["predefined"] = {
+                "dataId": self.bk_data_id,
+                "channel": binding["spec"]["channel"],
+                "topic": binding["metadata"].get("annotations", {}).get("topic") or f"{name}{source['spec']['bizId']}",
+            }
+
+        metadata = {"name": name, "namespace": target_namespace, "labels": source["metadata"].get("labels", {})}
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            metadata["tenant"] = self.bk_tenant_id
+        api.bkdata.apply_data_link(
+            config=[{"kind": "DataId", "metadata": metadata, "spec": spec}], bk_tenant_id=self.bk_tenant_id
+        )
+        with atomic(config.DATABASE_CONNECTION_NAME):
+            DataIdConfig.objects.update_or_create(
+                bk_tenant_id=self.bk_tenant_id,
+                namespace=target_namespace,
+                name=name,
+                defaults={"bk_data_id": self.bk_data_id, "bk_biz_id": bk_biz_id},
+            )
+            # 替换旧接口写入的独立 DataSource 登记，避免同一项目返回两个跳转名称。
+            DataIdConfig.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                namespace=target_namespace,
+                bk_data_id=self.bk_data_id,
+                name=f"bkm_datasource_{self.bk_data_id}",
+            ).exclude(name=name).delete()
+        return {"bk_data_id": self.bk_data_id, "name": name, "target_namespace": target_namespace}
+
     def register_to_bkbase(self, bk_biz_id: int, namespace: str = "bkmonitor", bkbase_data_name: str = ""):
         """
         将当前data_id注册到计算平台
@@ -613,6 +676,9 @@ class DataSource(models.Model):
             )
             raise ValueError(_("数据源名称[%s]在租户[%s]下已经存在，请确认后重试"), data_name, bk_tenant_id)
 
+        if mq_cluster is None and etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
+            mq_cluster = get_scene_default_cluster("custom_event", ClusterInfo.TYPE_KAFKA, bk_tenant_id)
+
         # TODO: 多租户 V4链路中,理论上用户不再能指定Kafka集群,且多租户场景下,Kafka集群需要读取SpaceRelatedStorageInfo关联信息
         try:
             # 如果集群信息无提供，则使用默认的MQ集群信息
@@ -637,7 +703,7 @@ class DataSource(models.Model):
             # 如果由GSE来分配DataID的话，那么从GSE获取data_id，而不是走数据库的自增id
             # 现阶段仅支持指标的数据，因为现阶段指标的数据都为单指标单表
             # 添加过滤条件，只接入单指标单表时序数据到V4链路
-            from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS, EtlConfigs
+            from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
 
             # 开启V4链路后，特定 etl_config 的 data_id 先由 GSE 分配，再注册到计算平台
             if (
@@ -1045,7 +1111,7 @@ class DataSource(models.Model):
         logger.warning(f"try to add register built_in channel_id({self.bk_data_id}) to gse")
         params = {
             "metadata": {"channel_id": self.bk_data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
-            "operation": {"operator_name": settings.COMMON_USERNAME},
+            "operation": {"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
             "route": [self.gse_route_config],
         }
         result = api.gse.add_route(**params)
@@ -1059,7 +1125,7 @@ class DataSource(models.Model):
         try:
             result = api.gse.query_route(
                 condition={"plat_name": config.DEFAULT_GSE_API_PLAT_NAME, "channel_id": self.bk_data_id},
-                operation={"operator_name": settings.COMMON_USERNAME},
+                operation={"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
             )
             return True
         except BKAPIError as e:
@@ -1069,7 +1135,7 @@ class DataSource(models.Model):
 
         params = {
             "metadata": {"channel_id": self.bk_data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
-            "operation": {"operator_name": settings.COMMON_USERNAME},
+            "operation": {"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
             "route": [self.gse_route_config],
         }
         result = api.gse.add_route(**params)
@@ -1082,7 +1148,7 @@ class DataSource(models.Model):
 
         params = {
             "condition": {"plat_name": config.DEFAULT_GSE_API_PLAT_NAME, "channel_id": self.bk_data_id},
-            "operation": {"operator_name": settings.COMMON_USERNAME},
+            "operation": {"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
         }
         try:
             result = api.gse.query_route(**params)

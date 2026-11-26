@@ -124,6 +124,7 @@ def _model_spec(
         "tenant": "Forced to the current request tenant through bk_tenant_id.",
         "space": "Forced to space_uid values owned by the current request tenant.",
         "biz": "Forced to business IDs owned by the current request tenant; global bk_biz_id=0 rows remain visible.",
+        "tenant_biz": "Forced to nonzero business IDs owned by the current request tenant.",
         "op_biz": "Forced to op_bk_biz_id values owned by the current request tenant.",
         "index_set": "Forced to index sets whose space belongs to the current request tenant.",
         "search_history": (
@@ -202,6 +203,33 @@ SPECS = {
             audit=True,
             soft_delete=True,
             max_limit=100,
+        ),
+        _model_spec(
+            "log_audit.UserOperationRecord",
+            exact=(
+                "id",
+                "bk_biz_id",
+                "record_type",
+                "record_sub_type",
+                "record_object_id",
+                "action",
+                "created_by",
+                "params",
+            ),
+            ordered=("created_at",),
+            default=(
+                "id",
+                "bk_biz_id",
+                "record_type",
+                "record_sub_type",
+                "record_object_id",
+                "action",
+                "created_by",
+                "created_at",
+            ),
+            order_by=("created_at", "id"),
+            default_order_by=("created_at", "id"),
+            scope="tenant_biz",
         ),
         _model_spec(
             "log_clustering.SampleSet",
@@ -1558,6 +1586,8 @@ def _apply_scope(queryset, spec):
         return queryset.filter(space_uid__in=Subquery(tenant_space_uids))
     if spec.scope == "biz":
         return queryset.filter(Q(bk_biz_id=0) | Q(bk_biz_id__in=Subquery(tenant_biz_ids)))
+    if spec.scope == "tenant_biz":
+        return queryset.filter(bk_biz_id__in=Subquery(tenant_biz_ids)).exclude(bk_biz_id=0)
     if spec.scope == "op_biz":
         return queryset.filter(op_bk_biz_id__in=Subquery(tenant_biz_ids))
     if spec.scope == "index_set":

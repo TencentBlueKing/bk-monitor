@@ -23,12 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, ref, computed, watch } from 'vue';
+import { inject, defineComponent, onMounted, ref, computed, watch } from 'vue';
 import TextHighlight from 'vue-text-highlight';
 
 import FilterRule from '@/components/filter-rule';
 import RuleConfigOperate from '@/components/rule-config-operate';
 import RuleTable from '@/components/rule-table';
+import { quixPage } from '../../../quix-page';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { bkNotify } from 'bk-magic-vue';
@@ -67,6 +68,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useLocale();
     const store = useStore();
+    const quix = inject(quixPage);
 
     const ruleConfigOperateRef = ref<any>(null);
     const ruleOperateRef = ref<any>();
@@ -228,7 +230,11 @@ export default defineComponent({
                 bk_biz_id,
               },
             })
-            .then(() => {
+            .then((res: IResponseData<(string | null)[]>) => {
+              if (quix?.value && res.data?.[0] === null) {
+                emit('close');
+                return;
+              }
               bkNotify({
                 title: t('保存待生效'),
                 message: t('该保存需要10分钟生效, 请耐心等待'),

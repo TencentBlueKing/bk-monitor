@@ -157,6 +157,12 @@ export default defineComponent({
         .filter(group => group.nodes.length);
     });
 
+    const modeTagText = computed(() => {
+      const { mode } = props.commonParams;
+      /** 首字母大写 */
+      return mode ? `${mode.charAt(0).toUpperCase()}${mode.slice(1)}` : '';
+    });
+
     watch(
       () => props.groups,
       () => {
@@ -206,6 +212,7 @@ export default defineComponent({
       searchVal,
       emptyStatus,
       renderGroups,
+      modeTagText,
       activeFieldName,
       selectField,
       showPopover,
@@ -237,7 +244,7 @@ export default defineComponent({
             onClick={this.handleClose}
           />
           <span class='panel-title'>{this.t('维度统计')}</span>
-          <span class='panel-mode-tag'>Span</span>
+          <span class='panel-mode-tag'>{this.modeTagText}</span>
         </div>
 
         <div class='panel-search'>

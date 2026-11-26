@@ -29,6 +29,7 @@ import { Alert, Button, Dialog } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import type { UseCollectionExecutionReturn } from '../../composables/use-collection-execution';
+import type { CollectionExecution } from '../../types/collection-history';
 
 export default defineComponent({
   name: 'CollectionExecutionAction',
@@ -36,6 +37,8 @@ export default defineComponent({
     controller: { type: Object as PropType<UseCollectionExecutionReturn>, required: true },
     readonly: Boolean,
   },
+  /** 回填至采集：把本次执行的配置交给上层打开新建采集侧栏 */
+  emits: { prefill: (_execution: CollectionExecution) => true },
   setup() {
     const { t } = useI18n();
     return { t };
@@ -77,32 +80,45 @@ export default defineComponent({
               )}
             </>
           ),
-          footer: () => (
-            <div class='collection-dialog-footer'>
-              <Button
-                v-tippy={this.t(
-                  c.pending.value?.action === 'cancel'
-                    ? '确认终止本次采集'
-                    : c.pending.value?.action === 'retry'
-                      ? '仅重新采集失败和超时主机'
-                      : '使用历史配置重新执行本次采集'
+          footer: () => {
+            const pending = c.pending.value;
+            return (
+              <div class='collection-dialog-footer'>
+                {/* 回填只针对重新执行，终止与仅重试失败项不提供 */}
+                {pending?.action === 'rerun' && (
+                  <Button
+                    v-tippy={this.t('将本次执行的配置回填到新建采集')}
+                    disabled={this.readonly || c.busy.value}
+                    onClick={() => this.$emit('prefill', pending.execution)}
+                  >
+                    {this.t('回填至采集')}
+                  </Button>
                 )}
-                disabled={this.readonly}
-                loading={c.busy.value}
-                theme='primary'
-                onClick={c.confirmAction}
-              >
-                {this.t('确定')}
-              </Button>
-              <Button
-                v-tippy={this.t('取消本次操作')}
-                disabled={c.busy.value}
-                onClick={c.dismissAction}
-              >
-                {this.t('取消')}
-              </Button>
-            </div>
-          ),
+                <Button
+                  v-tippy={this.t(
+                    pending?.action === 'cancel'
+                      ? '确认终止本次采集'
+                      : pending?.action === 'retry'
+                        ? '仅重新采集失败和超时主机'
+                        : '使用历史配置重新执行本次采集'
+                  )}
+                  disabled={this.readonly}
+                  loading={c.busy.value}
+                  theme='primary'
+                  onClick={c.confirmAction}
+                >
+                  {this.t('确定')}
+                </Button>
+                <Button
+                  v-tippy={this.t('取消本次操作')}
+                  disabled={c.busy.value}
+                  onClick={c.dismissAction}
+                >
+                  {this.t('取消')}
+                </Button>
+              </div>
+            );
+          },
         }}
       </Dialog>
     );

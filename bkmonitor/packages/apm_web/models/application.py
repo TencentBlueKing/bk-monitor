@@ -38,6 +38,7 @@ from apm_web.constants import (
     DefaultDimensionConfig,
     DefaultInstanceNameConfig,
     DefaultSamplerConfig,
+    SamplerTypeChoices,
     TraceMode,
 )
 from apm_web.meta.plugin.log_trace_plugin_config import LogTracePluginConfig
@@ -388,8 +389,8 @@ class Application(AbstractRecordModel):
         return ApmMetaConfig.get_application_config_value(self.application_id, key)
 
     @classmethod
-    @lru_cache_with_ttl(maxsize=128, ttl=60 * 10, decision_to_drop_func=lambda v: v is None)
-    def get_metric_table_id(cls, bk_biz_id, app_name):
+    @lru_cache_with_ttl(maxsize=128, ttl=60 * 10, decision_to_drop_func=lambda table_id: not table_id)
+    def get_metric_table_id(cls, bk_biz_id: int, app_name: str) -> str | None:
         try:
             return cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).values_list(
                 "metric_result_table_id", flat=True
@@ -929,6 +930,14 @@ class Application(AbstractRecordModel):
         return {"apdex_config": apdex_list}
 
     def get_sampler_config(self):
+        if self.sampler_config["sampler_type"] == SamplerTypeChoices.EMPTY:
+            # 不采样等价于随机采样 100%；库里不存采样比例，下发 bk-collector 时显式转换
+            return {
+                "sampler_config": {
+                    "sampling_percentage": 100,
+                    "sampler_type": SamplerTypeChoices.RANDOM,
+                }
+            }
         return {
             "sampler_config": {
                 "sampling_percentage": self.sampler_config["sampler_percentage"],

@@ -54,6 +54,7 @@ from metadata.models.data_link.data_link_configs import (
     VMStorageBindingConfig,
 )
 from metadata.models.data_link.relation import (
+    SimpleDatabusRelationError,
     _merge_graph_dual_write_sibling_databus,
     _resolve_rebuild_result_table_id,
     rebuild_bkbase_v4_datalink_relation,
@@ -4600,6 +4601,9 @@ def test_rebuild_simple_databus_relation_skips_unready_databus_status():
     )
 
     assert rebuild_simple_databus_relation(databus, dry_run=True) is None
+    for dry_run in (True, False):
+        with pytest.raises(SimpleDatabusRelationError, match=r"l_524509.*Failed.*Ok/Pending"):
+            rebuild_simple_databus_relation(databus, dry_run=dry_run, raise_on_skip=True)
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -5733,6 +5737,7 @@ def test_create_base_event_datalink_for_bkcc_bkbase_part(create_or_delete_record
         {
             "kind": "Databus",
             "metadata": {
+                "annotations": {"task_stopped": "false"},
                 "labels": {"bk_biz_id": "1"},
                 "name": "base_1_agent_event",
                 "namespace": "bklog",
@@ -6526,243 +6531,111 @@ def _prepare_bk_exporter_datalink(bk_biz_id: int = 1001):
 
 @pytest.mark.django_db(databases="__all__")
 @pytest.mark.parametrize(
-    ("cmdb_levels", "expected_transform_options"),
-    [
-        ([], {}),
-        (
-            ["bk_set_id"],
-            {
-                "exporter_cmdb": True,
-                "exporter_cmdb_rt": "2_bkm_1001_bkmonitor_time_series_50011__cmdb",
-            },
-        ),
-    ],
+    ("data_id", "expected_format"), [(50011, "bkmonitor_exporter_v1"), (50012, "bkmonitor_standard")]
 )
-def test_bk_exporter_cmdb_transform_options(
-    create_or_delete_records,
-    mocker,
-    settings,
-    cmdb_levels,
-    expected_transform_options,
+@pytest.mark.parametrize("multi_tenant", [False, True])
+def test_plugin_cmdb_registration_and_toggle(
+    create_or_delete_records, mocker, settings, data_id, expected_format, multi_tenant
 ):
-    """非空 cmdb_level_config 为 bk_exporter 开启 CMDB 输出，空列表保持旧配置。"""
-    settings.ENABLE_MULTI_TENANT_MODE = False
-    datalink, ds, rt = _prepare_bk_exporter_datalink()
-    models.ResultTableOption.create_option(
-        table_id=rt.table_id,
-        name=models.ResultTableOption.OPTION_CMDB_LEVEL_CONFIG,
-        value=cmdb_levels,
-        creator="pytest",
-        bk_tenant_id=rt.bk_tenant_id,
-    )
+    """经 VM 接入入口测试注册、重复下发和关闭：主路由始终只指向主表。"""
+    settings.ENABLE_MULTI_TENANT_MODE = multi_tenant
+    ds = models.DataSource.objects.get(bk_data_id=data_id)
+    table_id = f"1001_bkmonitor_time_series_{data_id}.__default__"
+    kwargs = dict(bk_biz_id=1001, data_source=ds, monitor_table_id=table_id, storage_cluster_name="vm-plat")
     mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    mocker.patch.object(DataLink, "get_existing_component_config", return_value=None)
+    remote = mocker.patch.object(DataLink, "apply_data_link_with_retry", return_value={"status": "success"})
 
-    configs = datalink.compose_configs(
-        bk_biz_id=1001,
-        data_source=ds,
-        table_id=rt.table_id,
-        storage_cluster_name="vm-plat",
-    )
-
-    transform = _get_databus_config_payload(configs)["spec"]["transforms"][0]
-    if expected_transform_options:
-        expected_transform_options = dict(expected_transform_options)
-        saved_rt = ResultTableConfig.objects.get(data_link_name=datalink.pk)
-        expected_transform_options["exporter_cmdb_rt"] = f"2_{saved_rt.name}__cmdb"
-    assert {key: transform[key] for key in expected_transform_options} == expected_transform_options
-    if not expected_transform_options:
-        assert "exporter_cmdb" not in transform
-        assert "exporter_cmdb_rt" not in transform
-    assert ResultTableConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
-    cmdb_result_table_configs = [
-        config
-        for config in configs
-        if config["kind"] == DataLinkKind.RESULTTABLE.value and config["metadata"]["name"].endswith("__cmdb")
-    ]
-    assert cmdb_result_table_configs == []
-    assert VMStorageBindingConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
-    assert not models.ResultTable.objects.filter(table_id=f"{rt.table_id}__cmdb").exists()
-
-
-@pytest.mark.django_db(databases="__all__")
-def test_bk_exporter_cmdb_transform_uses_persisted_bkbase_table_id(
-    create_or_delete_records,
-    bk_exporter_reuse_enabled,
-    mocker,
-    settings,
-):
-    """组件复用时优先使用已回填的 BKBase 结果表 ID。"""
-    settings.ENABLE_MULTI_TENANT_MODE = False
-    datalink, ds, rt = _prepare_bk_exporter_datalink()
-    models.ResultTableOption.create_option(
-        table_id=rt.table_id,
-        name=models.ResultTableOption.OPTION_CMDB_LEVEL_CONFIG,
-        value=["bk_module_id"],
-        creator="pytest",
-        bk_tenant_id=rt.bk_tenant_id,
-    )
-    ResultTableConfig.objects.create(
-        name="legacy_rt",
-        namespace=datalink.namespace,
-        bk_tenant_id=datalink.bk_tenant_id,
-        data_link_name=datalink.data_link_name,
-        bk_biz_id=1001,
-        table_id=rt.table_id,
-        bkbase_table_id="9527_legacy_rt",
-    )
-    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
-
-    configs = datalink.compose_configs(
-        bk_biz_id=1001,
-        data_source=ds,
-        table_id=rt.table_id,
-        storage_cluster_name="vm-plat",
-        existing_context=ExistingComponentContext.from_datalink(datalink),
-    )
-
-    transform = _get_databus_config_payload(configs)["spec"]["transforms"][0]
-    assert transform["exporter_cmdb"] is True
-    assert transform["exporter_cmdb_rt"] == "9527_legacy_rt__cmdb"
-    assert ResultTableConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
-    assert not models.ResultTable.objects.filter(table_id=f"{rt.table_id}__cmdb").exists()
-
-
-@pytest.mark.django_db(databases="__all__")
-def test_bk_exporter_disables_cmdb_transform_without_extra_result_table_config(
-    create_or_delete_records,
-    bk_exporter_reuse_enabled,
-    mocker,
-    settings,
-):
-    """CMDB 输出只修改 Databus；关闭配置后移除参数且始终只有主 ResultTableConfig。"""
-    settings.ENABLE_MULTI_TENANT_MODE = False
-    datalink, ds, rt = _prepare_bk_exporter_datalink()
-    cmdb_option = models.ResultTableOption.create_option(
-        table_id=rt.table_id,
+    create_bkbase_data_link(**kwargs)
+    initial = remote.call_args.args[0]
+    main_bus = _get_databus_config_payload(initial)["spec"]
+    assert len(initial) == 3
+    assert "exporter_cmdb" not in main_bus["transforms"][0]
+    main_rt = next(c for c in initial if c["kind"] == "ResultTable")
+    main_name = main_rt["metadata"]["name"]
+    cmdb_name = f"{main_name}_cmdb"
+    main_rt_id = f"{main_rt['spec']['bizId']}_{main_name}"
+    cmdb_rt_id = f"{main_rt_id}_cmdb"
+    option = models.ResultTableOption.create_option(
+        bk_tenant_id=ds.bk_tenant_id,
+        table_id=table_id,
         name=models.ResultTableOption.OPTION_CMDB_LEVEL_CONFIG,
         value=["bk_set_id"],
         creator="pytest",
-        bk_tenant_id=rt.bk_tenant_id,
     )
-    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
-    compose_kwargs = {
-        "bk_biz_id": 1001,
-        "data_source": ds,
-        "table_id": rt.table_id,
-        "storage_cluster_name": "vm-plat",
-    }
+    create_bkbase_data_link(**kwargs)
+    enabled = remote.call_args.args[0]
+    bus = _get_databus_config_payload(enabled)["spec"]
+    assert bus["sinks"] == main_bus["sinks"]
+    assert len(bus["sinks"]) == 1
+    assert bus["transforms"][0]["format"] == expected_format
+    assert bus["transforms"][0]["exporter_cmdb"] is True
+    assert bus["transforms"][0]["exporter_cmdb_rt"] == cmdb_rt_id
+    rt_resources = {c["metadata"]["name"]: c for c in enabled if c["kind"] == "ResultTable"}
+    assert set(rt_resources) == {main_name, cmdb_name}
+    assert rt_resources[cmdb_name]["spec"]["bizId"] == main_rt["spec"]["bizId"]
+    binding = next(c for c in enabled if c["kind"] == "VmStorageBinding" and c["metadata"]["name"] == cmdb_name)
+    assert binding["spec"]["data"]["name"] == cmdb_name
+    assert binding["spec"]["storage"]["name"] == "vm-plat"
+    if multi_tenant:
+        assert binding["spec"]["data"]["tenant"] == binding["spec"]["storage"]["tenant"] == ds.bk_tenant_id
+    assert models.AccessVMRecord.objects.get(result_table_id=table_id).vm_result_table_id == main_rt_id
 
-    datalink.compose_configs(**compose_kwargs)
-    assert ResultTableConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
-    persisted_name = ResultTableConfig.objects.get(data_link_name=datalink.pk).name
-    cmdb_option.delete()
-    existing_context = ExistingComponentContext.from_datalink(datalink)
-    configs = datalink.compose_configs(existing_context=existing_context, **compose_kwargs)
-
-    result_table_names = {
-        config["metadata"]["name"] for config in configs if config["kind"] == DataLinkKind.RESULTTABLE.value
-    }
-    assert result_table_names == {persisted_name}
-    transform = _get_databus_config_payload(configs)["spec"]["transforms"][0]
-    assert "exporter_cmdb" not in transform
-    assert "exporter_cmdb_rt" not in transform
-    assert existing_context.leftover() == {}
+    # 即使映射尚未回填，VM 接入记录也要从两张 RT 中选中主表。
+    BkBaseResultTable.objects.filter(monitor_table_id=table_id).update(bkbase_table_id="")
+    with patch.object(DataLink, "sync_metadata"):
+        create_bkbase_data_link(**kwargs)
+    assert models.AccessVMRecord.objects.get(result_table_id=table_id).vm_result_table_id == main_rt_id
+    assert remote.call_args.args[0] == enabled
+    option.value = "[]"
+    option.save(update_fields=["value"])
+    create_bkbase_data_link(**kwargs)
+    assert remote.call_args.args[0] == initial
+    assert ResultTableConfig.objects.get(name=cmdb_name).bkbase_table_id == cmdb_rt_id
+    assert VMStorageBindingConfig.objects.get(name=cmdb_name).bkbase_result_table_name == cmdb_name
 
 
 @pytest.mark.django_db(databases="__all__")
-@pytest.mark.parametrize("cmdb_levels", [[], ["bk_set_id"]])
-def test_bk_standard_cmdb_transform_options(create_or_delete_records, mocker, settings, cmdb_levels):
-    """bk_standard 仅在 cmdb_level_config 非空时开启 CMDB 输出。"""
-    settings.ENABLE_MULTI_TENANT_MODE = False
-    ds = models.DataSource.objects.get(bk_data_id=50012)
-    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50012.__default__")
-    datalink = DataLink.objects.create(
-        data_link_name=utils.compose_bkdata_data_id_name(ds.data_name, DataLink.BK_STANDARD_TIME_SERIES),
-        namespace="bkmonitor",
-        bk_tenant_id="system",
-        data_link_strategy=DataLink.BK_STANDARD_TIME_SERIES,
-    )
-    models.ResultTableOption.create_option(
-        table_id=rt.table_id,
-        name=models.ResultTableOption.OPTION_CMDB_LEVEL_CONFIG,
-        value=cmdb_levels,
-        creator="pytest",
-        bk_tenant_id=rt.bk_tenant_id,
-    )
-    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
-
-    configs = datalink.compose_configs(
-        bk_biz_id=1001,
-        data_source=ds,
-        table_id=rt.table_id,
-        storage_cluster_name="vm-plat",
-    )
-
-    transform = _get_databus_config_payload(configs)["spec"]["transforms"][0]
-    assert transform["format"] == "bkmonitor_standard"
-    if cmdb_levels:
-        assert transform["exporter_cmdb"] is True
-        assert (
-            transform["exporter_cmdb_rt"] == f"2_{ResultTableConfig.objects.get(data_link_name=datalink.pk).name}__cmdb"
-        )
-    else:
-        assert "exporter_cmdb" not in transform
-        assert "exporter_cmdb_rt" not in transform
-    assert ResultTableConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
-    assert VMStorageBindingConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
-    assert not models.ResultTable.objects.filter(table_id=f"{rt.table_id}__cmdb").exists()
-
-
-@pytest.mark.django_db(databases="__all__")
-def test_bk_standard_cmdb_transform_uses_persisted_bkbase_table_id(
-    create_or_delete_records,
-    mocker,
-    settings,
+@pytest.mark.parametrize(
+    ("data_id", "strategy"), [(50011, DataLink.BK_EXPORTER_TIME_SERIES), (50012, DataLink.BK_STANDARD_TIME_SERIES)]
+)
+def test_plugin_cmdb_uses_persisted_rt_and_adopts_bkbase_components(
+    create_or_delete_records, mocker, settings, data_id, strategy
 ):
-    """bk_standard 组件复用时基于主表已回填的 BKBase ID 生成 CMDB 目标表名。"""
+    """既有 BKBase 表 ID 决定关联表归属；复用已同步的无主关联组件。"""
     settings.ENABLE_MULTI_TENANT_MODE = False
-    ds = models.DataSource.objects.get(bk_data_id=50012)
-    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50012.__default__")
-    datalink = DataLink.objects.create(
-        data_link_name=utils.compose_bkdata_data_id_name(ds.data_name, DataLink.BK_STANDARD_TIME_SERIES),
-        namespace="bkmonitor",
-        bk_tenant_id="system",
-        data_link_strategy=DataLink.BK_STANDARD_TIME_SERIES,
+    ds = models.DataSource.objects.get(bk_data_id=data_id)
+    table_id = f"1001_bkmonitor_time_series_{data_id}.__default__"
+    link = DataLink.objects.create(
+        data_link_name="plugin", bk_tenant_id=ds.bk_tenant_id, namespace="bkmonitor", data_link_strategy=strategy
     )
+    scope = dict(namespace=link.namespace, bk_tenant_id=link.bk_tenant_id, bk_biz_id=1001)
+    ResultTableConfig.objects.create(
+        **scope, name="legacy_resource", data_link_name=link.pk, table_id=table_id, bkbase_table_id="9527_legacy_rt"
+    )
+    cmdb_name = "legacy_rt_cmdb"
+    mirror_rt = ResultTableConfig.objects.create(**scope, name=cmdb_name)
+    mirror_binding = VMStorageBindingConfig.objects.create(**scope, name=cmdb_name, bkbase_result_table_name=cmdb_name)
     models.ResultTableOption.create_option(
-        table_id=rt.table_id,
+        bk_tenant_id=ds.bk_tenant_id,
+        table_id=table_id,
         name=models.ResultTableOption.OPTION_CMDB_LEVEL_CONFIG,
         value=["bk_module_id"],
         creator="pytest",
-        bk_tenant_id=rt.bk_tenant_id,
-    )
-    ResultTableConfig.objects.create(
-        name="legacy_standard_rt",
-        namespace=datalink.namespace,
-        bk_tenant_id=datalink.bk_tenant_id,
-        data_link_name=datalink.data_link_name,
-        bk_biz_id=1001,
-        table_id=rt.table_id,
-        bkbase_table_id="9527_legacy_standard_rt",
     )
     mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
-    existing_context = ExistingComponentContext.from_datalink(datalink)
-
-    configs = datalink.compose_configs(
-        bk_biz_id=1001,
-        data_source=ds,
-        table_id=rt.table_id,
-        storage_cluster_name="vm-plat",
-        existing_context=existing_context,
-    )
-
+    kwargs = dict(bk_biz_id=1001, data_source=ds, table_id=table_id, storage_cluster_name="vm-plat")
+    configs = link.compose_configs(**kwargs)
     transform = _get_databus_config_payload(configs)["spec"]["transforms"][0]
-    assert transform["format"] == "bkmonitor_standard"
-    assert transform["exporter_cmdb"] is True
-    assert transform["exporter_cmdb_rt"] == "9527_legacy_standard_rt__cmdb"
-    assert existing_context.leftover() == {}
-    assert ResultTableConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
-    assert not models.ResultTable.objects.filter(table_id=f"{rt.table_id}__cmdb").exists()
+    assert transform["exporter_cmdb_rt"] == "9527_legacy_rt_cmdb"
+    rt_config = next(c for c in configs if c["kind"] == "ResultTable" and c["metadata"]["name"] == cmdb_name)
+    assert rt_config["spec"]["bizId"] == 9527
+    mirror_rt.refresh_from_db()
+    mirror_binding.refresh_from_db()
+    assert mirror_rt.data_link_name == mirror_binding.data_link_name == link.pk
+    existing = ExistingComponentContext.from_datalink(link)
+    assert link.compose_configs(existing_context=existing, **kwargs) == configs
+    assert existing.leftover() == {}
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -7296,7 +7169,9 @@ def test_compose_log_configs_reuses_legacy_components(create_or_delete_records, 
     models.ESStorage.objects.create(table_id=table_id, storage_cluster_id=666666, bk_tenant_id=bk_tenant_id)
     models.DorisStorage.objects.create(
         table_id=table_id,
-        bkbase_table_id=f"{bk_biz_id}_{data_link_name}",
+        # 与下面的 legacy_log_rt 结果表一致：生产环境由 apply_log_datalink 按绑定的
+        # bkbase_result_table_name 回填，这里保持同样的恒等关系。
+        bkbase_table_id=f"{bk_biz_id}_legacy_log_rt",
         storage_cluster_id=doris_cluster.cluster_id,
         bk_tenant_id=bk_tenant_id,
     )
@@ -7357,7 +7232,8 @@ def test_compose_log_configs_reuses_legacy_components(create_or_delete_records, 
         data_link_name=data_link_name,
         bk_biz_id=bk_biz_id,
         table_id=table_id,
-        bkbase_result_table_name=data_link_name,
+        # 绑定与它指向的结果表名称保持一致，compose 才能按名字认领而不是新建。
+        bkbase_result_table_name="legacy_log_rt",
         doris_cluster_name="old-doris",
     )
     DataBusConfig.objects.create(
@@ -8145,6 +8021,211 @@ class TestSurrealDBBindingGraphDefinitionValidation:
             self._build_config(relations="x")._validate_graph_definitions()
         with pytest.raises(ValueError, match=r"relations\[0\].*to"):
             self._build_config(relations=[{"name": "r", "from": "a"}])._validate_graph_definitions()
+
+
+# ------------------- 日志 Doris 换表：datalink 按名字新建或维持 ------------------- #
+
+LOG_DORIS_ROTATE_TABLE_ID = "1001_bklog.doris_rotate"
+LOG_DORIS_ROTATE_LINK = "log_doris_rotate_link"
+
+
+@pytest.fixture
+def log_doris_rotate_records():
+    """搭建日志 Doris 换表链路：RT、DorisStorage、option、数据源与 Doris 集群。"""
+    bk_tenant_id = "system"
+    result_table = models.ResultTable.objects.create(
+        table_id=LOG_DORIS_ROTATE_TABLE_ID,
+        bk_biz_id=1001,
+        bk_tenant_id=bk_tenant_id,
+        is_custom_table=True,
+        default_storage=models.ClusterInfo.TYPE_DORIS,
+    )
+    data_source = models.DataSource.objects.create(
+        bk_data_id=91501,
+        data_name="log_doris_rotate",
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config=DataLink.BK_LOG,
+        is_custom_source=False,
+        bk_tenant_id=bk_tenant_id,
+    )
+    doris_cluster = models.ClusterInfo.objects.create(
+        cluster_name="doris_rotate_cluster",
+        cluster_type=models.ClusterInfo.TYPE_DORIS,
+        domain_name="doris.rotate",
+        port=9030,
+        description="",
+        cluster_id=715001,
+        is_default_cluster=False,
+        version="2.x",
+        bk_tenant_id=bk_tenant_id,
+    )
+    models.DorisStorage.objects.create(
+        table_id=LOG_DORIS_ROTATE_TABLE_ID,
+        storage_cluster_id=doris_cluster.cluster_id,
+        bk_tenant_id=bk_tenant_id,
+    )
+    models.DataIdConfig.objects.create(
+        name="log_doris_rotate_data_id",
+        namespace="bklog",
+        bk_tenant_id=bk_tenant_id,
+        data_link_name=LOG_DORIS_ROTATE_LINK,
+        bk_biz_id=1001,
+        status="Ok",
+        bk_data_id=data_source.bk_data_id,
+    )
+    models.ResultTableOption.objects.create(
+        bk_tenant_id=bk_tenant_id,
+        table_id=LOG_DORIS_ROTATE_TABLE_ID,
+        name=models.ResultTableOption.OPTION_V4_LOG_DATA_LINK,
+        value=json.dumps(
+            {
+                "clean_rules": [
+                    {
+                        "input_id": "log",
+                        "output_id": "log",
+                        "operator": {"type": "assign", "key_index": "log", "output_type": "string"},
+                    }
+                ],
+                "doris_storage_config": {"storage_keys": ["log"]},
+            }
+        ),
+        value_type=models.ResultTableOption.TYPE_STRING,
+        creator="pytest",
+    )
+    datalink = DataLink.objects.create(
+        data_link_name=LOG_DORIS_ROTATE_LINK,
+        namespace="bklog",
+        bk_tenant_id=bk_tenant_id,
+        data_link_strategy=DataLink.BK_LOG,
+    )
+    yield {
+        "bk_tenant_id": bk_tenant_id,
+        "bk_biz_id": 1001,
+        "result_table": result_table,
+        "data_source": data_source,
+        "datalink": datalink,
+    }
+
+    models.ResultTableOption.objects.filter(table_id=LOG_DORIS_ROTATE_TABLE_ID).delete()
+    models.DataIdConfig.objects.filter(data_link_name=LOG_DORIS_ROTATE_LINK).delete()
+    models.DorisStorageBindingConfig.objects.filter(data_link_name=LOG_DORIS_ROTATE_LINK).delete()
+    models.ResultTableConfig.objects.filter(data_link_name=LOG_DORIS_ROTATE_LINK).delete()
+    models.DataBusConfig.objects.filter(data_link_name=LOG_DORIS_ROTATE_LINK).delete()
+    models.DataLink.objects.filter(data_link_name=LOG_DORIS_ROTATE_LINK).delete()
+    models.DorisStorage.objects.filter(table_id=LOG_DORIS_ROTATE_TABLE_ID).delete()
+    models.ResultTable.objects.filter(table_id=LOG_DORIS_ROTATE_TABLE_ID).delete()
+    models.DataSource.objects.filter(bk_data_id=data_source.bk_data_id).delete()
+    models.ClusterInfo.objects.filter(cluster_id=715001).delete()
+
+
+def _compose_log_doris_rotate_configs(ctx: dict) -> list[dict]:
+    return ctx["datalink"].compose_log_configs(
+        bk_biz_id=ctx["bk_biz_id"],
+        data_source=ctx["data_source"],
+        table_id=LOG_DORIS_ROTATE_TABLE_ID,
+    )
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_log_configs_uses_metadata_physical_table(log_doris_rotate_records, mocker):
+    """元数据给出物理表与结果表名后，compose 直接使用并维持既有配置。"""
+    ctx = log_doris_rotate_records
+    mocker.patch.object(settings, "ENABLE_MULTI_TENANT_MODE", False)
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    models.DorisStorage.objects.filter(table_id=LOG_DORIS_ROTATE_TABLE_ID).update(
+        physical_tables={"main": "mapleleaf_2.bkm_log_doris_rotate_v2"},
+        bkbase_table_id="2_bkm_log_doris_rotate_v2",
+    )
+
+    configs = _compose_log_doris_rotate_configs(ctx)
+
+    result_table_config = models.ResultTableConfig.objects.get(data_link_name=LOG_DORIS_ROTATE_LINK)
+    assert result_table_config.name == "bkm_log_doris_rotate_v2"
+    assert result_table_config.bk_biz_id == ctx["bk_biz_id"]
+
+    doris_binding_config = models.DorisStorageBindingConfig.objects.get(data_link_name=LOG_DORIS_ROTATE_LINK)
+    assert doris_binding_config.name == "bkm_log_doris_rotate_v2"
+    assert doris_binding_config.bkbase_result_table_name == "bkm_log_doris_rotate_v2"
+
+    doris_payload = next(config for config in configs if config["kind"] == DataLinkKind.DORISBINDING.value)
+    assert doris_payload["spec"]["data"]["name"] == "bkm_log_doris_rotate_v2"
+    assert doris_payload["spec"]["storage_config"]["db"] == "mapleleaf_2"
+    assert doris_payload["spec"]["storage_config"]["table"] == "bkm_log_doris_rotate_v2"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_log_configs_creates_new_result_table_and_keeps_old(log_doris_rotate_records, mocker):
+    """换表后为新的结果表名新建配置，旧结果表与旧绑定保持不删。"""
+    ctx = log_doris_rotate_records
+    mocker.patch.object(settings, "ENABLE_MULTI_TENANT_MODE", False)
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    ResultTableConfig.objects.create(
+        name="bkm_log_doris_rotate_v1",
+        namespace="bklog",
+        bk_tenant_id=ctx["bk_tenant_id"],
+        data_link_name=LOG_DORIS_ROTATE_LINK,
+        bk_biz_id=ctx["bk_biz_id"],
+        table_id=LOG_DORIS_ROTATE_TABLE_ID,
+    )
+    DorisStorageBindingConfig.objects.create(
+        name="bkm_log_doris_rotate_v1",
+        namespace="bklog",
+        bk_tenant_id=ctx["bk_tenant_id"],
+        data_link_name=LOG_DORIS_ROTATE_LINK,
+        bk_biz_id=ctx["bk_biz_id"],
+        table_id=LOG_DORIS_ROTATE_TABLE_ID,
+        bkbase_result_table_name="bkm_log_doris_rotate_v1",
+        doris_cluster_name="doris_rotate_cluster",
+    )
+    models.DorisStorage.objects.filter(table_id=LOG_DORIS_ROTATE_TABLE_ID).update(
+        physical_tables={"main": "mapleleaf_2.bkm_log_doris_rotate_v2"},
+        bkbase_table_id="2_bkm_log_doris_rotate_v2",
+    )
+
+    _compose_log_doris_rotate_configs(ctx)
+
+    assert set(
+        ResultTableConfig.objects.filter(data_link_name=LOG_DORIS_ROTATE_LINK).values_list("name", flat=True)
+    ) == {"bkm_log_doris_rotate_v1", "bkm_log_doris_rotate_v2"}
+    assert set(
+        DorisStorageBindingConfig.objects.filter(data_link_name=LOG_DORIS_ROTATE_LINK).values_list("name", flat=True)
+    ) == {"bkm_log_doris_rotate_v1", "bkm_log_doris_rotate_v2"}
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_log_configs_falls_back_to_legacy_table_name(log_doris_rotate_records, mocker):
+    """元数据未产出物理表（历史链路）时，沿用 {name}_{biz} 的历史规则。"""
+    ctx = log_doris_rotate_records
+    mocker.patch.object(settings, "ENABLE_MULTI_TENANT_MODE", False)
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+
+    configs = _compose_log_doris_rotate_configs(ctx)
+
+    result_table_config = models.ResultTableConfig.objects.get(data_link_name=LOG_DORIS_ROTATE_LINK)
+    assert result_table_config.name == LOG_DORIS_ROTATE_LINK
+    doris_payload = next(config for config in configs if config["kind"] == DataLinkKind.DORISBINDING.value)
+    assert doris_payload["spec"]["storage_config"]["db"] == "mapleleaf_2"
+    assert doris_payload["spec"]["storage_config"]["table"] == f"{LOG_DORIS_ROTATE_LINK}_2"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_log_configs_falls_back_on_invalid_physical_table(log_doris_rotate_records, mocker):
+    """physical_tables 非法（缺库名/多段）时降级为旧规则渲染，不能抛解包异常。"""
+    ctx = log_doris_rotate_records
+    mocker.patch.object(settings, "ENABLE_MULTI_TENANT_MODE", False)
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    models.DorisStorage.objects.filter(table_id=LOG_DORIS_ROTATE_TABLE_ID).update(
+        physical_tables={"main": "no_dot_table"},
+        bkbase_table_id="2_no_dot_table",
+    )
+
+    configs = _compose_log_doris_rotate_configs(ctx)
+
+    doris_payload = next(config for config in configs if config["kind"] == DataLinkKind.DORISBINDING.value)
+    storage_config = doris_payload["spec"]["storage_config"]
+    assert storage_config["db"] == "mapleleaf_2"
+    assert storage_config["table"] == "no_dot_table_2"
 
 
 @pytest.mark.parametrize("strict", [False, True])

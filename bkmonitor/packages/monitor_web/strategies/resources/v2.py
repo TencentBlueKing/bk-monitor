@@ -1080,24 +1080,16 @@ class GetStrategyListV2Resource(Resource):
                     DataSourceLabel.CUSTOM,
                     DataTypeLabel.EVENT,
                 ):
-                    if query_config["custom_event_name"]:
-                        query_tuples.add(
-                            (
-                                query_config["data_source_label"],
-                                query_config["data_type_label"],
-                                query_config["result_table_id"],
-                                query_config["custom_event_name"],
-                            )
+                    # 存量策略的查询配置可能没有 custom_event_name（历史版本该字段允许缺省），
+                    # 此时按整个事件源索引（__INDEX__）查询指标，与指标缓存中"全局事件"指标保持一致
+                    query_tuples.add(
+                        (
+                            query_config["data_source_label"],
+                            query_config["data_type_label"],
+                            query_config.get("result_table_id", ""),
+                            query_config.get("custom_event_name") or "__INDEX__",
                         )
-                    else:
-                        query_tuples.add(
-                            (
-                                query_config["data_source_label"],
-                                query_config["data_type_label"],
-                                query_config["result_table_id"],
-                                "__INDEX__",
-                            )
-                        )
+                    )
                 elif query_config["data_source_label"] == DataSourceLabel.BK_FTA:
                     query_tuples.add(
                         (
@@ -1154,7 +1146,14 @@ class GetStrategyListV2Resource(Resource):
             reduce(lambda x, y: x | y, queries)
         )
 
-        metric_dicts = {get_metric_id(**metric.__dict__): metric for metric in metrics}
+        # 事件名存放在 extend_fields，需显式传入参与 metric_id 计算，
+        # 否则同一事件源下所有事件指标的 key 都会塌缩成 custom.event.<rt>.__INDEX__
+        metric_dicts = {}
+        for metric in metrics:
+            metric_id = get_metric_id(
+                **metric.__dict__, custom_event_name=metric.extend_fields.get("custom_event_name", "")
+            )
+            metric_dicts[metric_id] = metric
 
         return metric_dicts
 

@@ -15,8 +15,8 @@ from collections.abc import Callable, Iterable
 from itertools import islice
 
 from celery import shared_task
-from django.db import router, transaction
-from django.db.models import Q
+from django.db import DatabaseError, router, transaction
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from alarm_backends.core.lock.service_lock import share_lock
@@ -33,6 +33,7 @@ from bkmonitor.models import (
     BCSWorkload,
 )
 from bkmonitor.utils.ip import exploded_ip
+from bkmonitor.utils.tenant import is_biz_in_tenant
 from core.drf_resource import api
 from core.prometheus import metrics
 
@@ -82,8 +83,11 @@ def save_resource_batch(resource, batch, sync_fields):
 
     with transaction.atomic(using=database):
         existing = {}
-        for model in manager.select_for_update().filter(query):
-            key = identity(model)
+        # 历史 Cluster 可能写在其他租户下，按表上唯一的业务/集群键复用原行。
+        cluster_keys = {model.unique_hash: key for key, model in incoming.items()} if resource is BCSCluster else {}
+        lookup = query | Q(unique_hash__in=cluster_keys) if cluster_keys else query
+        for model in manager.select_for_update().filter(lookup):
+            key = cluster_keys.get(model.unique_hash, identity(model))
             if key in existing:
                 # Cluster 没有独立自然唯一约束，歧义必须失败，不能任取一行覆盖配置。
                 raise ValueError(f"ambiguous {resource.__name__} identity: {key}")
@@ -137,7 +141,10 @@ def delete_missing_resources(resource, sync_filter, seen_ids):
 @share_lock(identify="sync_bcs_cluster_to_db")
 def sync_bcs_cluster_to_db() -> list[BCSCluster]:
     """先提交各租户基础名录，再独立统计节点；失败租户不参与清理。"""
-    cluster_models, failures, tenant_inventories = [], [], []
+    cluster_models, failures = [], []
+    observed_clusters = set()
+    tenant_inventories = {}
+    failed_owner_hashes = {}
     sync_fields = [
         "bk_tenant_id",
         "bk_biz_id",
@@ -155,25 +162,57 @@ def sync_bcs_cluster_to_db() -> list[BCSCluster]:
     manager = BCSCluster._base_manager.using(database)
     for tenant in api.bk_login.list_tenant():
         tenant_id = tenant["id"]
+        models = []
         try:
-            models = BCSCluster.load_list_from_api({"bk_tenant_id": tenant_id})
+            inventory = BCSCluster.load_list_from_api({"bk_tenant_id": tenant_id})
+            # 名录证明集群仍可见，即使后续校验、归属判断或写库失败，也不能丢失这份证据。
+            observed_clusters.update((model.bcs_cluster_id, model.unique_hash) for model in inventory)
             # 在写入前验证整份名录，跨批重复和既有歧义均不能触发尾删。
-            cluster_ids = [model.bcs_cluster_id for model in models]
-            if len(cluster_ids) != len(set(cluster_ids)):
+            cluster_ids = {model.bcs_cluster_id for model in inventory}
+            if len(cluster_ids) != len(inventory):
                 raise ValueError("duplicate cluster identity in tenant inventory")
+            # BCS 名录可能跨租户，只有业务所属租户可以写入。
+            models = [model for model in inventory if is_biz_in_tenant(model.bk_biz_id, tenant_id)]
             tenant_filter = {"bk_tenant_id": tenant_id}
             bulk_save_resources(BCSCluster, models, "unique_hash", sync_fields, tenant_filter, delete_missing=False)
-            tenant_inventories.append((tenant_id, set(cluster_ids)))
+            tenant_inventories[tenant_id] = ({model.bcs_cluster_id for model in models}, cluster_ids)
             cluster_models.extend(models)
         except Exception as exc_info:
+            failed_owner_hashes.update({(tenant_id, model.bcs_cluster_id): model.unique_hash for model in models})
             failures.append(exc_info)
             logger.exception("sync_bcs_cluster_to_db tenant(%s) failed", tenant_id)
 
     # 全部基础名录提交后再清理；删除失败时保留 Cluster，供下轮重试。
-    for tenant_id, cluster_ids in tenant_inventories:
+    # 同一集群的不同业务观察不能相互抵销。未确认的观察按物理集群 ID 保护旧行及共用资源。
+    unconfirmed = observed_clusters.difference((model.bcs_cluster_id, model.unique_hash) for model in cluster_models)
+    unconfirmed_cluster_ids = {cluster_id for cluster_id, _ in unconfirmed}
+    # 写入失败的归属租户不参与清理。若其自然键行已存在，可以释放挡住下轮写入的唯一 hash。
+    retry_hashes = set()
+    if failed_owner_hashes:
+        try:
+            owner_keys = (
+                manager.filter(bcs_cluster_id__in={cluster_id for _, cluster_id in failed_owner_hashes})
+                .order_by()
+                .values("bk_tenant_id", "bcs_cluster_id")
+                .annotate(row_count=Count("pk"))
+                .filter(row_count=1)
+                .values_list("bk_tenant_id", "bcs_cluster_id")
+            )
+            retry_hashes = {failed_owner_hashes[key] for key in owner_keys if key in failed_owner_hashes}
+        except DatabaseError as exc_info:
+            failures.append(exc_info)
+            logger.exception("sync_bcs_cluster_to_db failed to identify existing owner rows")
+    for tenant_id, (synced_cluster_ids, visible_cluster_ids) in tenant_inventories.items():
+        cluster_ids = synced_cluster_ids | unconfirmed_cluster_ids
         try:
             with transaction.atomic(using=database):
-                stale_clusters = manager.filter(bk_tenant_id=tenant_id).exclude(bcs_cluster_id__in=cluster_ids)
+                tenant_rows = manager.filter(bk_tenant_id=tenant_id)
+                stale_clusters = tenant_rows.exclude(bcs_cluster_id__in=cluster_ids)
+                if retry_hashes:
+                    # 仅释放已退出本租户完整名录的冲突行，继续保护其他业务观察和最后一条记录。
+                    stale_clusters |= tenant_rows.filter(unique_hash__in=retry_hashes).exclude(
+                        bcs_cluster_id__in=visible_cluster_ids
+                    )
                 deleted_cluster_ids = set(stale_clusters.values_list("bcs_cluster_id", flat=True))
                 stale_clusters.delete()
                 # 同一集群仍被其它租户持有时，保留共用资源。

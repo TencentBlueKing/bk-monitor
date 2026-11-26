@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
 
 import { Button, Radio, Sideslider } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
@@ -35,6 +35,7 @@ import ProfileVisualization from '../profile-visualization/profile-visualization
 import CollectionExecutionStatus from './collection-execution-status';
 import SliderHeader from '@/components/slider-header/slider-header';
 
+import type { ProfileViewState } from '../../types';
 import type { CollectionResultSelection } from '../../types/collection-history';
 import type { CollectionHostResult, CollectionResultsState } from '../../types/collection-results';
 
@@ -44,12 +45,15 @@ export default defineComponent({
   name: 'CollectionResultDetail',
   props: {
     bizId: { type: Number, required: true },
-    selection: { type: Object as PropType<CollectionResultSelection>, required: true },
+    // 侧栏常驻，关闭后数据会被清空，因此不做必填
+    selection: { type: Object as PropType<CollectionResultSelection | null>, default: null },
     source: { type: Object as PropType<CollectionHostResult>, default: undefined },
     state: { type: Object as PropType<CollectionResultsState>, required: true },
     timezone: { type: String, required: true },
     readonly: Boolean,
     busy: Boolean,
+    // 显隐由外层受控，打开/关闭都只切换 show，不卸载组件
+    show: { type: Boolean, required: true },
     // 叠加在其他侧弹之上时挂到 body，避免受父级定位上下文影响
     transfer: { type: [Boolean, String, Object] as PropType<boolean | HTMLElement | string>, default: false },
   },
@@ -63,6 +67,23 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const fullscreen = shallowRef(false);
+    // 一次火焰图点击会连续发出 focus 与 highlight 两次变更，emit 是同步的而 props 要等渲染后更新，
+    // 以 props 快照合并会让后一次覆盖前一次；这里保留本地上次结果作为合并基准，props 更新后以父级为准。
+    let view = props.state.view;
+    watch(
+      () => props.state.view,
+      value => {
+        view = value;
+      }
+    );
+    function changeView(patch: Partial<ProfileViewState>) {
+      view = { ...view, ...patch };
+      emit('change', { view });
+    }
+    function changeDataType(dataType: string) {
+      view = createViewState();
+      emit('change', { dataType, view });
+    }
     const d = useCollectionResultDetail({
       bizId: computed(() => props.bizId),
       selection: computed(() => props.selection),
@@ -71,9 +92,20 @@ export default defineComponent({
       graphMode: computed(() => props.state.view.graphMode),
       onDataType: dataType => emit('change', { dataType }),
     });
-    return { t, fullscreen, d };
+    return { t, fullscreen, d, changeView, changeDataType };
   },
   render() {
+    // 数据被清空后保留侧栏实例等待下次 show，显隐始终由外层 show 控制
+    if (this.selection?.scope !== 'host') {
+      return (
+        <Sideslider
+          width='75%'
+          class='collection-result-detail'
+          isShow={false}
+          transfer={this.transfer}
+        />
+      );
+    }
     const d = this.d;
     const row = d.row.value;
     const processes = row?.processes.map(item => `${item.process_name} (${item.pid})`).join('，') || '--';
@@ -82,7 +114,7 @@ export default defineComponent({
         width={this.fullscreen ? '100%' : '75%'}
         class='collection-result-detail'
         beforeClose={() => !this.busy}
-        isShow={true}
+        isShow={this.show}
         transfer={this.transfer}
         onClosed={() => this.$emit('close')}
       >
@@ -193,9 +225,7 @@ export default defineComponent({
                     <span>{this.t('数据类型')}：</span>
                     <Radio.Group
                       modelValue={d.selectedType.value}
-                      onChange={dataType =>
-                        this.$emit('change', { dataType: String(dataType), view: createViewState() })
-                      }
+                      onChange={dataType => this.changeDataType(String(dataType))}
                     >
                       {d.types.value.map(type => (
                         <Radio.Button
@@ -219,9 +249,9 @@ export default defineComponent({
                   mode={this.state.view.graphMode}
                   view={this.state.view}
                   onExport={d.exportProfile}
-                  onModeChange={graphMode => this.$emit('change', { view: { ...this.state.view, graphMode } })}
+                  onModeChange={graphMode => this.changeView({ graphMode })}
                   onRetry={d.error.value ? d.load : d.retryGraph}
-                  onViewChange={view => this.$emit('change', { view: { ...this.state.view, ...view } })}
+                  onViewChange={this.changeView}
                 />
               </div>
             </>

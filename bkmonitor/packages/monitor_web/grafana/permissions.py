@@ -204,6 +204,7 @@ class DashboardPermission(BasePermission):
         org_name: str,
         resource_ids: list[str] | None = None,
         force_check: bool = False,
+        bk_tenant_id: str | None = None,
     ) -> tuple[GrafanaRole, dict[str, GrafanaPermission]]:
         """
         查询用户可见的仪表盘（候选过滤，provider 中立）。
@@ -221,7 +222,7 @@ class DashboardPermission(BasePermission):
             (role, {uid: GrafanaPermission})
             role 包含实例级全量授权提级；map 中 folder 授权已展开为其下所有 dashboard uid。
         """
-        p = Permission(username=username, bk_tenant_id=get_request_tenant_id())
+        p = Permission(username=username, bk_tenant_id=bk_tenant_id or get_request_tenant_id())
         if force_check:
             p.skip_check = False
         if p.skip_check:

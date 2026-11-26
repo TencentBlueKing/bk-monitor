@@ -190,7 +190,7 @@ def _inspect_ts_metric_metadata(params: dict[str, Any]) -> dict[str, Any]:
     raw_data_id = params.get("data_id")
     if raw_data_id in (None, ""):
         raise CustomException(message="params.data_id is required")
-    if isinstance(raw_data_id, (bool, float)):
+    if isinstance(raw_data_id, bool | float):
         raise CustomException(message="params.data_id must be an integer")
     try:
         data_id = int(raw_data_id)
@@ -434,7 +434,7 @@ def _get_effective_setting(params: dict[str, Any]) -> dict[str, Any]:
 
 
 @_register("get_report_token")
-def _get_report_token(params: dict[str, Any]) -> dict[str, Any]:
+def get_report_token(params: dict[str, Any], *, bk_tenant_id: str | None = None) -> dict[str, Any]:
     """回显自定义上报 dataid 对应的上报凭证（bk.data.token），只读，支持两种上报格式。
 
     动机：自定义指标上报有两条格式各用不同 token，配置推送客户端时要取对的那个：
@@ -509,6 +509,21 @@ def _get_report_token(params: dict[str, Any]) -> dict[str, Any]:
     bk_biz_id = _to_int("bk_biz_id")
     app_name = str(params.get("app_name") or "")
 
+    profile_data_id = _to_int("profile_data_id") if token_version == "v1" else -1
+    if bk_tenant_id is not None:
+        from rest_framework.exceptions import PermissionDenied
+
+        from bkmonitor.utils.tenant import is_biz_in_tenant
+        from metadata.models.data_source import DataSource
+
+        if bk_biz_id != -1 and not is_biz_in_tenant(bk_biz_id, bk_tenant_id):
+            raise PermissionDenied("指定的业务不在当前租户范围内")
+        data_ids = {metric_data_id, trace_data_id, log_data_id, profile_data_id} - {-1}
+        if not data_ids:
+            raise CustomException(message="请指定至少一个数据源 ID")
+        if DataSource.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id__in=data_ids).count() != len(data_ids):
+            raise PermissionDenied("指定的数据源不在当前租户范围内")
+
     result: dict[str, Any] = {
         "format": fmt,
         "token_version": token_version,
@@ -522,7 +537,6 @@ def _get_report_token(params: dict[str, Any]) -> dict[str, Any]:
 
     if want_prom:
         if token_version == "v1":
-            profile_data_id = _to_int("profile_data_id")
             result["profile_data_id"] = profile_data_id
             result["tokens"]["prometheus"] = transform_data_id_to_v1_token(
                 metric_data_id=metric_data_id,
@@ -546,7 +560,8 @@ def _get_report_token(params: dict[str, Any]) -> dict[str, Any]:
         # 注意 token 字段 default=""：系统/内建（非自定义）dataid 的行存在但 token 为空。
         from metadata.models.data_source import DataSource
 
-        data_source = DataSource.objects.filter(bk_data_id=metric_data_id).first()
+        scope = {"bk_tenant_id": bk_tenant_id} if bk_tenant_id is not None else {}
+        data_source = DataSource.objects.filter(bk_data_id=metric_data_id, **scope).first()
         json_token = data_source.token if data_source is not None else ""
         if json_token:
             result["tokens"]["json"] = json_token
