@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from rum_web.handlers.builder.base import KeyInfoSection, KeyValueItem, group
-from rum_web.handlers.builder.span.base import SpanBuilder, SpanOverview, named
+from rum_web.handlers.builder.span.base import SpanBuilder
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,10 +24,6 @@ class ExceptionTypeItem(KeyValueItem):
         return {self.key: (value[0] if value else None) if isinstance(value, list) else value}
 
 
-class ErrorSpanOverview(SpanOverview):
-    BADGES = named("attributes.outcome.type")
-
-
 class ErrorKeyInfoSection(KeyInfoSection):
     DATA = (
         group("error_type", ExceptionTypeItem()),
@@ -36,5 +32,4 @@ class ErrorKeyInfoSection(KeyInfoSection):
 
 
 class ErrorSpanBuilder(SpanBuilder):
-    OVERVIEW = ErrorSpanOverview
     SECTIONS = (ErrorKeyInfoSection,)

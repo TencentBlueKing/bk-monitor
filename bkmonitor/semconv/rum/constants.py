@@ -532,32 +532,6 @@ class VitalMetric(CachedEnum):
         return [(member.value, member.label) for member in cls]
 
 
-class OutcomeType(CachedEnum):
-    """执行结果"""
-
-    SUCCESS = "success"
-    WARNING = "warning"
-    ERROR = "error"
-    TIMEOUT = "timeout"
-    ABORT = "abort"
-    UNKNOWN = "unknown"
-
-    @cached_property
-    def label(self) -> str:
-        return {
-            self.SUCCESS: _("成功"),
-            self.WARNING: _("警告"),
-            self.ERROR: _("失败"),
-            self.TIMEOUT: _("超时"),
-            self.ABORT: _("中止"),
-            self.UNKNOWN: _("未知"),
-        }.get(self, self.value)
-
-    @classmethod
-    def choices(cls) -> list[tuple[str, str]]:
-        return [(member.value, member.label) for member in cls]
-
-
 class ResourceType(CachedEnum):
     """资源类型"""
 

@@ -94,6 +94,7 @@ def _resource_span(resource_type="xhr"):
         start_time=1788451565200000,
         end_time=1788451565328000,
         elapsed_time=128000,
+        status={"code": 0},
     )
 
 
@@ -232,10 +233,21 @@ class TestResourceSpanBuilder:
         transfer_data = _section(result, "key_info")["data"]["transfer"]
         assert transfer_data["display.compression_ratio"] is None
 
-    def test_xhr_fetch_key_info_fields(self):
-        span = _resource_span("xhr")
-        result = build(span, [])
+    @pytest.mark.parametrize("resource_type", ["xhr", "fetch"])
+    @pytest.mark.parametrize(
+        "http_status_code, span_status_code",
+        [(200, 0), (500, 2), (None, 2)],
+        ids=["success", "http-error", "network-error"],
+    )
+    def test_xhr_fetch_key_info_fields(self, resource_type, http_status_code, span_status_code):
+        span = _resource_span(resource_type)
         attrs = span["attributes"]
+        if http_status_code is None:
+            attrs.pop("http.response.status_code")
+        else:
+            attrs["http.response.status_code"] = http_status_code
+        span["status"]["code"] = span_status_code
+        result = build(span, [])
         key_info = _section(result, "key_info")["data"]
         # 各字段均为源数据直接透传，引用构造对象避免与 fixture 重复硬编码
         assert key_info["request"]["attributes.http.request.method"] == attrs["http.request.method"]
@@ -243,8 +255,16 @@ class TestResourceSpanBuilder:
         assert key_info["request"]["attributes.url.full"] == attrs["url.full"]
         assert key_info["request"]["attributes.server.address"] == attrs["server.address"]
         assert key_info["duration"]["elapsed_time"] == span["elapsed_time"]
-        assert key_info["http_result"]["attributes.http.response.status_code"] == attrs["http.response.status_code"]
-        assert key_info["http_result"]["attributes.outcome.type"] == attrs["outcome.type"]
+        assert key_info["http_result"] == {
+            "attributes.http.response.status_code": http_status_code,
+            "status.code": span_status_code,
+        }
+        badges = _items(result, "badges")
+        if http_status_code is None:
+            assert "attributes.http.response.status_code" not in badges
+        else:
+            assert badges["attributes.http.response.status_code"] == http_status_code
+        assert result["origin_data"]["attributes"]["outcome.type"] == attrs["outcome.type"]
 
     def test_others_loading_timing_has_resource_info(self):
         span = _resource_span("img")
@@ -253,7 +273,9 @@ class TestResourceSpanBuilder:
         assert resource_info is not None
         fields = {item["field_name"] for item in resource_info["items"]}
         assert fields.isdisjoint({"attributes.server.address", "attributes.http.request.method"})
-        assert _section(result, "key_info")["data"]["delivery"] == {
+        key_info = _section(result, "key_info")["data"]
+        assert key_info["http_result"] == {"attributes.http.response.status_code": 200, "status.code": 0}
+        assert key_info["delivery"] == {
             "attributes.resource.delivery_type": None,
             "display.resource.cache_hit": None,
         }
@@ -665,7 +687,8 @@ class TestResourceLoadingTiming:
 
 
 class TestInteractionBuilders:
-    def test_action_key_info(self):
+    @pytest.mark.parametrize("status_code", [None, 0, 1, 2])
+    def test_action_key_info(self, status_code):
         result = build(
             _span(
                 "action",
@@ -673,16 +696,24 @@ class TestInteractionBuilders:
                     "action.type": "click",
                     "action.target.name": ".submit-btn",
                     "action.target.tag": "button",
-                    "outcome.type": "success",
                 },
                 elapsed_time=432000,
+                **({"status": {"code": status_code}} if status_code is not None else {}),
             )
         )
         assert _section(result, "key_info")["data"] == {
             "interaction": {"attributes.action.type": "click"},
             "target": {"attributes.action.target.name": ".submit-btn", "attributes.action.target.tag": "button"},
         }
-        assert _items(result, "badges")["elapsed_time"] == 432000
+        expected_badges = [
+            {"field_name": "elapsed_time", "value": 432000},
+            {"field_name": "attributes.action.type", "value": "click"},
+        ]
+        if status_code is not None:
+            expected_badges.append({"field_name": "status.code", "value": status_code})
+        assert [
+            {"field_name": badge["field_name"], "value": badge["value"]} for badge in result["overview"]["badges"]
+        ] == expected_badges
 
     @pytest.mark.parametrize(
         "fields, expected_action_ids, expected_entry_type",
@@ -703,8 +734,10 @@ class TestInteractionBuilders:
                 "long_task",
                 {"long_task.blocking_duration": 42.5, **fields},
                 elapsed_time=123500,
+                status={"code": 0},
             )
         )
+        assert _items(result, "badges") == {"elapsed_time": 123500}
         assert _section(result, "key_info")["data"] == {
             "duration": {"elapsed_time": 123500, "attributes.long_task.blocking_duration": 42.5},
             "action": {"attributes.action.ids": expected_action_ids},
@@ -717,11 +750,12 @@ class TestInteractionBuilders:
     def test_error_exception_type_and_badges(self, types, expected):
         span = _span(
             "error",
-            {"outcome.type": "failure", "code.filepath": "app.js", "code.lineno": 9, "code.column": 12},
+            {"code.filepath": "app.js", "code.lineno": 9, "code.column": 12},
             events=[{"name": "exception", "attributes": {"exception.type": value}} for value in types],
+            status={"code": 2},
         )
         result = build(span)
-        assert _items(result, "badges") == {"attributes.outcome.type": "failure"}
+        assert result["overview"]["badges"] == []
         assert _section(result, "key_info")["data"] == {
             "error_type": {"events.attributes.exception.type": expected},
             "source": {"attributes.code.filepath": "app.js", "attributes.code.lineno": 9, "attributes.code.column": 12},
@@ -744,11 +778,12 @@ class TestVitalSpanBuilder:
     )
     def test_badges_show_metric_value_and_rating(self, metric, value, rating, alias, threshold):
         result = build(_vital_span(metric, value))
-        badges = result["overview"]["badges"]
-        assert badges == [
-            {"field_name": "attributes.vital.value", "value": value},
-            {"field_name": "display.rating_level", "value": rating, "alias": alias},
-        ]
+        expected_badges = []
+        if value is not None:
+            expected_badges.append({"field_name": "attributes.vital.value", "value": value})
+        if rating is not None:
+            expected_badges.append({"field_name": "display.rating_level", "value": rating, "alias": alias})
+        assert result["overview"]["badges"] == expected_badges
         data = _section(result, "vital_rating")["data"]
         assert data["attributes.vital.metric"] == metric
         assert data["attributes.vital.value"] == value
@@ -817,7 +852,7 @@ class TestViewSpanBuilder:
         span = _base_view_span(**{"view.started_at": None})
         del span["start_time"]
         result = build(span)
-        assert _items(result, "badges")["display.view.duration"] is None
+        assert result["overview"]["badges"] == []
         assert _section(result, "key_info")["data"]["duration"]["display.view.duration"] is None
 
     def test_latest_view_version_overrides_display_fields(self):
