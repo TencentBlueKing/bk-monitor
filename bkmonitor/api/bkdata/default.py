@@ -1217,6 +1217,23 @@ class ApplyDataLink(DataAccessAPIResource):
         config = serializers.ListField(default=list, label="资源描述")
 
 
+class GetNamespace(DataAccessAPIResource):
+    """查询 BKBase 项目所属业务。"""
+
+    use_tenant_admin = True
+    method = "GET"
+
+    @property
+    def action(self):
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            return "/v4/tenants/{bk_tenant_id}/namespaces/{name}"
+        return "/v4/tenants/default/namespaces/{name}"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
+        name = serializers.CharField(label="项目名称")
+
+
 class GetDataLink(DataAccessAPIResource):
     """获取数据链路"""
 

@@ -1,8 +1,8 @@
 ### 功能描述
 
-基于监控 DataSource 元信息生成独立的 BKBase DataSource 配置，并下发到指定 namespace。通过 `metadata.labels.raw_data_id` 标识已有数据源，不依赖已有 DataIdConfig 登记，不携带 DataId 引用。仅供内部应用调用，需要应用认证和资源权限。
+将当前租户在 `bkmonitor` 或 `bklog` 已登记的 DataId 以原名下发到目标项目。目标配置的 `metadata.namespace` 为目标项目，`spec.bizId` 为该项目所属业务。副本复用原 Data ID、Kafka channel 和 topic。仅供内部应用调用，需要应用认证和资源权限。
 
-下发成功后按租户、目标 namespace 和资源名创建或更新 DataIdConfig，记录 bk_data_id 和业务 ID；下发失败不写登记。此接口不会创建远端 DataId 或复制采集链路，不修改监控 DataSource，不持续同步后续配置。DataIdConfig 定时同步仅处理 bkmonitor、bklog，其他 namespace 的登记不参与该同步。资源名称固定为 `bkm_datasource_{bk_data_id}`，重复调用更新目标 namespace 中的同名资源。
+BKBase 接受下发后，metadata 更新目标项目的本地 DataIdConfig 登记。重复调用更新同名资源。对旧接口已共享的项目，再次调用会替换本地的 `bkm_datasource_{bk_data_id}` 登记。
 
 ### 请求方法与路径
 
@@ -14,14 +14,16 @@
 | --- | --- | --- | --- |
 | bk_tenant_id | string | 否 | 沿用请求租户上下文；有请求租户时优先使用请求租户 |
 | bk_data_id | int | 是 | 当前租户已有的数据源 ID |
-| target_namespace | string | 是 | DataSource 的目标 namespace，最长 64 字符；禁止使用受管命名空间 bkmonitor、bklog |
+| target_namespace | string | 是 | DataId 的目标 namespace，最长 64 字符，受管命名空间 bkmonitor、bklog 除外 |
+| bk_biz_id | int | 否 | 目标项目所属业务 ID。省略时查询 BKBase 项目的业务归属 |
 
 ### 请求示例
 
 ```json
 {
   "bk_data_id": 1605502,
-  "target_namespace": "shared"
+  "target_namespace": "shared",
+  "bk_biz_id": 591
 }
 ```
 
@@ -34,10 +36,10 @@
   "message": "OK",
   "data": {
     "bk_data_id": 1605502,
-    "name": "bkm_datasource_1605502",
+    "name": "bkm_did_1605502_example",
     "target_namespace": "shared"
   }
 }
 ```
 
-`name` 为生成的目标 DataSource 名称。成功仅表示 BKBase 接受下发请求，不代表资源已就绪。数据源不存在或 BKBase 下发失败时返回错误。
+`name` 为源 DataId 在目标项目中沿用的资源名称。成功表示 BKBase 已接受下发请求，资源就绪状态由 BKBase 异步更新。
