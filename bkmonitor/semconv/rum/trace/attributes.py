@@ -13,13 +13,13 @@ from semconv.rum.attributes import (
     blank_screen_attributes,
     browser_attributes,
     common_attributes,
-    device_attributes,
     error_attributes,
     http_attributes,
     longtask_attributes,
     network_attributes,
     resource_attributes,
     session_attributes,
+    timing_attributes,
     view_attributes,
     vital_attributes,
 )
@@ -39,12 +39,11 @@ class Attributes(FieldSpec):
 
     # ── 基础字段 ──────────────────────────────────────────────────────────
     USER_ID = common_attributes.USER_ID
+    TAB_ID = common_attributes.TAB_ID
     SPAN_TYPE = common_attributes.SPAN_TYPE
     OUTCOME_TYPE = common_attributes.OUTCOME_TYPE
 
     # ── error ──────────────────────────────────────────────────────
-    ERROR_MESSAGE = error_attributes.ERROR_MESSAGE
-    ERROR_HANDLED = error_attributes.ERROR_HANDLED
     ERROR_SOURCE = error_attributes.ERROR_SOURCE
     ERROR_COLUMN = error_attributes.ERROR_COLUMN
     ERROR_FILEPATH = error_attributes.ERROR_FILEPATH
@@ -56,17 +55,12 @@ class Attributes(FieldSpec):
     BROWSER_VIEWPORT_HEIGHT = browser_attributes.BROWSER_VIEWPORT_HEIGHT
     BROWSER_VIEWPORT_WIDTH = browser_attributes.BROWSER_VIEWPORT_WIDTH
 
-    # ── device ──────────────────────────────────────────────────────────────
-    DEVICE_ID = device_attributes.DEVICE_ID
-
     # ── network ─────────────────────────────────────────────────────────────
     NETWORK_CONNECTION_TYPE = network_attributes.NETWORK_CONNECTION_TYPE
     NETWORK_EFFECTIVE_TYPE = network_attributes.NETWORK_EFFECTIVE_TYPE
     NETWORK_STATUS = network_attributes.NETWORK_STATUS
-    NETWORK_PROTOCOL_NAME = network_attributes.NETWORK_PROTOCOL_NAME
 
     # ── session ─────────────────────────────────────────────────────────────
-    SESSION_HAS_REPLAY = session_attributes.SESSION_HAS_REPLAY
     SESSION_ID = session_attributes.SESSION_ID
     SESSION_TYPE = session_attributes.SESSION_TYPE
     SESSION_PHASE = session_attributes.SESSION_PHASE
@@ -76,17 +70,11 @@ class Attributes(FieldSpec):
     VIEW_NAME = view_attributes.VIEW_NAME
     VIEW_LOADING_TYPE = view_attributes.VIEW_LOADING_TYPE
     VIEW_URL = view_attributes.VIEW_URL
-    VIEW_PREVIOUS = view_attributes.VIEW_PREVIOUS
     VIEW_PREVIOUS_URL_TEMPLATE = view_attributes.VIEW_PREVIOUS_URL_TEMPLATE
     VIEW_REFERRER = view_attributes.VIEW_REFERRER
     VIEW_URL_TEMPLATE = view_attributes.VIEW_URL_TEMPLATE
     VIEW_LOADING_TIME = view_attributes.VIEW_LOADING_TIME
     VIEW_LOADING_TIME_SOURCE = view_attributes.VIEW_LOADING_TIME_SOURCE
-    VIEW_FIRST_BYTE = view_attributes.VIEW_FIRST_BYTE
-    VIEW_DOM_INTERACTIVE = view_attributes.VIEW_DOM_INTERACTIVE
-    VIEW_DOM_CONTENT_LOADED = view_attributes.VIEW_DOM_CONTENT_LOADED
-    VIEW_DOM_COMPLETE = view_attributes.VIEW_DOM_COMPLETE
-    VIEW_LOAD_EVENT = view_attributes.VIEW_LOAD_EVENT
     VIEW_PHASE = view_attributes.VIEW_PHASE
     VIEW_STARTED_AT = view_attributes.VIEW_STARTED_AT
     VIEW_VERSION = view_attributes.VIEW_VERSION
@@ -94,52 +82,58 @@ class Attributes(FieldSpec):
 
     # ── resource ────────────────────────────────────────────────────────────────
     RESOURCE_TYPE = resource_attributes.RESOURCE_TYPE
+    RESOURCE_INITIATOR_TYPE = resource_attributes.RESOURCE_INITIATOR_TYPE
     RESOURCE_SIZE = resource_attributes.RESOURCE_SIZE
     RESOURCE_TRANSFER_SIZE = resource_attributes.RESOURCE_TRANSFER_SIZE
-    RESOURCE_DECODED_BODY_SIZE = resource_attributes.RESOURCE_DECODED_BODY_SIZE
     RESOURCE_ENCODED_BODY_SIZE = resource_attributes.RESOURCE_ENCODED_BODY_SIZE
     RESOURCE_PROTOCOL = resource_attributes.RESOURCE_PROTOCOL
-    RESOURCE_CACHE_HIT = resource_attributes.RESOURCE_CACHE_HIT
     RESOURCE_DELIVERY_TYPE = resource_attributes.RESOURCE_DELIVERY_TYPE
     RESOURCE_RENDER_BLOCKING_STATUS = resource_attributes.RESOURCE_RENDER_BLOCKING_STATUS
-    RESOURCE_REDIRECT_START = resource_attributes.RESOURCE_REDIRECT_START
-    RESOURCE_REDIRECT_DURATION = resource_attributes.RESOURCE_REDIRECT_DURATION
-    RESOURCE_WORKER_START = resource_attributes.RESOURCE_WORKER_START
-    RESOURCE_WORKER_DURATION = resource_attributes.RESOURCE_WORKER_DURATION
-    RESOURCE_DNS_START = resource_attributes.RESOURCE_DNS_START
-    RESOURCE_DNS_DURATION = resource_attributes.RESOURCE_DNS_DURATION
-    RESOURCE_CONNECT_START = resource_attributes.RESOURCE_CONNECT_START
-    RESOURCE_CONNECT_DURATION = resource_attributes.RESOURCE_CONNECT_DURATION
-    RESOURCE_SSL_START = resource_attributes.RESOURCE_SSL_START
-    RESOURCE_SSL_DURATION = resource_attributes.RESOURCE_SSL_DURATION
-    RESOURCE_FIRST_BYTE_START = resource_attributes.RESOURCE_FIRST_BYTE_START
-    RESOURCE_FIRST_BYTE_DURATION = resource_attributes.RESOURCE_FIRST_BYTE_DURATION
-    RESOURCE_DOWNLOAD_START = resource_attributes.RESOURCE_DOWNLOAD_START
-    RESOURCE_DOWNLOAD_DURATION = resource_attributes.RESOURCE_DOWNLOAD_DURATION
-    RESOURCE_TIMING_START_TIME = resource_attributes.RESOURCE_TIMING_START_TIME
-    RESOURCE_TIMING_REDIRECT_START = resource_attributes.RESOURCE_TIMING_REDIRECT_START
-    RESOURCE_TIMING_REDIRECT_END = resource_attributes.RESOURCE_TIMING_REDIRECT_END
-    RESOURCE_TIMING_FETCH_START = resource_attributes.RESOURCE_TIMING_FETCH_START
-    RESOURCE_TIMING_WORKER_START = resource_attributes.RESOURCE_TIMING_WORKER_START
-    RESOURCE_TIMING_WORKER_ROUTER_EVALUATION_START = resource_attributes.RESOURCE_TIMING_WORKER_ROUTER_EVALUATION_START
-    RESOURCE_TIMING_WORKER_CACHE_LOOKUP_START = resource_attributes.RESOURCE_TIMING_WORKER_CACHE_LOOKUP_START
-    RESOURCE_TIMING_DOMAIN_LOOKUP_START = resource_attributes.RESOURCE_TIMING_DOMAIN_LOOKUP_START
-    RESOURCE_TIMING_DOMAIN_LOOKUP_END = resource_attributes.RESOURCE_TIMING_DOMAIN_LOOKUP_END
-    RESOURCE_TIMING_CONNECT_START = resource_attributes.RESOURCE_TIMING_CONNECT_START
-    RESOURCE_TIMING_SECURE_CONNECTION_START = resource_attributes.RESOURCE_TIMING_SECURE_CONNECTION_START
-    RESOURCE_TIMING_CONNECT_END = resource_attributes.RESOURCE_TIMING_CONNECT_END
-    RESOURCE_TIMING_REQUEST_START = resource_attributes.RESOURCE_TIMING_REQUEST_START
-    RESOURCE_TIMING_RESPONSE_START = resource_attributes.RESOURCE_TIMING_RESPONSE_START
-    RESOURCE_TIMING_FINAL_RESPONSE_HEADERS_START = resource_attributes.RESOURCE_TIMING_FINAL_RESPONSE_HEADERS_START
-    RESOURCE_TIMING_RESPONSE_END = resource_attributes.RESOURCE_TIMING_RESPONSE_END
-    RESOURCE_TIMING_WORKER_MATCHED_ROUTER_SOURCE = resource_attributes.RESOURCE_TIMING_WORKER_MATCHED_ROUTER_SOURCE
-    RESOURCE_TIMING_WORKER_FINAL_ROUTER_SOURCE = resource_attributes.RESOURCE_TIMING_WORKER_FINAL_ROUTER_SOURCE
+
+    # ── timing ─────────────────────────────────────────────────────────────────
+    TIMING_START_TIME = timing_attributes.TIMING_START_TIME
+    TIMING_REDIRECT_START = timing_attributes.TIMING_REDIRECT_START
+    TIMING_REDIRECT_END = timing_attributes.TIMING_REDIRECT_END
+    TIMING_FETCH_START = timing_attributes.TIMING_FETCH_START
+    TIMING_WORKER_START = timing_attributes.TIMING_WORKER_START
+    TIMING_WORKER_ROUTER_EVALUATION_START = timing_attributes.TIMING_WORKER_ROUTER_EVALUATION_START
+    TIMING_WORKER_CACHE_LOOKUP_START = timing_attributes.TIMING_WORKER_CACHE_LOOKUP_START
+    TIMING_DOMAIN_LOOKUP_START = timing_attributes.TIMING_DOMAIN_LOOKUP_START
+    TIMING_DOMAIN_LOOKUP_END = timing_attributes.TIMING_DOMAIN_LOOKUP_END
+    TIMING_CONNECT_START = timing_attributes.TIMING_CONNECT_START
+    TIMING_SECURE_CONNECTION_START = timing_attributes.TIMING_SECURE_CONNECTION_START
+    TIMING_CONNECT_END = timing_attributes.TIMING_CONNECT_END
+    TIMING_REQUEST_START = timing_attributes.TIMING_REQUEST_START
+    TIMING_RESPONSE_START = timing_attributes.TIMING_RESPONSE_START
+    TIMING_FINAL_RESPONSE_HEADERS_START = timing_attributes.TIMING_FINAL_RESPONSE_HEADERS_START
+    TIMING_RESPONSE_END = timing_attributes.TIMING_RESPONSE_END
+    TIMING_UNLOAD_EVENT_START = timing_attributes.TIMING_UNLOAD_EVENT_START
+    TIMING_UNLOAD_EVENT_END = timing_attributes.TIMING_UNLOAD_EVENT_END
+    TIMING_DOM_INTERACTIVE = timing_attributes.TIMING_DOM_INTERACTIVE
+    TIMING_DOM_CONTENT_LOADED_EVENT_START = timing_attributes.TIMING_DOM_CONTENT_LOADED_EVENT_START
+    TIMING_DOM_CONTENT_LOADED_EVENT_END = timing_attributes.TIMING_DOM_CONTENT_LOADED_EVENT_END
+    TIMING_DOM_COMPLETE = timing_attributes.TIMING_DOM_COMPLETE
+    TIMING_LOAD_EVENT_START = timing_attributes.TIMING_LOAD_EVENT_START
+    TIMING_LOAD_EVENT_END = timing_attributes.TIMING_LOAD_EVENT_END
+    TIMING_ACTIVATION_START = timing_attributes.TIMING_ACTIVATION_START
+    TIMING_WORKER_MATCHED_ROUTER_SOURCE = timing_attributes.TIMING_WORKER_MATCHED_ROUTER_SOURCE
+    TIMING_WORKER_FINAL_ROUTER_SOURCE = timing_attributes.TIMING_WORKER_FINAL_ROUTER_SOURCE
+    TIMING_INCOMPLETE = timing_attributes.TIMING_INCOMPLETE
 
     # ── action ──────────────────────────────────────────────────────────────
     ACTION_ID = action_attributes.ACTION_ID
+    ACTION_NAME = action_attributes.ACTION_NAME
+    ACTION_IDS = action_attributes.ACTION_IDS
     ACTION_TYPE = action_attributes.ACTION_TYPE
+    ACTION_END_REASON = action_attributes.ACTION_END_REASON
     ACTION_TARGET_NAME = action_attributes.ACTION_TARGET_NAME
     ACTION_TARGET_TAG = action_attributes.ACTION_TARGET_TAG
+    ACTION_TARGET_SELECTOR = action_attributes.ACTION_TARGET_SELECTOR
+    ACTION_TARGET_PATH = action_attributes.ACTION_TARGET_PATH
+    ACTION_TARGET_WIDTH = action_attributes.ACTION_TARGET_WIDTH
+    ACTION_TARGET_HEIGHT = action_attributes.ACTION_TARGET_HEIGHT
+    ACTION_POSITION_X = action_attributes.ACTION_POSITION_X
+    ACTION_POSITION_Y = action_attributes.ACTION_POSITION_Y
     ACTION_FRUSTRATION_TYPE = action_attributes.ACTION_FRUSTRATION_TYPE
 
     # ── http ──────────────────────────────────────────────────────────────
@@ -153,21 +147,14 @@ class Attributes(FieldSpec):
 
     # ── vital ───────────────────────────────────────────────────────────────
     VITAL_ID = vital_attributes.VITAL_ID
+    VITAL_VERSION = vital_attributes.VITAL_VERSION
     VITAL_METRIC = vital_attributes.VITAL_METRIC
     VITAL_VALUE = vital_attributes.VITAL_VALUE
-    VITAL_INP_INPUT_DELAY = vital_attributes.VITAL_INP_INPUT_DELAY
-    VITAL_INP_INTERACTION_TARGET = vital_attributes.VITAL_INP_INTERACTION_TARGET
     VITAL_INP_INTERACTION_TYPE = vital_attributes.VITAL_INP_INTERACTION_TYPE
-    VITAL_INP_PROCESSING_DURATION = vital_attributes.VITAL_INP_PROCESSING_DURATION
-    VITAL_INP_PRESENTATION_DELAY = vital_attributes.VITAL_INP_PRESENTATION_DELAY
+    VITAL_INP_TARGET_SELECTOR = vital_attributes.VITAL_INP_TARGET_SELECTOR
     VITAL_LCP_TARGET = vital_attributes.VITAL_LCP_TARGET
     VITAL_LCP_URL = vital_attributes.VITAL_LCP_URL
-    VITAL_LCP_RESOURCE_LOAD_DURATION = vital_attributes.VITAL_LCP_RESOURCE_LOAD_DURATION
-    VITAL_LCP_ELEMENT_RENDER_DELAY = vital_attributes.VITAL_LCP_ELEMENT_RENDER_DELAY
-    VITAL_TTFB_WAITING_DURATION = vital_attributes.VITAL_TTFB_WAITING_DURATION
-    VITAL_TTFB_DNS_DURATION = vital_attributes.VITAL_TTFB_DNS_DURATION
-    VITAL_TTFB_CONNECTION_DURATION = vital_attributes.VITAL_TTFB_CONNECTION_DURATION
-    VITAL_TTFB_REQUEST_DURATION = vital_attributes.VITAL_TTFB_REQUEST_DURATION
+    VITAL_CLS_TARGET_SELECTOR = vital_attributes.VITAL_CLS_TARGET_SELECTOR
 
     # ── blank_screen ────────────────────────────────────────────────────────
     BLANK_SCREEN_REASON = blank_screen_attributes.BLANK_SCREEN_REASON
@@ -175,8 +162,6 @@ class Attributes(FieldSpec):
     BLANK_SCREEN_EMPTY_SAMPLE_COUNT = blank_screen_attributes.BLANK_SCREEN_EMPTY_SAMPLE_COUNT
 
     # ── long_task ───────────────────────────────────────────────────────────
-    LONG_TASK_ID = longtask_attributes.LONG_TASK_ID
-    LONG_TASK_NAME = longtask_attributes.LONG_TASK_NAME
     LONG_TASK_ENTRY_TYPE = longtask_attributes.LONG_TASK_ENTRY_TYPE
     LONG_TASK_BLOCKING_DURATION = longtask_attributes.LONG_TASK_BLOCKING_DURATION
     LONG_TASK_FIRST_UI_EVENT_TIMESTAMP = longtask_attributes.LONG_TASK_FIRST_UI_EVENT_TIMESTAMP

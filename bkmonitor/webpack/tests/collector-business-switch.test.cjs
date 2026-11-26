@@ -235,6 +235,21 @@ test('same-route container rebuild loads both sections for the new business', as
   assert.equal(s.current().emptyType, 'empty');
 });
 
+test('collection route only mounts the detail panel when a configuration is selected', async t => {
+  const s = await setup(t);
+  await s.router.push({ name: 'collect-config' });
+  await flush();
+  const vm = s.current();
+  const hasDetailPanel = () => vm.$children.some(child => child.$options._componentTag === 'collector-config-detail');
+  assert.equal(hasDetailPanel(), false);
+  await s.settle(0, [config()]);
+  assert.equal(hasDetailPanel(), false);
+  vm.side.data = vm.table.data[0];
+  vm.side.show = true;
+  await flush();
+  assert.equal(hasDetailPanel(), true);
+});
+
 test('first navigation prepares the ID filter before starting one request round', async t => {
   const s = await setup(t);
   await s.router.push({ name: 'collect-config', query: { id: '303' } });

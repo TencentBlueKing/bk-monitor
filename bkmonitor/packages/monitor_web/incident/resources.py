@@ -192,6 +192,10 @@ class IncidentBaseResource(Resource):
 
         return list(aggregate_results.values())
 
+    @staticmethod
+    def is_topology_root(incident: IncidentDocument, entity: IncidentGraphEntity) -> bool:
+        return entity.is_root or getattr(incident.feedback, "incident_root", None) == entity.entity_id
+
     def generate_nodes_by_entites(
         self, incident: IncidentDocument, snapshot: IncidentSnapshot, entities: list[IncidentGraphEntity]
     ) -> list[dict]:
@@ -204,7 +208,8 @@ class IncidentBaseResource(Resource):
         sub_combo_types = ("BcsWorkload", "BcsService")
 
         for entity in entities:
-            if entity.entity_type in sub_combo_types:
+            # Root causes must remain selectable nodes, even when their type normally renders as a group.
+            if entity.entity_type in sub_combo_types and not self.is_topology_root(incident, entity):
                 continue
 
             dependency_parents = snapshot.get_entity_alert_parent(entity.entity_id, types=list(sub_combo_types))
@@ -212,6 +217,8 @@ class IncidentBaseResource(Resource):
             dependency_parent = None
             if dependency_parents:
                 for _dependency_parent in dependency_parents:
+                    if self.is_topology_root(incident, _dependency_parent):
+                        continue
                     _dependency_content = (
                         self.generate_entity_node_info(incident, snapshot, _dependency_parent)
                         if _dependency_parent
@@ -351,6 +358,7 @@ class IncidentBaseResource(Resource):
             snapshot.incident_graph_entities.values(),
         )
 
+        node_ids = {node["id"] for node in nodes}
         node_categories = [node["entity"]["rank"]["rank_category"]["category_id"] for node in nodes]
         sub_combos = [
             {
@@ -369,8 +377,7 @@ class IncidentBaseResource(Resource):
             "edges": [
                 self.generate_edge_info(snapshot, edge)
                 for edge in snapshot.incident_graph_edges.values()
-                if edge.source.entity_type not in ("BcsWorkload", "BcsService")
-                and edge.target.entity_type not in ("BcsWorkload", "BcsService")
+                if edge.source.entity_id in node_ids and edge.target.entity_id in node_ids
             ],
             "sub_combos": list({item["id"]: item for item in sub_combos}.values()),
             "combos": [

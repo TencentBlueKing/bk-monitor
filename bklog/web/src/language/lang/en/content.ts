@@ -1633,4 +1633,10 @@ export default {
   '时间格式包含时区，但预览值中未识别到，请手动选择。':
     'The time format includes a timezone, but none was recognized in the preview value. Select one manually.',
   请先选择业务: 'Please select a business first',
+  '选择数据平台空间后，该日志数据自动同步至数据平台对应空间':
+    'After selecting a namespace, this log data will be synchronized to that namespace on the data platform.',
+  '该日志数据源将自动同步至 BKBase 指定空间「{space}」。':
+    'This log data source will be synchronized to the BKBase namespace "{space}". ',
+  '您可以针对这部分数据进行清洗配置等操作，不会影响该采集。是否确认？':
+    'You can configure data cleaning and other processing without affecting the original collection. Continue?',
 };

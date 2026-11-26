@@ -42,12 +42,6 @@ LONG_TASK_SCRIPT_PAUSE_DURATION = FieldSpec(
 LONG_TASK_SCRIPT_SOURCE_CHAR_POSITION = FieldSpec(
     field_name="long_task.script.source_char_position", field_alias=_("源码字符位置")
 )
-LONG_TASK_SCRIPT_START_TIME = FieldSpec(
-    field_name="long_task.script.start_time",
-    field_alias=_("脚本开始时间"),
-    field_unit=FieldUnit.MS.value,
-    field_display_type=FieldDisplayType.DURATION.value,
-)
 LONG_TASK_SCRIPT_INVOKER = FieldSpec(field_name="long_task.script.invoker", field_alias=_("脚本触发来源"))
 LONG_TASK_SCRIPT_INVOKER_TYPE = FieldSpec(field_name="long_task.script.invoker_type", field_alias=_("脚本触发类型"))
 LONG_TASK_SCRIPT_SOURCE_FUNCTION_NAME = FieldSpec(
@@ -58,8 +52,6 @@ LONG_TASK_SCRIPT_WINDOW_ATTRIBUTION = FieldSpec(
     field_name="long_task.script.window_attribution", field_alias=_("脚本窗口关系")
 )
 
-LONG_TASK_ID = FieldSpec(field_name="long_task.id", field_alias=_("长任务 ID"))
-LONG_TASK_NAME = FieldSpec(field_name="long_task.name", field_alias=_("长任务名称"))
 LONG_TASK_ENTRY_TYPE = FieldSpec(
     field_name="long_task.entry_type", field_alias=_("长任务类型"), option_values=LongTaskEntryType
 )

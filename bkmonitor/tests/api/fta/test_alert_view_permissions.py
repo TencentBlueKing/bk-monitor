@@ -34,4 +34,4 @@ def test_alert_v2_registers_graph_drill_down_route():
 
     assert route is not None
     assert route.method == "POST"
-    assert route.resource_class is resource.scene_view.graph_drill_down.__class__
+    assert route.resource_class is resource.alert_v2.alert_graph_drill_down.__class__

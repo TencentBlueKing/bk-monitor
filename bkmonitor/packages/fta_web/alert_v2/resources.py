@@ -40,6 +40,7 @@ from constants.apm import ApmAlertHelper
 from constants.data_source import DataTypeLabel, DataSourceLabel
 from core.drf_resource import Resource, resource, api
 from fta_web.alert.resources import AlertDetailResource as BaseAlertDetailResource
+from fta_web.alert.resources import AlertGraphQueryResource as _BaseAlertGraphQueryResource
 from fta_web.alert_v2.target import BaseTarget, get_target_instance
 from monitor_web.data_explorer.event.constants import EventSource
 from monitor_web.data_explorer.event.resources import (
@@ -56,6 +57,18 @@ from apm_web.event.resources import (
 )
 
 from monitor_web.data_explorer.event.utils import get_cluster_table_map, k8s_cond_handler
+from monitor_web.scene_view.resources.custom_metric import GraphDrillDownResource as _BaseGraphDrillDownResource
+
+
+class AlertGraphQueryResource(_BaseAlertGraphQueryResource):
+    def get_graph_query_params(self, params: dict, alert: AlertDocument) -> dict:
+        return ApmAlertHelper.prepare_graph_query(super().get_graph_query_params(params, alert), alert.strategy)
+
+
+class AlertGraphDrillDownResource(_BaseGraphDrillDownResource):
+    def perform_request(self, params: dict) -> list:
+        strategy = AlertDocument.get(params["alert_id"]).strategy if params.get("alert_id") else None
+        return super().perform_request(ApmAlertHelper.prepare_graph_query(params, strategy))
 
 
 class AlertDetailResource(BaseAlertDetailResource):

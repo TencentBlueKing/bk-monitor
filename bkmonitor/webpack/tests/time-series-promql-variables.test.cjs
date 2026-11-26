@@ -349,7 +349,7 @@ test('A service without an index leaves fixed native queries intact and selects 
 
 test('Actual fullscreen menu keeps native method and time shift for current and comparison requests', async () => {
   for (const group_by of [[], ['container_name'], ['container'], ['image'], ['namespace', 'container_name']]) {
-    for (const method of ['sum', 'COUNT']) {
+    for (const method of ['sum', 'COUNT', 'sum_without_time', 'CP50']) {
       const original = { expression: 'A', unit: 'bytes', query_configs: [podConfig()] };
       const { graph } = graphHarness(original, method);
       graph.viewOptions.group_by = group_by;
@@ -676,6 +676,26 @@ test('Native unit overrides use the same effective method as the actual query va
       assert.ok(request.query_configs[0].promql.startsWith(`${expectedMethod} by`));
       assert.equal(request.unit, expectedUnit);
     }
+  }
+});
+
+test('Legacy page methods become native PromQL aggregations for current and comparison requests', async () => {
+  for (const [method, expected, unit] of [
+    ['sum_without_time', 'sum by (namespace,pod_name) (pod_memory_rss{', 'bytes'],
+    ['AVG_WITHOUT_TIME', 'AVG by (namespace,pod_name) (pod_memory_rss{', 'bytes'],
+    ['count_without_time', 'count by (namespace,pod_name) (pod_memory_rss{', 'none'],
+    ['CP50', 'quantile by (namespace,pod_name) (0.50, pod_memory_rss{', 'bytes'],
+    ['cp99', 'quantile by (namespace,pod_name) (0.99, pod_memory_rss{', 'bytes'],
+  ]) {
+    const { graph, requests } = graphHarness({ expression: 'A', unit: 'bytes', query_configs: [podConfig()] }, method);
+    await graph.queryPanelData();
+    assert.equal(requests.length, 2);
+    for (const request of requests) {
+      assert.ok(request.query_configs[0].promql.startsWith(expected), request.query_configs[0].promql);
+      assert.equal(request.unit, unit);
+      parse(request.query_configs[0].promql);
+    }
+    assert.ok(requests[1].query_configs[0].promql.endsWith('offset 1h)'));
   }
 });
 

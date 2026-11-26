@@ -58,6 +58,10 @@ export class VariablesService {
     while (target.includes(podMemoryMarker) || groups.some(group => String(group).trim() === podMemoryMarker)) {
       podMemoryMarker += '_';
     }
+    // 页面汇聚方法含 *_without_time 与 CPxx，原生 PromQL 只认同名聚合与 quantile(φ, expr)
+    const method = keepVariables.includes('method') ? undefined : (this.index?.method ?? scopedVars?.method);
+    const quantile = /^cp(\d{2})$/i.exec(String(method ?? ''))?.[1];
+    if (quantile) target = target.replace(/\$method((?:\s*by\s*\([^()]*\))?\s*)\(/g, `quantile$1(0.${quantile}, `);
     return target.replace(this.regex, (match, var1, var2, fmt2, var3, _path, fmt3) => {
       const variableName = var1 || var2 || var3;
       if (keepVariables.includes(variableName)) return match;
@@ -77,6 +81,7 @@ export class VariablesService {
           : '.*';
       }
       if (variableName === 'group_by') return Array.isArray(value) ? value.join(',') : (value ?? '');
+      if (variableName === 'method' && typeof value === 'string') return value.replace(/_without_time$/i, '');
       if (variableName === 'time_shift') {
         const timeShift = String(value || '').trim();
         return !timeShift ? ' ' : /^offset\s/.test(timeShift) ? timeShift : `offset ${timeShift}`;
@@ -211,7 +216,7 @@ export class VariablesService {
 
 /** 只有实际使用 method 变量的原生 COUNT 查询需要覆盖单位。 */
 export const getPromqlUnitOverride = (queryData: { query_configs?: { promql?: string }[] }, method?: string) =>
-  method?.toLowerCase() === 'count' &&
+  /^count(_without_time)?$/i.test(method ?? '') &&
   queryData.query_configs?.some(
     config =>
       typeof config.promql === 'string' &&

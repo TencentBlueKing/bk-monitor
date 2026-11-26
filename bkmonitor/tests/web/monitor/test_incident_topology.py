@@ -10,13 +10,13 @@ specific language governing permissions and limitations under the License.
 
 import copy
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
 
 from bkmonitor.aiops.incident.graph_snapshot import target_analysis
 from bkmonitor.aiops.incident.models import IncidentSnapshot
-from monitor_web.incident.resources import IncidentBaseResource, IncidentTopologyMenuResource, IncidentTopologyResource
+from monitor_web.incident.resources import IncidentTopologyMenuResource, IncidentTopologyResource
 
 
 def build_snapshot_content(entities):
@@ -129,6 +129,80 @@ class TestIncidentTopologyAggregateVersion(SimpleTestCase):
         )
 
 
+class TestTopologyGroupRoot(SimpleTestCase):
+    def make_content(self, entity_type="BcsWorkload", is_root=True, on_alert=False):
+        parent = build_bcs_pod("parent", "workload", None)
+        parent.update(entity_type=entity_type, is_root=is_root, is_on_alert=on_alert, is_anomaly=is_root)
+        parent["dimensions"] = {"namespace": "default", "workload_name": "workload"}
+        content = build_snapshot_content(
+            [build_bcs_pod("pod-a", "workload", None), parent, build_bcs_pod("pod-b", "workload", None)]
+        )
+        content["incident_propagation_graph"]["edges"] = [
+            {"source_id": pod, "target_id": "parent", "edge_type": "dependency", "events": []}
+            for pod in ("pod-a", "pod-b")
+        ]
+        return content
+
+    def render(self, content, feedback=None, aggregate=False):
+        original = copy.deepcopy(content)
+        snapshot = IncidentSnapshot(copy.deepcopy(content))
+        incident = SimpleNamespace(feedback=SimpleNamespace(incident_root=feedback))
+        if aggregate:
+            snapshot.aggregate_graph(incident, aggregate_dependency=True, aggregate_cluster=True)
+        with patch(
+            "monitor_web.incident.resources.resource.cc.get_app_by_id", return_value=SimpleNamespace(name="biz")
+        ):
+            result = IncidentTopologyResource().generate_topology_data_from_snapshot(incident, snapshot)
+        self.assertEqual(content, original)
+        return result
+
+    def test_workload_and_service_roots_remain_nodes_with_their_edges(self):
+        for entity_type in ("BcsWorkload", "BcsService"):
+            for aggregate in (False, True):
+                with self.subTest(entity_type=entity_type, aggregate=aggregate):
+                    content = self.make_content(entity_type)
+                    result = self.render(content, aggregate=aggregate)
+                    nodes = {node["id"]: node for node in result["nodes"]}
+                    self.assertIn("parent", nodes)
+                    self.assertTrue(nodes["parent"]["entity"]["is_root"])
+                    self.assertEqual(
+                        nodes["parent"]["entity"]["dimensions"],
+                        content["incident_propagation_graph"]["entities"][1]["dimensions"],
+                    )
+                    self.assertNotIn("parent", {combo["id"] for combo in result["sub_combos"]})
+                    self.assertTrue(result["edges"])
+                    for edge in result["edges"]:
+                        self.assertIn(edge["source"], nodes)
+                        self.assertEqual(edge["target"], "parent")
+
+    def test_root_with_no_children_is_not_discarded(self):
+        content = self.make_content()
+        content["incident_propagation_graph"]["entities"] = content["incident_propagation_graph"]["entities"][1:2]
+        content["incident_propagation_graph"]["edges"] = []
+        result = self.render(content)
+        self.assertEqual([node["id"] for node in result["nodes"]], ["parent"])
+
+    def test_feedback_root_survives_without_changing_algorithm_root_flags(self):
+        result = self.render(self.make_content(is_root=False), feedback="parent")
+        parent = next(node for node in result["nodes"] if node["id"] == "parent")
+        self.assertTrue(parent["is_feedback_root"])
+        self.assertFalse(parent["entity"]["is_root"])
+        self.assertEqual(len(result["edges"]), 2)
+
+    def test_non_root_alert_parent_keeps_existing_group_presentation(self):
+        result = self.render(self.make_content(is_root=False, on_alert=True))
+        self.assertEqual({node["id"] for node in result["nodes"]}, {"pod-a", "pod-b"})
+        self.assertEqual([combo["id"] for combo in result["sub_combos"]], ["parent"])
+        self.assertEqual({node["subComboId"] for node in result["nodes"]}, {"parent"})
+        self.assertEqual(result["edges"], [])
+
+    def test_alerting_root_is_not_duplicated_as_a_group(self):
+        result = self.render(self.make_content(on_alert=True))
+        self.assertEqual(len(result["nodes"]), 3)
+        self.assertEqual(result["sub_combos"], [])
+        self.assertEqual(len(result["edges"]), 2)
+
+
 class TestUnifiedGraphSnapshot(SimpleTestCase):
     def test_empty_graph_and_hierarchy_render_without_indexing_a_root(self):
         content = build_snapshot_content([])
@@ -137,7 +211,7 @@ class TestUnifiedGraphSnapshot(SimpleTestCase):
         snapshot = IncidentSnapshot(content)
         incident = SimpleNamespace(feedback=SimpleNamespace(incident_root=None))
         snapshot.aggregate_graph(incident, aggregate_dependency=True, aggregate_cluster=True)
-        result = IncidentBaseResource().generate_topology_data_from_snapshot(incident, snapshot)
+        result = IncidentTopologyResource().generate_topology_data_from_snapshot(incident, snapshot)
         self.assertEqual(result["nodes"], [])
         self.assertEqual(result["edges"], [])
         self.assertEqual(result["combos"], [])
@@ -226,7 +300,8 @@ class TestUnifiedGraphSnapshot(SimpleTestCase):
         snapshot = IncidentSnapshot(self.build_content())
         snapshot.merge_entities(["a", "b"])
         rendered = [
-            IncidentBaseResource().generate_edge_info(snapshot, edge) for edge in snapshot.incident_graph_edges.values()
+            IncidentTopologyResource().generate_edge_info(snapshot, edge)
+            for edge in snapshot.incident_graph_edges.values()
         ]
         call = next(edge for edge in rendered if edge["edge_type"] == "spread")
         self.assertEqual([item["evidence_id"] for item in call["graph_analysis"]["evidence"]], ["edge-errors"])
@@ -260,7 +335,7 @@ class TestUnifiedGraphSnapshot(SimpleTestCase):
         self.assertEqual([member.entity_id for member in main.aggregated_entities], ["a", "b"])
         self.assertTrue(all(member.properties["aggregated_by"] == "d" for member in main.aggregated_entities))
         call = next(edge for edge in snapshot.incident_graph_edges.values() if edge.edge_type.value == "spread")
-        result = IncidentBaseResource().generate_edge_info(snapshot, call)
+        result = IncidentTopologyResource().generate_edge_info(snapshot, call)
         a = result["aggregated_edges"][0]
         b = result["aggregated_edges"][1]
         self.assertEqual(result["count"], 3)
@@ -271,13 +346,13 @@ class TestUnifiedGraphSnapshot(SimpleTestCase):
         self.assertEqual([e["evidence_id"] for e in a["graph_analysis"]["evidence"]], ["edge-errors"])
         self.assertEqual(b["graph_analysis"]["evidence"], [])
 
-    @patch("bkmonitor.aiops.incident.models.api")
+    @patch("bkmonitor.aiops.incident.models.api", new_callable=MagicMock, spec=["bkdata"])
     def test_unavailable_new_context_never_calls_legacy_producer(self, api):
         snapshot = IncidentSnapshot(copy.deepcopy(self.build_content()))
         self.assertIsNone(snapshot.generate_entity_sub_graph_from_api(1, "a", "snapshot"))
         api.bkdata.get_incident_topo_by_entity.assert_not_called()
 
-    @patch("bkmonitor.aiops.incident.models.api")
+    @patch("bkmonitor.aiops.incident.models.api", new_callable=MagicMock, spec=["bkdata"])
     def test_context_expansion_uses_frozen_snapshot(self, api):
         content = self.build_content()
         content["graph_analysis"]["capabilities"]["context_expansion"] = True
@@ -290,7 +365,7 @@ class TestUnifiedGraphSnapshot(SimpleTestCase):
         self.assertIsNone(snapshot.generate_entity_sub_graph_from_api(1, "b", "snapshot"))
         api.bkdata.get_incident_topo_by_entity.assert_not_called()
 
-    @patch("bkmonitor.aiops.incident.models.api")
+    @patch("bkmonitor.aiops.incident.models.api", new_callable=MagicMock, spec=["bkdata"])
     def test_context_neighbor_can_expand_without_primary_membership(self, api):
         content = self.build_content()
         neighbor = build_bcs_pod("neighbor", "other-workload", "v1")
@@ -315,7 +390,7 @@ class TestUnifiedGraphSnapshot(SimpleTestCase):
         self.assertEqual(content, original)
         api.bkdata.get_incident_topo_by_entity.assert_not_called()
 
-    @patch("bkmonitor.aiops.incident.models.api")
+    @patch("bkmonitor.aiops.incident.models.api", new_callable=MagicMock, spec=["bkdata"])
     def test_context_only_edge_keeps_its_own_frozen_metrics(self, api):
         content = self.build_content()
         context = copy.deepcopy(content["incident_propagation_graph"])
@@ -343,13 +418,13 @@ class TestUnifiedGraphSnapshot(SimpleTestCase):
         edge = next(
             edge for edge in expanded.incident_graph_edges.values() if edge.properties.get("edge_id") == "context-edge"
         )
-        rendered = IncidentBaseResource().generate_edge_info(expanded, edge)
+        rendered = IncidentTopologyResource().generate_edge_info(expanded, edge)
         self.assertEqual(rendered["graph_analysis"]["evidence"], [evidence])
         self.assertEqual(target_analysis(content, edge_ref="calls")["evidence"][0]["evidence_id"], "edge-errors")
         self.assertFalse(rendered["graph_analysis"]["capabilities"]["realtime_metrics"])
         api.bkdata.get_incident_topo_by_entity.assert_not_called()
 
-    @patch("bkmonitor.aiops.incident.models.api")
+    @patch("bkmonitor.aiops.incident.models.api", new_callable=MagicMock, spec=["bkdata"])
     def test_legacy_snapshot_keeps_its_original_resource_query(self, api):
         content = self.build_content()
         content.pop("graph_analysis")

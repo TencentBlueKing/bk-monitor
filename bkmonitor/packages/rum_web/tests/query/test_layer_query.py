@@ -73,7 +73,6 @@ VIEW_RAW = {
     "attributes.view.name",
     "attributes.view.loading_type",
     "attributes.view.url",
-    "attributes.view.previous",
     "attributes.view.url_template",
     "attributes.view.previous_url_template",
     "attributes.view.loading_time",
@@ -86,7 +85,7 @@ VIRTUAL_DIMENSIONS = {"virtual.browser", "virtual.network", "virtual.viewport"}
 @pytest.mark.parametrize(
     "mode, expected_raw, expected_derived",
     [
-        ("session", COMMON | {"attributes.session.has_replay"}, COMPUTED | SESSION_DERIVED),
+        ("session", COMMON, COMPUTED | SESSION_DERIVED),
         ("view", COMMON | VIEW_RAW, COMPUTED | VIEW_DERIVED),
     ],
 )
@@ -224,23 +223,18 @@ def test_option_values_use_list_scope(query_class, mode, precomputed):
 
 
 def test_original_field_statistics_and_option_protocol():
-    handler = RumLevelHandlerFactory.create("session", [target()])
+    handler = RumLevelHandlerFactory.create("span", [target()])
+    field_name = "attributes.timing.incomplete"
     with patch.object(
         handler.query, "query_field_aggregated_value", side_effect=lambda *args: 4 if args[3] == "count" else 2
     ):
-        with patch.object(
-            handler.query, "query_field_topk", return_value=[{"attributes.session.has_replay": "false", "_result_": 3}]
-        ):
-            result = handler.field_topk(1, 2, "attributes.session.has_replay")
+        with patch.object(handler.query, "query_field_topk", return_value=[{field_name: "true", "_result_": 3}]):
+            result = handler.field_topk(1, 2, field_name)
     assert result["distinct_count"] == 2
-    assert result["list"][0]["value"] is False
+    assert result["list"][0]["value"] is True
     assert float(result["list"][0]["proportions"]) == 75
-    with patch.object(
-        handler.query, "query_option_values", return_value={"attributes.session.has_replay": ["false", "true"]}
-    ):
-        assert handler.get_fields_option_values(1, 2, ["attributes.session.has_replay"]) == {
-            "attributes.session.has_replay": [False, True]
-        }
+    with patch.object(handler.query, "query_option_values", return_value={field_name: ["true"]}):
+        assert handler.get_fields_option_values(1, 2, [field_name]) == {field_name: [True]}
 
 
 def test_supplement_batches_by_page_ids_not_rows():

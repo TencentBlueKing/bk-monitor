@@ -12,11 +12,31 @@ import math
 from collections.abc import Iterable
 from typing import Any, overload
 
+from bkmonitor.data_source.format import flatten_dict_data
 from semconv.constants import FieldUnit
 from semconv.rum.constants import RatingLevel
 from semconv.rum.field import RatingThreshold
 from semconv.rum.trace import SpanSpec
 from rum_web.handlers.builder.hover import Hover, get_rating_hover
+
+
+def flatten_rum_data(record: dict[str, Any]) -> dict[str, Any]:
+    """打平 RUM 记录，保留新增 Action 字段的数组类型。"""
+    flat = flatten_dict_data(record)
+    for key in ("attributes.action.ids", "attributes.action.target.path"):
+        if isinstance(value := flat.get(key), str):
+            flat[key] = [value]
+    return flat
+
+
+def get_action_ids(flatten_data: dict[str, Any]) -> list[str]:
+    """还原打平后的 action.ids，字段缺失时读取旧版 action.id。"""
+    value = flatten_data.get("attributes.action.ids", flatten_data.get("attributes.action.id"))
+    if isinstance(value, str):
+        return [value] if value else []
+    if "attributes.action.ids" in flatten_data and isinstance(value, list):
+        return [action_id for action_id in value if isinstance(action_id, str) and action_id]
+    return []
 
 
 @overload
@@ -42,6 +62,32 @@ def get_safe_number(value: Any, default: int | float | None = 0) -> int | float 
 
 def safe_diff(minuend: int | float | None, subtrahend: int | float | None) -> int | float | None:
     return None if minuend is None or subtrahend is None else minuend - subtrahend
+
+
+def select_latest_vitals(records: Iterable[dict[str, Any]], metrics: Iterable[str]) -> dict[str, dict[str, Any]]:
+    """按指标选取最新 Vital 快照，View 列表汇总与详情共用"""
+    allowed = {metric.lower() for metric in metrics}
+    snapshots: dict[tuple[str, str], tuple[int | float, int | float, dict[str, Any]]] = {}
+    for record in records:
+        metric = record.get("attributes.vital.metric")
+        if not isinstance(metric, str) or metric.lower() not in allowed:
+            continue
+        vital_id = record.get("attributes.vital.id")
+        if not isinstance(vital_id, str):
+            vital_id = ""
+        version = get_safe_number(record.get("attributes.vital.version")) if vital_id else 0
+        end_time = get_safe_number(record.get("end_time"))
+        key = (metric.lower(), vital_id)
+        previous = snapshots.get(key)
+        if previous is None or (version, end_time) > previous[:2]:
+            snapshots[key] = (version, end_time, record)
+
+    latest: dict[str, tuple[int | float, dict[str, Any]]] = {}
+    for (metric, _), (_, end_time, record) in snapshots.items():
+        previous = latest.get(metric)
+        if previous is None or end_time > previous[0]:
+            latest[metric] = (end_time, record)
+    return {metric: record for metric, (_, record) in latest.items()}
 
 
 def phase(

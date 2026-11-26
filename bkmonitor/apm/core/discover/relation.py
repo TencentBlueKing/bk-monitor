@@ -91,7 +91,7 @@ class RelationDiscover(CachedDiscoverMixin, DiscoverBase):
 
         return {_: i for _, i in relation_mapping.items() if i["from"]}
 
-    def find_relation_by_single_span(self, component_rules, from_key, from_span, kind):
+    def find_relation_by_single_span(self, component_rules, from_key, from_span, kind, service_edges):
         relation_kind = TopoRelation.KIND_MAPPING[kind]
         found_keys = set()
         if exists_field((OtlpKey.ATTRIBUTES, SpanAttributes.PEER_SERVICE), from_span):
@@ -139,30 +139,14 @@ class RelationDiscover(CachedDiscoverMixin, DiscoverBase):
                         )
                     )
                 elif kind in [SpanKind.SPAN_KIND_SERVER, SpanKind.SPAN_KIND_CONSUMER]:
-                    topo_node = TopoNode.objects.filter(
-                        bk_biz_id=self.bk_biz_id, app_name=self.app_name, topo_key=self.get_service_name(from_span)
-                    ).first()
-                    kind = ApmTopoDiscoverRule.TOPO_SERVICE
-                    category = ApmTopoDiscoverRule.APM_TOPO_CATEGORY_HTTP
-                    if topo_node:
-                        kind = topo_node.extra_data.get("kind", ApmTopoDiscoverRule.TOPO_SERVICE)
-                        category = topo_node.extra_data.get("category", ApmTopoDiscoverRule.APM_TOPO_CATEGORY_HTTP)
-                    found_keys.add(
-                        (
-                            to_key,
-                            from_key,
-                            relation_kind,
-                            kind,
-                            category,
-                        )
-                    )
+                    service_edges[from_key].add((to_key, relation_kind))
 
         return found_keys
 
     def is_match_component_rule(self, component_rules, from_span):
         return bool(next((r for r in component_rules if exists_field(r.predicate_key, from_span)), None))
 
-    def find_async_relation(self, rules, other_rules, from_key, from_span, to_spans, kind):
+    def find_async_relation(self, rules, other_rules, from_key, from_span, to_spans, kind, service_edges):
         found_keys = set()
 
         component_rules = [r for r in rules + [other_rules] if r.topo_kind == ApmTopoDiscoverRule.TOPO_COMPONENT]
@@ -205,27 +189,7 @@ class RelationDiscover(CachedDiscoverMixin, DiscoverBase):
 
             if middleware_to_key == middleware_key:
                 messaging_service_name = self.get_service_name(t)
-                messaging_service_kind = ApmTopoDiscoverRule.TOPO_SERVICE
-                messaging_service_category = ApmTopoDiscoverRule.APM_TOPO_CATEGORY_HTTP
-                topo_node = TopoNode.objects.filter(
-                    bk_biz_id=self.bk_biz_id, app_name=self.app_name, topo_key=messaging_service_name
-                ).first()
-                # topo_node 存在则更新
-                if topo_node:
-                    messaging_service_category = topo_node.extra_data.get(
-                        "category", ApmTopoDiscoverRule.APM_TOPO_CATEGORY_HTTP
-                    )
-                    messaging_service_kind = topo_node.extra_data.get("kind", ApmTopoDiscoverRule.TOPO_SERVICE)
-                # 针对异步调用中消息队列，messaging --> 服务时， 目标节点类型为service， 目标节点分类为 http
-                found_keys.add(
-                    (
-                        middleware_key,
-                        messaging_service_name,
-                        kind,
-                        messaging_service_kind,
-                        messaging_service_category,
-                    )
-                )
+                service_edges[messaging_service_name].add((middleware_key, kind))
             else:
                 found_keys.add(
                     (
@@ -276,17 +240,13 @@ class RelationDiscover(CachedDiscoverMixin, DiscoverBase):
 
         relation_mapping = self.get_relation_map(origin_data)
 
-        need_update_instances = list()
-        need_create_relations = set()
-
+        found_keys = set()
+        service_edges = defaultdict(set)
         for span in origin_data:
             from_key = self.get_service_name(span)
-            found_keys = self.find_relation_by_single_span(component_rules, from_key, span, span["kind"])
-            for found_key in found_keys:
-                if found_key in remain_data:
-                    need_update_instances.append(remain_data[found_key])
-                else:
-                    need_create_relations.add(found_key)
+            found_keys.update(
+                self.find_relation_by_single_span(component_rules, from_key, span, span["kind"], service_edges)
+            )
 
         for relation in relation_mapping.values():
             if not relation["to"] and not relation["from"]:
@@ -296,18 +256,29 @@ class RelationDiscover(CachedDiscoverMixin, DiscoverBase):
             from_key = self.get_service_name(from_span)
             kind = relation["kind"]
 
-            found_keys = set()
-
             if kind == TopoRelation.RELATION_KIND_ASYNC and self.is_match_component_rule(component_rules, from_span):
-                found_keys |= self.find_async_relation(rules, other_rule, from_key, from_span, relation["to"], kind)
+                found_keys.update(
+                    self.find_async_relation(
+                        rules, other_rule, from_key, from_span, relation["to"], kind, service_edges
+                    )
+                )
             else:
-                found_keys |= self.find_normal_relation(rules, other_rule, from_key, relation["to"], kind)
+                found_keys.update(self.find_normal_relation(rules, other_rule, from_key, relation["to"], kind))
 
-            for found_key in found_keys:
-                if found_key in remain_data:
-                    need_update_instances.append(remain_data[found_key])
-                else:
-                    need_create_relations.add(found_key)
+        # 节点发现与关系发现并行，在写关系前读取本页目标服务的当前分类。
+        for service_name, edges in service_edges.items():
+            node = (
+                TopoNode.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name, topo_key=service_name)
+                .only("extra_data")
+                .first()
+            )
+            extra_data = node.extra_data if node else {}
+            service_kind = extra_data.get("kind", ApmTopoDiscoverRule.TOPO_SERVICE)
+            category = extra_data.get("category", ApmTopoDiscoverRule.APM_TOPO_CATEGORY_HTTP)
+            found_keys.update((source, service_name, edge_kind, service_kind, category) for source, edge_kind in edges)
+
+        need_create_relations = found_keys.difference(remain_data)
+        need_update_instances = [remain_data[key] for key in found_keys if key in remain_data]
 
         created_instances = [
             TopoRelation(

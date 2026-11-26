@@ -83,6 +83,15 @@ def _statistics_params(handler, start, end):
     return params
 
 
+def _aggregate_params(handler, start, end):
+    params = _statistics_params(handler, start, end)
+    # 多索引集聚合统一归并到同一 reference_name，避免 PromQL 向量交集在部分路由无数据时丢桶或返回空序列
+    for query in params.get("query_list", []):
+        query["reference_name"] = "a"
+    params["metric_merge"] = "a"
+    return params
+
+
 def _series_points(result, label):
     """取出聚合结果的单序列点位；聚合只应返回一条序列，多于一条说明统计口径不成立。"""
     series = result["series"]
@@ -98,7 +107,7 @@ def count_rows(handler, start, end):
     不能用 query/ts/raw 的 total：unify-query 未设置 track_total_hits，超过 1 万会被 ES 截断
     （多路由成倍截断），配额和密度估算都会失真；聚合 count 不受 result window 限制。
     """
-    params = _statistics_params(handler, start, end)
+    params = _aggregate_params(handler, start, end)
     for query in params.get("query_list", []):
         query["function"] = [{"method": "count"}]
         query["time_aggregation"] = {}
@@ -118,7 +127,7 @@ def sample_rows(handler, start, end, limit):
 def histogram(handler, start, end, interval):
     """按 interval 统计时间密度，用于定位热点区间。返回 {桶起始毫秒: 条数}。"""
     window = f"{interval}ms"
-    params = _statistics_params(handler, start, end)
+    params = _aggregate_params(handler, start, end)
     for query in params.get("query_list", []):
         query["function"] = [{"method": "count"}, {"method": "date_histogram", "window": window}]
         query["time_aggregation"] = {}
