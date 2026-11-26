@@ -58,6 +58,13 @@
       height: auto;
       min-height: 0;
     }
+
+    .trend-chart-panel {
+      .rum-ellipsis-mode {
+        margin-right: 12px;
+        margin-left: 12px;
+      }
+    }
   }
 
   .rum-explore-mode-placeholder {
