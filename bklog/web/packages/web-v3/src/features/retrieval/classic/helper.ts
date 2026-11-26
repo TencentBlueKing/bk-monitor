@@ -222,8 +222,12 @@ export const DATE_HOVER_TOOLTIP_DISMISS_SCRIPT = `(function () {
 export const getLegacyAssetRoot = (base: string, pageHref: string) =>
   new URL(`${base.replace(/\/?$/, '/')}legacy-v1/assets/`, pageHref).href;
 
+// 线上封版目录随构建产物部署在 BK_STATIC_URL 下。本地 Vite 直接从站点根目录提供 public/legacy-v1。
+const getLegacyDeploymentBase = () =>
+  (import.meta.env.DEV ? import.meta.env.BASE_URL : window.BK_STATIC_URL || import.meta.env.BASE_URL);
+
 export const getResourceUrl = (relativePath: string) =>
-  new URL(relativePath, getLegacyAssetRoot(window.BK_STATIC_URL || import.meta.env.BASE_URL, window.location.href)).href;
+  new URL(relativePath, getLegacyAssetRoot(getLegacyDeploymentBase(), window.location.href)).href;
 
 // The published CSS contains origin-root /fonts URLs. Keep the sealed files intact
 // and use isolated font families so lazy-loaded CSS cannot restore those URLs.
@@ -414,7 +418,7 @@ export const getEnvVariables = (isDev: boolean) => {
     .join('\n    ');
 
   // 设置 webpack public path
-  const publicPath = getLegacyAssetRoot(window.BK_STATIC_URL || import.meta.env.BASE_URL, window.location.href);
+  const publicPath = getLegacyAssetRoot(getLegacyDeploymentBase(), window.location.href);
   envScript += `window.__WEBPACK_PUBLIC_PATH__ = ${JSON.stringify(publicPath)};`;
 
   return envScript;
@@ -712,7 +716,7 @@ export const generateIframeSrcdoc = (isDev: boolean) => {
     }
   </style>
   <link rel="stylesheet" href="${cssUrl}">
-  <style>${getLegacyFontStyles(getLegacyAssetRoot(window.BK_STATIC_URL || import.meta.env.BASE_URL, window.location.href))}</style>
+  <style>${getLegacyFontStyles(getLegacyAssetRoot(getLegacyDeploymentBase(), window.location.href))}</style>
 </head>
 <body>
   <div id="app">

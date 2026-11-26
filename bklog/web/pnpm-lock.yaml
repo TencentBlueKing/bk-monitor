@@ -29,8 +29,8 @@ importers:
         specifier: 1.0.1-beta.19
         version: 1.0.1-beta.19(vue@3.5.44(typescript@5.9.3))
       '@blueking/log-web':
-        specifier: 0.0.13
-        version: 0.0.13(@babel/core@7.29.13)(@blueking/bkui-library@0.0.0-beta.5)(@types/node@26.6.6)(@vue/compiler-sfc@3.5.44)(babel-helper-vue-jsx-merge-props@2.0.3)(eslint@10.14.0(jiti@2.7.0))(file-loader@6.2.0(webpack@5.112.2))(loader-utils@2.0.4)(lodash@4.17.21)(postcss@8.5.32)(sass@1.107.1)(typescript@5.9.3)(webpack@5.112.2)
+        specifier: 0.0.19
+        version: 0.0.19(@babel/core@7.29.13)(@blueking/bkui-library@0.0.0-beta.5)(@types/node@26.6.6)(@vue/compiler-sfc@3.5.44)(babel-helper-vue-jsx-merge-props@2.0.3)(eslint@10.14.0(jiti@2.7.0))(file-loader@6.2.0(webpack@5.112.2))(loader-utils@2.0.4)(lodash@4.17.21)(postcss@8.5.32)(sass@1.107.1)(typescript@5.9.3)(webpack@5.112.2)
       '@blueking/login-modal':
         specifier: 1.0.1
         version: 1.0.1
@@ -273,8 +273,8 @@ importers:
         specifier: 1.0.1-beta.19
         version: 1.0.1-beta.19(vue@3.5.44(typescript@5.9.3))
       '@blueking/log-web':
-        specifier: 0.0.13
-        version: 0.0.13(@babel/core@7.29.13)(@blueking/bkui-library@0.0.0-beta.5)(@types/node@26.6.6)(@vue/compiler-sfc@3.5.44)(babel-helper-vue-jsx-merge-props@2.0.3)(esbuild@0.25.12)(eslint@10.14.0(jiti@2.7.0))(file-loader@6.2.0(webpack@5.112.2(esbuild@0.25.12)(postcss@8.5.32)(webpack-cli@6.0.1(webpack@5.112.2))))(loader-utils@2.0.4)(lodash@4.17.21)(postcss@8.5.32)(sass@1.107.1)(typescript@5.9.3)(webpack@5.112.2(esbuild@0.25.12)(postcss@8.5.32)(webpack-cli@6.0.1(webpack@5.112.2)))
+        specifier: 0.0.19
+        version: 0.0.19(@babel/core@7.29.13)(@blueking/bkui-library@0.0.0-beta.5)(@types/node@26.6.6)(@vue/compiler-sfc@3.5.44)(babel-helper-vue-jsx-merge-props@2.0.3)(esbuild@0.25.12)(eslint@10.14.0(jiti@2.7.0))(file-loader@6.2.0(webpack@5.112.2(esbuild@0.25.12)(postcss@8.5.32)(webpack-cli@6.0.1(webpack@5.112.2))))(loader-utils@2.0.4)(lodash@4.17.21)(postcss@8.5.32)(sass@1.107.1)(typescript@5.9.3)(webpack@5.112.2(esbuild@0.25.12)(postcss@8.5.32)(webpack-cli@6.0.1(webpack@5.112.2)))
       '@blueking/login-modal':
         specifier: 1.0.1
         version: 1.0.1
@@ -1120,13 +1120,6 @@ packages:
   '@blueking/date-picker-js@0.0.3':
     resolution: {integrity: sha512-/cbBl8oMph5eDB1ztauD/BOOhIwcgshm8Oa4EVPUXKtrXWsPuVftKTainmtWOCEi5A4XNzfI18PG8TPkMttC+Q==}
 
-  '@blueking/date-picker@2.0.0-beta.49':
-    resolution: {integrity: sha512-LV3ZRWmCT3u6jd8lFgQgscJ73iVKswqdwYrfv0E7bQ8iXgTuXEiMI0gisl1qJUvcFIhRJ64sk/3S+amIv80SpA==}
-    peerDependencies:
-      '@blueking/bkui-library': ^0.0.0-beta.4
-      dayjs: ^1.11.10
-      vue: ^3
-
   '@blueking/date-picker@4.0.0-beta.9':
     resolution: {integrity: sha512-cJ3vNeU6hDKx+3OHSIU0e7nNCOt6mxAizaUk46SxHeCjHTqgcE42QsVavQMa8lg+c0jsss6turPjlBPAWHvwQg==}
     peerDependencies:
@@ -1149,9 +1142,9 @@ packages:
     resolution: {integrity: sha512-cS/wnwMyDdloj4iPbzgIATV8XFCCo23fRsiybbQsCeU57btsGyUgt71S1v2GMQbyBPnrYcCXx13nbw8fiSluCQ==}
     engines: {node: '>= 14.7.0', npm: '>= 6.0.0'}
 
-  '@blueking/log-web@0.0.13':
-    resolution: {integrity: sha512-Y/CPLfQs0uGlP2KL8aBmqMFLfe7dy2oMuxnp2lehbVtPEpHj4jDEDnUg+F77XYws1Gwofer4iPx8nCV0t/nGXA==}
-    engines: {node: '>= 18'}
+  '@blueking/log-web@0.0.19':
+    resolution: {integrity: sha512-/RP2z93QSF3FZ6EIRPOvzs1avl+3uLWrE5rm1BvDKwooJ2/ndkQFHXKTbyPaFldDAyU5Ry4JMg/VMRruODtLqw==}
+    engines: {node: 26.12.1}
 
   '@blueking/login-modal@1.0.1':
     resolution: {integrity: sha512-Z8TvzJiMqE9T2GXZeht15RA/NlEm+OWH/crylcOEig0+B8NIj5DomRXepQNItX32faOEeUliUgKD+dpkGH9jWA==}
@@ -4987,6 +4980,7 @@ packages:
   image-size@0.5.5:
     resolution: {integrity: sha512-6TDAlDPZxUFCv+fuOkIoXT/V/f3Qbq8e37p+YOiYrUv3v9cc3/6x78VdfPgFVaB9dZYeLUfKgHRebpkm/oP2VQ==}
     engines: {node: '>=0.10.0'}
+    deprecated: Please migrate to image-size@2.x
     hasBin: true
 
   immutable@5.1.9:
@@ -8955,7 +8949,7 @@ snapshots:
       ts-import-plugin: 3.0.0(typescript@5.9.3)
       ts-loader: 9.6.2(loader-utils@2.0.4)(typescript@5.9.3)(webpack@5.112.2(esbuild@0.25.12)(postcss@8.5.32)(webpack-cli@6.0.1(webpack@5.112.2)))
       ts-node: 10.9.2(@types/node@26.6.6)(typescript@5.9.3)
-      tslib: 2.8.1
+      tslib: 2.9.1
       typescript: 5.9.3
       url-loader: 4.1.1(file-loader@6.2.0(webpack@5.112.2(esbuild@0.25.12)(postcss@8.5.32)(webpack-cli@6.0.1(webpack@5.112.2))))(webpack@5.112.2(esbuild@0.25.12)(postcss@8.5.32)(webpack-cli@6.0.1(webpack@5.112.2)))
       vue-loader: 15.11.1(@vue/compiler-sfc@3.5.44)(css-loader@7.1.2(webpack@5.112.2))(lodash@4.17.21)(webpack@5.112.2(esbuild@0.25.12)(postcss@8.5.32)(webpack-cli@6.0.1(webpack@5.112.2)))
@@ -9103,7 +9097,7 @@ snapshots:
       ts-import-plugin: 3.0.0(typescript@5.9.3)
       ts-loader: 9.6.2(loader-utils@2.0.4)(typescript@5.9.3)(webpack@5.112.2)
       ts-node: 10.9.2(@types/node@26.6.6)(typescript@5.9.3)
-      tslib: 2.8.1
+      tslib: 2.9.1
       typescript: 5.9.3
       url-loader: 4.1.1(file-loader@6.2.0(webpack@5.112.2))(webpack@5.112.2)
       vue-loader: 15.11.1(@vue/compiler-sfc@3.5.44)(css-loader@7.1.2(webpack@5.112.2))(lodash@4.17.21)(webpack@5.112.2)
@@ -9215,11 +9209,12 @@ snapshots:
     dependencies:
       dayjs: 1.11.23
 
-  '@blueking/date-picker@2.0.0-beta.49(@blueking/bkui-library@0.0.0-beta.5)(dayjs@1.11.10)(vue@2.7.16)':
+  '@blueking/date-picker@4.0.0-beta.9(@blueking/bkui-library@0.0.0-beta.5)(dayjs@1.11.10)(vue@2.7.16)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.5
       dayjs: 1.11.10
       vue: 2.7.16
+      vue-tippy: 6.8.0(vue@2.7.16)
 
   '@blueking/date-picker@4.0.0-beta.9(@blueking/bkui-library@0.0.0-beta.5)(dayjs@1.11.10)(vue@3.5.44(typescript@5.9.3))':
     dependencies:
@@ -9254,7 +9249,7 @@ snapshots:
     transitivePeerDependencies:
       - vue
 
-  '@blueking/log-web@0.0.13(@babel/core@7.29.13)(@blueking/bkui-library@0.0.0-beta.5)(@types/node@26.6.6)(@vue/compiler-sfc@3.5.44)(babel-helper-vue-jsx-merge-props@2.0.3)(esbuild@0.25.12)(eslint@10.14.0(jiti@2.7.0))(file-loader@6.2.0(webpack@5.112.2(esbuild@0.25.12)(postcss@8.5.32)(webpack-cli@6.0.1(webpack@5.112.2))))(loader-utils@2.0.4)(lodash@4.17.21)(postcss@8.5.32)(sass@1.107.1)(typescript@5.9.3)(webpack@5.112.2(esbuild@0.25.12)(postcss@8.5.32)(webpack-cli@6.0.1(webpack@5.112.2)))':
+  '@blueking/log-web@0.0.19(@babel/core@7.29.13)(@blueking/bkui-library@0.0.0-beta.5)(@types/node@26.6.6)(@vue/compiler-sfc@3.5.44)(babel-helper-vue-jsx-merge-props@2.0.3)(esbuild@0.25.12)(eslint@10.14.0(jiti@2.7.0))(file-loader@6.2.0(webpack@5.112.2(esbuild@0.25.12)(postcss@8.5.32)(webpack-cli@6.0.1(webpack@5.112.2))))(loader-utils@2.0.4)(lodash@4.17.21)(postcss@8.5.32)(sass@1.107.1)(typescript@5.9.3)(webpack@5.112.2(esbuild@0.25.12)(postcss@8.5.32)(webpack-cli@6.0.1(webpack@5.112.2)))':
     dependencies:
       '@babel/helper-module-imports': 7.24.7
       '@babel/runtime': 7.26.10
@@ -9262,7 +9257,7 @@ snapshots:
       '@blueking/bk-user-display-name': 1.0.3-beta.5
       '@blueking/bk-user-selector': 0.0.38-beta.5(@blueking/bkui-library@0.0.0-beta.5)
       '@blueking/bkmonitor-cli': 7.0.3(@types/node@26.6.6)(@vue/compiler-sfc@3.5.44)(babel-helper-vue-jsx-merge-props@2.0.3)(esbuild@0.25.12)(loader-utils@2.0.4)(lodash@4.17.21)(monaco-editor@0.33.0)(vue@2.7.16)
-      '@blueking/date-picker': 2.0.0-beta.49(@blueking/bkui-library@0.0.0-beta.5)(dayjs@1.11.10)(vue@2.7.16)
+      '@blueking/date-picker': 4.0.0-beta.9(@blueking/bkui-library@0.0.0-beta.5)(dayjs@1.11.10)(vue@2.7.16)
       '@blueking/ip-selector': 1.0.1-beta.16(vue@2.7.16)
       '@blueking/login-modal': 1.0.1
       '@blueking/notice-component-vue2': 2.0.3(dompurify@3.4.17)
@@ -9320,7 +9315,7 @@ snapshots:
       vue-virtual-scroller: 1.0.10(vue@2.7.16)
       vuedraggable: 2.24.3
       vuex: 3.6.2(vue@2.7.16)
-      vuex-module-decorators: 1.2.0(vue@2.7.16)(vuex@3.6.2(vue@2.7.16))
+      vuex-module-decorators: 1.2.0(vue@2.7.16)(vuex@3.6.2(vue@3.5.44(typescript@5.9.3)))
       webpack-sources: 3.2.3
     transitivePeerDependencies:
       - '@babel/core'
@@ -9418,7 +9413,7 @@ snapshots:
       - webpack
       - whiskers
 
-  '@blueking/log-web@0.0.13(@babel/core@7.29.13)(@blueking/bkui-library@0.0.0-beta.5)(@types/node@26.6.6)(@vue/compiler-sfc@3.5.44)(babel-helper-vue-jsx-merge-props@2.0.3)(eslint@10.14.0(jiti@2.7.0))(file-loader@6.2.0(webpack@5.112.2))(loader-utils@2.0.4)(lodash@4.17.21)(postcss@8.5.32)(sass@1.107.1)(typescript@5.9.3)(webpack@5.112.2)':
+  '@blueking/log-web@0.0.19(@babel/core@7.29.13)(@blueking/bkui-library@0.0.0-beta.5)(@types/node@26.6.6)(@vue/compiler-sfc@3.5.44)(babel-helper-vue-jsx-merge-props@2.0.3)(eslint@10.14.0(jiti@2.7.0))(file-loader@6.2.0(webpack@5.112.2))(loader-utils@2.0.4)(lodash@4.17.21)(postcss@8.5.32)(sass@1.107.1)(typescript@5.9.3)(webpack@5.112.2)':
     dependencies:
       '@babel/helper-module-imports': 7.24.7
       '@babel/runtime': 7.26.10
@@ -9426,7 +9421,7 @@ snapshots:
       '@blueking/bk-user-display-name': 1.0.3-beta.5
       '@blueking/bk-user-selector': 0.0.38-beta.5(@blueking/bkui-library@0.0.0-beta.5)
       '@blueking/bkmonitor-cli': 7.0.3(@types/node@26.6.6)(@vue/compiler-sfc@3.5.44)(babel-helper-vue-jsx-merge-props@2.0.3)(loader-utils@2.0.4)(lodash@4.17.21)(monaco-editor@0.33.0)(vue@2.7.16)
-      '@blueking/date-picker': 2.0.0-beta.49(@blueking/bkui-library@0.0.0-beta.5)(dayjs@1.11.10)(vue@2.7.16)
+      '@blueking/date-picker': 4.0.0-beta.9(@blueking/bkui-library@0.0.0-beta.5)(dayjs@1.11.10)(vue@2.7.16)
       '@blueking/ip-selector': 1.0.1-beta.16(vue@2.7.16)
       '@blueking/login-modal': 1.0.1
       '@blueking/notice-component-vue2': 2.0.3(dompurify@3.4.17)
@@ -9484,7 +9479,7 @@ snapshots:
       vue-virtual-scroller: 1.0.10(vue@2.7.16)
       vuedraggable: 2.24.3
       vuex: 3.6.2(vue@2.7.16)
-      vuex-module-decorators: 1.2.0(vue@2.7.16)(vuex@3.6.2(vue@2.7.16))
+      vuex-module-decorators: 1.2.0(vue@2.7.16)(vuex@3.6.2(vue@3.5.44(typescript@5.9.3)))
       webpack-sources: 3.2.3
     transitivePeerDependencies:
       - '@babel/core'
@@ -10333,133 +10328,133 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
-  '@jsonjoy.com/base64@1.1.2(tslib@2.8.1)':
+  '@jsonjoy.com/base64@1.1.2(tslib@2.9.1)':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
 
-  '@jsonjoy.com/base64@17.67.0(tslib@2.8.1)':
+  '@jsonjoy.com/base64@17.67.0(tslib@2.9.1)':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
 
-  '@jsonjoy.com/buffers@1.2.1(tslib@2.8.1)':
+  '@jsonjoy.com/buffers@1.2.1(tslib@2.9.1)':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
 
-  '@jsonjoy.com/buffers@17.67.0(tslib@2.8.1)':
+  '@jsonjoy.com/buffers@17.67.0(tslib@2.9.1)':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
 
-  '@jsonjoy.com/codegen@1.0.0(tslib@2.8.1)':
+  '@jsonjoy.com/codegen@1.0.0(tslib@2.9.1)':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
 
-  '@jsonjoy.com/codegen@17.67.0(tslib@2.8.1)':
+  '@jsonjoy.com/codegen@17.67.0(tslib@2.9.1)':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
 
-  '@jsonjoy.com/fs-core@4.80.0(tslib@2.8.1)':
+  '@jsonjoy.com/fs-core@4.80.0(tslib@2.9.1)':
     dependencies:
-      '@jsonjoy.com/fs-node-builtins': 4.80.0(tslib@2.8.1)
-      '@jsonjoy.com/fs-node-utils': 4.80.0(tslib@2.8.1)
-      thingies: 2.6.1(tslib@2.8.1)
-      tslib: 2.8.1
+      '@jsonjoy.com/fs-node-builtins': 4.80.0(tslib@2.9.1)
+      '@jsonjoy.com/fs-node-utils': 4.80.0(tslib@2.9.1)
+      thingies: 2.6.1(tslib@2.9.1)
+      tslib: 2.9.1
 
-  '@jsonjoy.com/fs-fsa@4.80.0(tslib@2.8.1)':
+  '@jsonjoy.com/fs-fsa@4.80.0(tslib@2.9.1)':
     dependencies:
-      '@jsonjoy.com/fs-core': 4.80.0(tslib@2.8.1)
-      '@jsonjoy.com/fs-node-builtins': 4.80.0(tslib@2.8.1)
-      '@jsonjoy.com/fs-node-utils': 4.80.0(tslib@2.8.1)
-      thingies: 2.6.1(tslib@2.8.1)
-      tslib: 2.8.1
+      '@jsonjoy.com/fs-core': 4.80.0(tslib@2.9.1)
+      '@jsonjoy.com/fs-node-builtins': 4.80.0(tslib@2.9.1)
+      '@jsonjoy.com/fs-node-utils': 4.80.0(tslib@2.9.1)
+      thingies: 2.6.1(tslib@2.9.1)
+      tslib: 2.9.1
 
-  '@jsonjoy.com/fs-node-builtins@4.80.0(tslib@2.8.1)':
+  '@jsonjoy.com/fs-node-builtins@4.80.0(tslib@2.9.1)':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
 
-  '@jsonjoy.com/fs-node-to-fsa@4.80.0(tslib@2.8.1)':
+  '@jsonjoy.com/fs-node-to-fsa@4.80.0(tslib@2.9.1)':
     dependencies:
-      '@jsonjoy.com/fs-fsa': 4.80.0(tslib@2.8.1)
-      '@jsonjoy.com/fs-node-builtins': 4.80.0(tslib@2.8.1)
-      '@jsonjoy.com/fs-node-utils': 4.80.0(tslib@2.8.1)
-      tslib: 2.8.1
+      '@jsonjoy.com/fs-fsa': 4.80.0(tslib@2.9.1)
+      '@jsonjoy.com/fs-node-builtins': 4.80.0(tslib@2.9.1)
+      '@jsonjoy.com/fs-node-utils': 4.80.0(tslib@2.9.1)
+      tslib: 2.9.1
 
-  '@jsonjoy.com/fs-node-utils@4.80.0(tslib@2.8.1)':
+  '@jsonjoy.com/fs-node-utils@4.80.0(tslib@2.9.1)':
     dependencies:
-      '@jsonjoy.com/fs-node-builtins': 4.80.0(tslib@2.8.1)
-      glob-to-regex.js: 1.3.1(tslib@2.8.1)
-      tslib: 2.8.1
+      '@jsonjoy.com/fs-node-builtins': 4.80.0(tslib@2.9.1)
+      glob-to-regex.js: 1.3.1(tslib@2.9.1)
+      tslib: 2.9.1
 
-  '@jsonjoy.com/fs-node@4.80.0(tslib@2.8.1)':
+  '@jsonjoy.com/fs-node@4.80.0(tslib@2.9.1)':
     dependencies:
-      '@jsonjoy.com/fs-core': 4.80.0(tslib@2.8.1)
-      '@jsonjoy.com/fs-node-builtins': 4.80.0(tslib@2.8.1)
-      '@jsonjoy.com/fs-node-utils': 4.80.0(tslib@2.8.1)
-      '@jsonjoy.com/fs-print': 4.80.0(tslib@2.8.1)
-      '@jsonjoy.com/fs-snapshot': 4.80.0(tslib@2.8.1)
-      glob-to-regex.js: 1.3.1(tslib@2.8.1)
-      thingies: 2.6.1(tslib@2.8.1)
-      tslib: 2.8.1
+      '@jsonjoy.com/fs-core': 4.80.0(tslib@2.9.1)
+      '@jsonjoy.com/fs-node-builtins': 4.80.0(tslib@2.9.1)
+      '@jsonjoy.com/fs-node-utils': 4.80.0(tslib@2.9.1)
+      '@jsonjoy.com/fs-print': 4.80.0(tslib@2.9.1)
+      '@jsonjoy.com/fs-snapshot': 4.80.0(tslib@2.9.1)
+      glob-to-regex.js: 1.3.1(tslib@2.9.1)
+      thingies: 2.6.1(tslib@2.9.1)
+      tslib: 2.9.1
 
-  '@jsonjoy.com/fs-print@4.80.0(tslib@2.8.1)':
+  '@jsonjoy.com/fs-print@4.80.0(tslib@2.9.1)':
     dependencies:
-      '@jsonjoy.com/fs-node-utils': 4.80.0(tslib@2.8.1)
-      tree-dump: 1.1.0(tslib@2.8.1)
-      tslib: 2.8.1
+      '@jsonjoy.com/fs-node-utils': 4.80.0(tslib@2.9.1)
+      tree-dump: 1.1.0(tslib@2.9.1)
+      tslib: 2.9.1
 
-  '@jsonjoy.com/fs-snapshot@4.80.0(tslib@2.8.1)':
+  '@jsonjoy.com/fs-snapshot@4.80.0(tslib@2.9.1)':
     dependencies:
-      '@jsonjoy.com/buffers': 17.67.0(tslib@2.8.1)
-      '@jsonjoy.com/fs-node-utils': 4.80.0(tslib@2.8.1)
-      '@jsonjoy.com/json-pack': 17.67.0(tslib@2.8.1)
-      '@jsonjoy.com/util': 17.67.0(tslib@2.8.1)
-      tslib: 2.8.1
+      '@jsonjoy.com/buffers': 17.67.0(tslib@2.9.1)
+      '@jsonjoy.com/fs-node-utils': 4.80.0(tslib@2.9.1)
+      '@jsonjoy.com/json-pack': 17.67.0(tslib@2.9.1)
+      '@jsonjoy.com/util': 17.67.0(tslib@2.9.1)
+      tslib: 2.9.1
 
-  '@jsonjoy.com/json-pack@1.21.0(tslib@2.8.1)':
+  '@jsonjoy.com/json-pack@1.21.0(tslib@2.9.1)':
     dependencies:
-      '@jsonjoy.com/base64': 1.1.2(tslib@2.8.1)
-      '@jsonjoy.com/buffers': 1.2.1(tslib@2.8.1)
-      '@jsonjoy.com/codegen': 1.0.0(tslib@2.8.1)
-      '@jsonjoy.com/json-pointer': 1.0.2(tslib@2.8.1)
-      '@jsonjoy.com/util': 1.9.0(tslib@2.8.1)
+      '@jsonjoy.com/base64': 1.1.2(tslib@2.9.1)
+      '@jsonjoy.com/buffers': 1.2.1(tslib@2.9.1)
+      '@jsonjoy.com/codegen': 1.0.0(tslib@2.9.1)
+      '@jsonjoy.com/json-pointer': 1.0.2(tslib@2.9.1)
+      '@jsonjoy.com/util': 1.9.0(tslib@2.9.1)
       hyperdyperid: 1.2.0
-      thingies: 2.6.1(tslib@2.8.1)
-      tree-dump: 1.1.0(tslib@2.8.1)
-      tslib: 2.8.1
+      thingies: 2.6.1(tslib@2.9.1)
+      tree-dump: 1.1.0(tslib@2.9.1)
+      tslib: 2.9.1
 
-  '@jsonjoy.com/json-pack@17.67.0(tslib@2.8.1)':
+  '@jsonjoy.com/json-pack@17.67.0(tslib@2.9.1)':
     dependencies:
-      '@jsonjoy.com/base64': 17.67.0(tslib@2.8.1)
-      '@jsonjoy.com/buffers': 17.67.0(tslib@2.8.1)
-      '@jsonjoy.com/codegen': 17.67.0(tslib@2.8.1)
-      '@jsonjoy.com/json-pointer': 17.67.0(tslib@2.8.1)
-      '@jsonjoy.com/util': 17.67.0(tslib@2.8.1)
+      '@jsonjoy.com/base64': 17.67.0(tslib@2.9.1)
+      '@jsonjoy.com/buffers': 17.67.0(tslib@2.9.1)
+      '@jsonjoy.com/codegen': 17.67.0(tslib@2.9.1)
+      '@jsonjoy.com/json-pointer': 17.67.0(tslib@2.9.1)
+      '@jsonjoy.com/util': 17.67.0(tslib@2.9.1)
       hyperdyperid: 1.2.0
-      thingies: 2.6.1(tslib@2.8.1)
-      tree-dump: 1.1.0(tslib@2.8.1)
-      tslib: 2.8.1
+      thingies: 2.6.1(tslib@2.9.1)
+      tree-dump: 1.1.0(tslib@2.9.1)
+      tslib: 2.9.1
 
-  '@jsonjoy.com/json-pointer@1.0.2(tslib@2.8.1)':
+  '@jsonjoy.com/json-pointer@1.0.2(tslib@2.9.1)':
     dependencies:
-      '@jsonjoy.com/codegen': 1.0.0(tslib@2.8.1)
-      '@jsonjoy.com/util': 1.9.0(tslib@2.8.1)
-      tslib: 2.8.1
+      '@jsonjoy.com/codegen': 1.0.0(tslib@2.9.1)
+      '@jsonjoy.com/util': 1.9.0(tslib@2.9.1)
+      tslib: 2.9.1
 
-  '@jsonjoy.com/json-pointer@17.67.0(tslib@2.8.1)':
+  '@jsonjoy.com/json-pointer@17.67.0(tslib@2.9.1)':
     dependencies:
-      '@jsonjoy.com/util': 17.67.0(tslib@2.8.1)
-      tslib: 2.8.1
+      '@jsonjoy.com/util': 17.67.0(tslib@2.9.1)
+      tslib: 2.9.1
 
-  '@jsonjoy.com/util@1.9.0(tslib@2.8.1)':
+  '@jsonjoy.com/util@1.9.0(tslib@2.9.1)':
     dependencies:
-      '@jsonjoy.com/buffers': 1.2.1(tslib@2.8.1)
-      '@jsonjoy.com/codegen': 1.0.0(tslib@2.8.1)
-      tslib: 2.8.1
+      '@jsonjoy.com/buffers': 1.2.1(tslib@2.9.1)
+      '@jsonjoy.com/codegen': 1.0.0(tslib@2.9.1)
+      tslib: 2.9.1
 
-  '@jsonjoy.com/util@17.67.0(tslib@2.8.1)':
+  '@jsonjoy.com/util@17.67.0(tslib@2.9.1)':
     dependencies:
-      '@jsonjoy.com/buffers': 17.67.0(tslib@2.8.1)
-      '@jsonjoy.com/codegen': 17.67.0(tslib@2.8.1)
-      tslib: 2.8.1
+      '@jsonjoy.com/buffers': 17.67.0(tslib@2.9.1)
+      '@jsonjoy.com/codegen': 17.67.0(tslib@2.9.1)
+      tslib: 2.9.1
 
   '@keyv/bigmap@1.3.1(keyv@5.6.0)':
     dependencies:
@@ -10778,21 +10773,21 @@ snapshots:
       '@peculiar/asn1-x509': 2.11.1
       '@peculiar/asn1-x509-attr': 2.11.1
       asn1js: 3.1.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@peculiar/asn1-csr@2.11.1':
     dependencies:
       '@peculiar/asn1-schema': 2.11.1
       '@peculiar/asn1-x509': 2.11.1
       asn1js: 3.1.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@peculiar/asn1-ecc@2.11.1':
     dependencies:
       '@peculiar/asn1-schema': 2.11.1
       '@peculiar/asn1-x509': 2.11.1
       asn1js: 3.1.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@peculiar/asn1-pfx@2.11.1':
     dependencies:
@@ -10801,14 +10796,14 @@ snapshots:
       '@peculiar/asn1-rsa': 2.11.1
       '@peculiar/asn1-schema': 2.11.1
       asn1js: 3.1.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@peculiar/asn1-pkcs8@2.11.1':
     dependencies:
       '@peculiar/asn1-schema': 2.11.1
       '@peculiar/asn1-x509': 2.11.1
       asn1js: 3.1.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@peculiar/asn1-pkcs9@2.11.1':
     dependencies:
@@ -10819,38 +10814,38 @@ snapshots:
       '@peculiar/asn1-x509': 2.11.1
       '@peculiar/asn1-x509-attr': 2.11.1
       asn1js: 3.1.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@peculiar/asn1-rsa@2.11.1':
     dependencies:
       '@peculiar/asn1-schema': 2.11.1
       '@peculiar/asn1-x509': 2.11.1
       asn1js: 3.1.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@peculiar/asn1-schema@2.11.1':
     dependencies:
       '@peculiar/utils': 2.0.3
       asn1js: 3.1.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@peculiar/asn1-x509-attr@2.11.1':
     dependencies:
       '@peculiar/asn1-schema': 2.11.1
       '@peculiar/asn1-x509': 2.11.1
       asn1js: 3.1.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@peculiar/asn1-x509@2.11.1':
     dependencies:
       '@peculiar/asn1-schema': 2.11.1
       '@peculiar/utils': 2.0.3
       asn1js: 3.1.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@peculiar/utils@2.0.3':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@peculiar/x509@1.14.3':
     dependencies:
@@ -10863,7 +10858,7 @@ snapshots:
       '@peculiar/asn1-x509': 2.11.1
       pvtsutils: 1.3.6
       reflect-metadata: 0.2.2
-      tslib: 2.8.1
+      tslib: 2.9.1
       tsyringe: 4.10.0
 
   '@pixi/colord@2.9.6': {}
@@ -11308,7 +11303,7 @@ snapshots:
   '@vue/babel-plugin-transform-vue-jsx@1.4.0(@babel/core@7.29.13)':
     dependencies:
       '@babel/core': 7.29.13
-      '@babel/helper-module-imports': 7.24.7
+      '@babel/helper-module-imports': 7.29.7
       '@babel/plugin-syntax-jsx': 7.29.7(@babel/core@7.29.13)
       '@vue/babel-helper-vue-jsx-merge-props': 1.4.0
       html-tags: 2.0.0
@@ -11817,7 +11812,7 @@ snapshots:
     dependencies:
       pvtsutils: 1.3.6
       pvutils: 1.2.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   assign-symbols@1.0.0: {}
 
@@ -11884,7 +11879,7 @@ snapshots:
 
   babel-plugin-import@1.13.8:
     dependencies:
-      '@babel/helper-module-imports': 7.24.7
+      '@babel/helper-module-imports': 7.29.7
     transitivePeerDependencies:
       - supports-color
 
@@ -12083,7 +12078,7 @@ snapshots:
   camel-case@4.1.2:
     dependencies:
       pascal-case: 3.1.2
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   camelcase@5.3.1: {}
 
@@ -12873,7 +12868,7 @@ snapshots:
   dot-case@3.0.4:
     dependencies:
       no-case: 3.0.4
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   dunder-proto@1.0.1:
     dependencies:
@@ -13474,9 +13469,9 @@ snapshots:
     dependencies:
       is-glob: 4.0.3
 
-  glob-to-regex.js@1.3.1(tslib@2.8.1):
+  glob-to-regex.js@1.3.1(tslib@2.9.1):
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   globals@14.0.0: {}
 
@@ -14148,7 +14143,7 @@ snapshots:
 
   lower-case@2.0.2:
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   lru-cache@4.1.5:
     dependencies:
@@ -14231,20 +14226,20 @@ snapshots:
 
   memfs@4.80.0:
     dependencies:
-      '@jsonjoy.com/fs-core': 4.80.0(tslib@2.8.1)
-      '@jsonjoy.com/fs-fsa': 4.80.0(tslib@2.8.1)
-      '@jsonjoy.com/fs-node': 4.80.0(tslib@2.8.1)
-      '@jsonjoy.com/fs-node-builtins': 4.80.0(tslib@2.8.1)
-      '@jsonjoy.com/fs-node-to-fsa': 4.80.0(tslib@2.8.1)
-      '@jsonjoy.com/fs-node-utils': 4.80.0(tslib@2.8.1)
-      '@jsonjoy.com/fs-print': 4.80.0(tslib@2.8.1)
-      '@jsonjoy.com/fs-snapshot': 4.80.0(tslib@2.8.1)
-      '@jsonjoy.com/json-pack': 1.21.0(tslib@2.8.1)
-      '@jsonjoy.com/util': 1.9.0(tslib@2.8.1)
-      glob-to-regex.js: 1.3.1(tslib@2.8.1)
-      thingies: 2.6.1(tslib@2.8.1)
-      tree-dump: 1.1.0(tslib@2.8.1)
-      tslib: 2.8.1
+      '@jsonjoy.com/fs-core': 4.80.0(tslib@2.9.1)
+      '@jsonjoy.com/fs-fsa': 4.80.0(tslib@2.9.1)
+      '@jsonjoy.com/fs-node': 4.80.0(tslib@2.9.1)
+      '@jsonjoy.com/fs-node-builtins': 4.80.0(tslib@2.9.1)
+      '@jsonjoy.com/fs-node-to-fsa': 4.80.0(tslib@2.9.1)
+      '@jsonjoy.com/fs-node-utils': 4.80.0(tslib@2.9.1)
+      '@jsonjoy.com/fs-print': 4.80.0(tslib@2.9.1)
+      '@jsonjoy.com/fs-snapshot': 4.80.0(tslib@2.9.1)
+      '@jsonjoy.com/json-pack': 1.21.0(tslib@2.9.1)
+      '@jsonjoy.com/util': 1.9.0(tslib@2.9.1)
+      glob-to-regex.js: 1.3.1(tslib@2.9.1)
+      thingies: 2.6.1(tslib@2.9.1)
+      tree-dump: 1.1.0(tslib@2.9.1)
+      tslib: 2.9.1
 
   memory-fs@0.4.1:
     dependencies:
@@ -14692,7 +14687,7 @@ snapshots:
   no-case@3.0.4:
     dependencies:
       lower-case: 2.0.2
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   node-addon-api@7.1.1:
     optional: true
@@ -14872,7 +14867,7 @@ snapshots:
   param-case@3.0.4:
     dependencies:
       dot-case: 3.0.4
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   parent-module@1.0.1:
     dependencies:
@@ -14896,7 +14891,7 @@ snapshots:
   pascal-case@3.1.2:
     dependencies:
       no-case: 3.0.4
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   pascalcase@0.1.1: {}
 
@@ -14984,7 +14979,7 @@ snapshots:
       bytestreamjs: 2.0.1
       pvtsutils: 1.3.6
       pvutils: 1.2.0
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   playwright-core@1.64.1: {}
 
@@ -15587,7 +15582,7 @@ snapshots:
 
   pvtsutils@1.3.6:
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   pvutils@1.2.0: {}
 
@@ -16425,9 +16420,9 @@ snapshots:
       commander: 2.20.3
       source-map-support: 0.5.21
 
-  thingies@2.6.1(tslib@2.8.1):
+  thingies@2.6.1(tslib@2.9.1):
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   thread-loader@4.0.4(webpack@5.112.2(esbuild@0.25.12)(postcss@8.5.32)(webpack-cli@6.0.1(webpack@5.112.2))):
     dependencies:
@@ -16498,9 +16493,9 @@ snapshots:
       typedarray.prototype.slice: 1.0.6
       which-typed-array: 1.1.24
 
-  tree-dump@1.1.0(tslib@2.8.1):
+  tree-dump@1.1.0(tslib@2.9.1):
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   ts-api-utils@2.5.0(typescript@5.9.3):
     dependencies:
@@ -17025,6 +17020,11 @@ snapshots:
       diacritics: 1.3.0
       vue: 3.5.44(typescript@5.9.3)
 
+  vue-tippy@6.8.0(vue@2.7.16):
+    dependencies:
+      tippy.js: 6.3.7
+      vue: 2.7.16
+
   vue-tippy@6.8.0(vue@3.5.44(typescript@5.9.3)):
     dependencies:
       tippy.js: 6.3.7
@@ -17086,7 +17086,7 @@ snapshots:
       sortablejs: 1.14.0
       vue: 3.5.44(typescript@5.9.3)
 
-  vuex-module-decorators@1.2.0(vue@2.7.16)(vuex@3.6.2(vue@2.7.16)):
+  vuex-module-decorators@1.2.0(vue@2.7.16)(vuex@3.6.2(vue@3.5.44(typescript@5.9.3))):
     dependencies:
       vue: 2.7.16
       vuex: 3.6.2(vue@2.7.16)
