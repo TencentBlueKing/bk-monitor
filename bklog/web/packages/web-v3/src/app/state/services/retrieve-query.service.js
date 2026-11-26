@@ -103,16 +103,8 @@ export const buildOriginAddition = (state) => {
       return target;
     });
 
-  filterAddition.forEach((item) => {
-    if (['=~', '&=~', '!=~', '&!=~'].includes(item.operator)) {
-      const fieldScope = state.indexFieldInfo.field_scope || state.indexId || 'default';
-      const field = retrieveFieldCacheService.getFieldNameIndex(fieldScope)[item.field];
-      if (field?.field_type === 'text' && !(field?.is_case_sensitive ?? true)) {
-        item.value = item.value.map((v) => v?.toLowerCase() ?? '');
-      }
-    }
-  });
-
+  // 保留输入框原始大小写。通配符条件不再按字段元数据把 value 转成小写，
+  // 否则索引里大小写敏感的原文会匹配不到。
   return filterAddition;
 };
 
