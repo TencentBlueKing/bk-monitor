@@ -34,6 +34,11 @@ from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 
 
+def build_bkdata_gateway_url(path: str) -> str:
+    root = getattr(settings, "BKDATA_APIGW", "") or f"{settings.PAAS_API_HOST}/api/bk-base/{settings.ENVIRONMENT}"
+    return f"{root.rstrip('/')}/{path}"
+
+
 def get_non_bkcc_space_related_bkcc_biz_id(bk_biz_id):
     """
     获取非CC业务关联的CC业务ID

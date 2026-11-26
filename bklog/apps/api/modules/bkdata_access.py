@@ -30,7 +30,11 @@ Access 部署 + 采集模块
 from django.utils.translation import gettext_lazy as _  # noqa
 
 from apps.api.base import DataAPI  # noqa
-from apps.api.modules.utils import add_esb_info_before_request_for_bkdata_user, biz_to_tenant_getter  # noqa
+from apps.api.modules.utils import (
+    add_esb_info_before_request_for_bkdata_user,
+    biz_to_tenant_getter,
+    build_bkdata_gateway_url,
+)  # noqa
 from apps.utils import build_auth_args
 from apps.utils.local import get_request
 from config.domains import ACCESS_APIGATEWAY_ROOT
@@ -58,7 +62,9 @@ class _BkDataAccessApi:
         return settings.USE_APIGW
 
     def _build_url(self, new_path, old_path=None):
-        if old_path is not None and not self.use_apigw:
+        if old_path is None:
+            return build_bkdata_gateway_url(new_path)
+        if not self.use_apigw:
             return f"{ACCESS_APIGATEWAY_ROOT}{old_path}"
         return f"{settings.PAAS_API_HOST}/api/bk-base/{settings.ENVIRONMENT}/{new_path}"
 

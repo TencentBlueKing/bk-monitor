@@ -9,7 +9,7 @@ from django.urls import resolve
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIRequestFactory
 
-from apps.api.modules import bkdata_access
+from apps.api.modules import bkdata_access, bkdata_meta
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.exceptions import PermissionDeniedError
 from apps.log_databus.exceptions import CollectorConfigDataIdNotExistException, CollectorConfigNotExistException
@@ -237,7 +237,24 @@ class CollectorNamespaceTests(SimpleTestCase):
 
 
 class NamespaceListGatewayTests(SimpleTestCase):
-    @override_settings(PAAS_API_HOST="https://gateway.example.test", ENVIRONMENT="prod", ENABLE_MULTI_TENANT_MODE=True)
+    @override_settings(BKDATA_APIGW="https://data.example.test/custom/", ENABLE_MULTI_TENANT_MODE=False)
+    def test_v4_reads_use_configured_gateway(self):
+        access = bkdata_access._BkDataAccessApi()
+        root = "https://data.example.test/custom/v4"
+        self.assertEqual(
+            access.list_namespaces.build_actual_url({"tenant": "default"}), f"{root}/tenants/default/namespaces"
+        )
+        self.assertEqual(
+            access.get_datalink_resource.build_actual_url(
+                {"namespace": "logs", "kind": "resulttables", "name": "orders"}
+            ),
+            f"{root}/namespaces/logs/resulttables/orders/",
+        )
+        self.assertEqual(bkdata_meta._BkDataMetaApi().get_datalink_metadata.url, f"{root}/meta/datalink/metadata/")
+
+    @override_settings(
+        PAAS_API_HOST="https://gateway.example.test", ENVIRONMENT="prod", ENABLE_MULTI_TENANT_MODE=True, BKDATA_APIGW=""
+    )
     def test_gateway_and_legacy_routes(self):
         gateway = "https://gateway.example.test/api/bk-base/prod"
         legacy = "https://legacy.example.test/v3/access/"
