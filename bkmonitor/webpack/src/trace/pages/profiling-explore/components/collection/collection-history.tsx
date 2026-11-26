@@ -39,11 +39,9 @@ import {
   scheduleLabels,
 } from '../../utils/collection';
 import {
-  canViewExecution,
   createHistoryFilters,
   executionConfiguration,
   executionRowKey,
-  executionSelection,
   executionStatusLabels,
   formatExecutionDuration,
   hostErrorTypeMessage,
@@ -505,19 +503,13 @@ export default defineComponent({
               },
               operations: ({ row }: { row: CollectionExecution }) => (
                 <div class='collection-row-actions'>
-                  {/* 禁用按钮不派发鼠标事件，tooltip 需挂在外层元素上 */}
-                  <span
-                    v-tippy={this.t(
-                      canViewExecution(row) ? '查看本次执行各主机的采集结果' : '本次采集暂无可查看的结果'
-                    )}
-                  >
+                  <span v-tippy={this.t('查看本次任务执行详情')}>
                     <Button
-                      disabled={!canViewExecution(row)}
                       theme='primary'
                       text
-                      onClick={() => this.$emit('result', executionSelection(row), false)}
+                      onClick={() => c.open(row)}
                     >
-                      {this.t('查看结果')}
+                      {this.t('执行详情')}
                     </Button>
                   </span>
                   <span
