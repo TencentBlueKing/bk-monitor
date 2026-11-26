@@ -1242,11 +1242,14 @@ class CollectorHandler:
             {"tenant": tenant if settings.ENABLE_MULTI_TENANT_MODE else "default"},
             bk_tenant_id=tenant,
         )
-        return {
-            entry["metadata"]["name"]: entry["spec"]
-            for entry in namespaces
-            if entry["spec"].get("bk_biz_id") == bk_biz_id and entry["metadata"]["name"] not in ("bkmonitor", "bklog")
-        }
+        business_namespaces = {}
+        for entry in namespaces:
+            name = entry["metadata"]["name"]
+            spec = entry["spec"]
+            namespace_biz_id = spec.get("bk_biz_id", spec.get("bkBizId"))
+            if namespace_biz_id == bk_biz_id:
+                business_namespaces[name] = {"alias": spec.get("alias"), "bk_biz_id": namespace_biz_id}
+        return business_namespaces
 
     def list_authorized_namespaces(self):
         data_id = self._namespace_data_id()
