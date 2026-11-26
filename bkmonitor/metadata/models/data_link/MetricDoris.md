@@ -9,8 +9,8 @@
 ```python
 from core.drf_resource import resource
 
-def configure_raw(tenant, data_id, biz_id, cluster_id, operator, *, create=False, tasks=4, days=7):
-    table_id = f"timeseries_raw_apm_rpc_{data_id}.__default__"
+def configure_raw(tenant, data_id, biz_id, cluster_id, operator, *, table_id=None, create=False, tasks=4, days=7):
+    table_id = table_id or f"timeseries_raw_apm_rpc_{data_id}.__default__"
     identity = dict(bk_tenant_id=tenant, table_id=table_id, operator=operator)
     storage = dict(storage_cluster_id=cluster_id, expire_days=days, doris_storage_config={"flush_timeout": 30})
     if create:
@@ -58,8 +58,8 @@ def configure_raw(tenant, data_id, biz_id, cluster_id, operator, *, create=False
 from core.drf_resource import resource
 
 def configure_aggregate(tenant, data_id, biz_id, cluster_id, operator, source_table_id, *,
-                        create=False, lookback=10, days=30, normalize_callee_method=False):
-    table_id = f"timeseries_agg_apm_rpc_{data_id}_swip1m.__default__"
+                        table_id=None, create=False, lookback=10, days=30, normalize_callee_method=False):
+    table_id = table_id or f"timeseries_agg_apm_rpc_{data_id}_swip1m.__default__"
     identity = dict(bk_tenant_id=tenant, table_id=table_id, operator=operator)
     storage = dict(storage_cluster_id=cluster_id, expire_days=days, doris_storage_config={"buckets": 16})
     if create:

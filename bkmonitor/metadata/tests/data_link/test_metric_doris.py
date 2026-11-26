@@ -272,6 +272,12 @@ def test_candidate_keeps_published_target_until_success(setup_links):
     assert pipeline(AGG).layout["labels"] == ["dimension_11", "dimension_target", "le", "service_name"]
     assert models.DorisStorage.objects.get(table_id=AGG).bkbase_table_id is None
     assert not DorisJobConfig.objects.exists()
+    assert not first.data_link._get_absent_components_to_delete([], force_delete=True)
+    # 一个后台的通用 sync 不得把尚未就绪的候选发布成当前 RT。
+    models.DorisStorage.objects.filter(table_id=AGG).update(bkbase_table_id=first.output.bkbase_table_id)
+    first.data_link.sync_metadata(AGG, storage_cluster_id=42)
+    mapping = models.BkBaseResultTable.objects.get(data_link_name=first.data_link_id)
+    assert mapping.bkbase_rt_name == first_binding
 
 
 def test_create_dispatches_after_commit_and_isolates_same_table_id(

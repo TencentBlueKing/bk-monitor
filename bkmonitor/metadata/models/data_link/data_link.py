@@ -564,6 +564,11 @@ class DataLink(models.Model):
         (BCS_FEDERAL_SUBSET_TIME_SERIES, ResultTableConfig): "keep",
         (BCS_FEDERAL_SUBSET_TIME_SERIES, VMStorageBindingConfig): "keep",
         (BK_LOG, ResultTableConfig): "keep",
+        # 已发布的物理表由历史分段引用，强制清理缺席组件时同样保留其查询映射。
+        (METRIC_DORIS_RAW, ResultTableConfig): "keep",
+        (METRIC_DORIS_RAW, DorisStorageBindingConfig): "keep",
+        (METRIC_DORIS_AGGREGATE, ResultTableConfig): "keep",
+        (METRIC_DORIS_AGGREGATE, DorisStorageBindingConfig): "keep",
         (BASE_EVENT_V1, ESStorageBindingConfig): "keep",
         (BASE_EVENT_V1, DorisStorageBindingConfig): "keep",
         (BK_STANDARD_V2_EVENT, ESStorageBindingConfig): "keep",
@@ -3633,6 +3638,14 @@ class DataLink(models.Model):
         from metadata.models import ClusterInfo
         from metadata.models.bkdata.result_table import BkBaseResultTable
 
+        published_table_id = None
+        if self.data_link_strategy in {self.METRIC_DORIS_RAW, self.METRIC_DORIS_AGGREGATE}:
+            # 同一逻辑 RT 可能有尚未成功执行的候选。通用元数据同步只能使用已发布的映射。
+            published = DorisStorage.get_by_table_id(self.bk_tenant_id, table_id)
+            published_table_id = published.bkbase_table_id
+            if not published_table_id:
+                return
+            storage_cluster_id = published.storage_cluster_id
         try:
             if storage_cluster_id is not None:
                 cluster = ClusterInfo.objects.get(bk_tenant_id=self.bk_tenant_id, cluster_id=storage_cluster_id)
@@ -3665,6 +3678,8 @@ class DataLink(models.Model):
             rt_queryset = rt_queryset.filter(
                 data_type="graph" if resolved_storage_type == ClusterInfo.TYPE_SURREALDB else "metric"
             )
+        if published_table_id:
+            rt_queryset = rt_queryset.filter(bkbase_table_id=published_table_id)
         rt_queryset = rt_queryset.order_by("-last_modify_time", "-id")
         rt = rt_queryset.first()
 
