@@ -1,3 +1,5 @@
+@use '../../../../../../../shared/styles/theme/components/contracts' as bklogControls;
+
 .config-cluster-box-main {
     width: 100%;
     height: 100%;
@@ -48,15 +50,21 @@
         }
         .operator-box {
             display: flex;
+            align-items: stretch;
             .operate-select {
+                position: relative;
                 width: 32px;
                 flex: none;
-                border-radius: 2px 0 0 2px;
-                border-right: none;
-                background: #FAFBFD;
-                &.is-focus {
-                    border-color: #c4c6cc;
+                margin-right: -1px;
+
+                &:hover {
+                    z-index: 1;
                 }
+
+                &:focus-within {
+                    z-index: 2;
+                }
+
                 .bk-select-name {
                     padding: 0 6px;
                     text-align: center;
@@ -68,8 +76,8 @@
                 }
                 .t-input {
                     height: 32px;
-                    border-radius: 2px 0 0 2px;
-                    background: var(--bklog-surface-disabled, #FAFBFD);
+                    @include bklogControls.join-next;
+                    background: var(--bklog-standard-control-surface-disabled, var(--bklog-surface-disabled, #FAFBFD));
                 }
                 .t-input__inner {
                     padding: 0;
@@ -77,18 +85,38 @@
                 }
             }
             .space-select {
+                position: relative;
                 flex: 1;
-                border-radius: 0 2px 2px 0;
+                min-width: 0;
+
+                &:hover {
+                    z-index: 1;
+                }
+
+                &:focus-within {
+                    z-index: 2;
+                }
+
                 .t-input {
                     min-height: 32px;
-                    border-radius: 0 2px 2px 0;
+                    @include bklogControls.join-previous;
                 }
             }
             .container-input {
+                position: relative;
                 flex: 1;
                 min-width: 0;
+
+                &:hover {
+                    z-index: 1;
+                }
+
+                &:focus-within {
+                    z-index: 2;
+                }
+
                 > .t-input {
-                    border-radius: var(--bklog-radius-none) var(--bklog-radius-control, 2px) var(--bklog-radius-control, 2px) var(--bklog-radius-none);
+                    @include bklogControls.join-previous;
                 }
             }
         }

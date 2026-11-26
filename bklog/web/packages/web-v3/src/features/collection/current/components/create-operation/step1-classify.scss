@@ -1,9 +1,9 @@
 .operation-step1-classify {
   margin: 16px;
   height: calc(100% - 32px);
-  background: #ffffff;
+  background: var(--td-bg-color-container, #ffffff);
   box-shadow: 0 2px 4px 0 #1919290d;
-  border-radius: 2px;
+  border-radius: var(--bklog-panel-radius, 6px);
   padding: 16px 24px;
   .classify-btns {
     margin-top: 8px;
