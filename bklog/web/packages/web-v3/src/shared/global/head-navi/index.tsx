@@ -49,6 +49,7 @@ import { configureNativeSdkComponent } from '@/platform/compat/native-sdk-vue';
 configureNativeSdkComponent(BkLoginUserinfo);
 import '@blueking/login-userinfo/vue3/vue3.css';
 import LogVersion from './log-version';
+import VersionSwitch from '@/shared/global/version-switch.vue';
 import './index.scss';
 import { requestJson } from '@/platform/request/index';
 import { join } from '../utils/path';
@@ -532,6 +533,10 @@ export default defineComponent({
     // 是否展示全局设置入口（欢迎页/外部版不展示）
     const isShowGlobalSetIcon = computed(() => !props.welcomeData && !isExternal.value);
 
+    // 检索页在顶部导航右侧提供版本切换入口
+    const isShowVersionSwitch = computed(() => route.name === 'retrieve' && !props.welcomeData);
+    const retrieveVersion = computed(() => (localStorage.getItem('retrieve_version') === 'v1' ? 'v1' : 'v2'));
+
     return () => (
       <nav class='log-search-nav'>
         <div class='nav-left fl'>
@@ -576,6 +581,14 @@ export default defineComponent({
           class='nav-right fr'
         >
           <NavigationSkeleton loading={!state.usernameRequested} count={2} />
+          {/* 检索版本切换 */}
+          {isShowVersionSwitch.value ? (
+            <VersionSwitch
+              class='head-navi-version-switch'
+              theme='dark'
+              version={retrieveVersion.value}
+            />
+          ) : null}
           {/* 全局设置 */}
           {isShowGlobalSetIcon.value ? (
             <Popup

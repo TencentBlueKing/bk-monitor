@@ -23,7 +23,6 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
   // #endif
   // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
   import FieldSetting from '@/shared/global/field-setting.vue';
-  import VersionSwitch from '@/shared/global/version-switch.vue';
   import ClusterSetting from '../setting-modal/index.vue';
   import BarGlobalSetting from './bar-global-setting.tsx';
   import MoreSetting from './more-setting.vue';
@@ -33,7 +32,6 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
   // #else
   // #code const TimeSetting = () => null;
   // #code const FieldSetting = () => null;
-  // #code const VersionSwitch = () => null;
   // #code const ClusterSetting = () => null;
   // #code const BarGlobalSetting = () => null;
   // #code const MoreSetting = () => null;
@@ -492,11 +490,6 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
       >
         <MoreSetting v-model:is-show-cluster-setting="isShowClusterSetting" />
       </div>
-      <VersionSwitch
-        v-if="!isSceneMode"
-        style="border-left: 1px solid #eaebf0"
-        version="v2"
-      />
     </div>
   </div>
 </template>
@@ -517,6 +510,10 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
       height: 100%;
       line-height: 20px;
       border-right: 1px solid #eaebf0;
+
+      &:last-child {
+        border-right: none;
+      }
 
       &:hover {
         background: #f5f7fa;

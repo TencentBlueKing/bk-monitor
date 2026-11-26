@@ -222,7 +222,7 @@ export const DATE_HOVER_TOOLTIP_DISMISS_SCRIPT = `(function () {
 export const getLegacyAssetRoot = (base: string, pageHref: string) =>
   new URL(`${base.replace(/\/?$/, '/')}legacy-v1/assets/`, pageHref).href;
 
-// 线上封版目录随构建产物部署在 BK_STATIC_URL 下。本地 Vite 直接从站点根目录提供 public/legacy-v1。
+// 线上封版目录由构建阶段按 package.json 中的 @blueking/log-web 实时同步到 BK_STATIC_URL/legacy-v1；本地 Vite 直接从 node_modules 实时代理提供。
 const getLegacyDeploymentBase = () =>
   (import.meta.env.DEV ? import.meta.env.BASE_URL : window.BK_STATIC_URL || import.meta.env.BASE_URL);
 
