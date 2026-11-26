@@ -6,6 +6,7 @@ from unittest import mock
 
 from django.test import SimpleTestCase, override_settings
 from django.urls import resolve
+from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIRequestFactory
 
 from apps.api.modules import bkdata_access
@@ -14,6 +15,7 @@ from apps.iam.exceptions import PermissionDeniedError
 from apps.log_databus.exceptions import CollectorConfigDataIdNotExistException, CollectorConfigNotExistException
 from apps.log_databus.handlers.collector import base
 from apps.log_databus.serializers import CollectorNamespaceSerializer
+from apps.log_search.models import SpaceApi
 
 PATH = "/api/v1/databus/collectors/7/authorized_namespaces/"
 
@@ -27,15 +29,18 @@ class CollectorNamespaceTests(SimpleTestCase):
         self.tenant = self.enterContext(mock.patch.object(base.Space, "get_tenant_id", return_value="example"))
         self.enterContext(mock.patch.object(base, "get_request_tenant_id", return_value="example"))
         self.list_projects = self.enterContext(mock.patch.object(base.BkDataAccessApi, "list_namespaces"))
+        self.list_projects.return_value = [
+            {"metadata": {"name": "orders"}, "spec": {"alias": "订单", "bk_biz_id": 2}},
+            {"metadata": {"name": "other"}, "spec": {"bk_biz_id": 2}},
+            {"metadata": {"name": "foreign"}, "spec": {"bk_biz_id": 3}},
+            {"metadata": {"name": "unbound"}, "spec": {"bk_biz_id": None}},
+            {"metadata": {"name": "default_2"}, "spec": {}},
+            {"metadata": {"name": "bklog"}, "spec": {"bk_biz_id": 2}},
+            {"metadata": {"name": "bkmonitor"}, "spec": {"bk_biz_id": 2}},
+        ]
         self.metadata = self.enterContext(mock.patch.object(base, "TransferApi"))
 
     def test_list_matches_registration_by_namespace_even_when_phase_is_empty(self):
-        self.list_projects.return_value = [
-            {"metadata": {"name": "orders", "namespace": "bkbase"}, "spec": {"alias": "订单", "bk_biz_id": 2}},
-            {"metadata": {"name": "other"}, "spec": {}},
-            {"metadata": {"name": "bklog"}, "spec": {}},
-            {"metadata": {"name": "bkmonitor"}, "spec": {}},
-        ]
         self.metadata.list_data_source_namespaces.return_value = [
             {"namespace": "orders", "name": "bkm_datasource_123", "status": ""},
         ]
@@ -43,7 +48,7 @@ class CollectorNamespaceTests(SimpleTestCase):
             self.handler.list_authorized_namespaces(),
             [
                 {"name": "orders", "alias": "订单", "bk_biz_id": 2, "is_authorized": True},
-                {"name": "other", "alias": None, "bk_biz_id": None, "is_authorized": False},
+                {"name": "other", "alias": None, "bk_biz_id": 2, "is_authorized": False},
             ],
         )
         self.list_projects.assert_called_once_with({"tenant": "example"}, bk_tenant_id="example")
@@ -74,7 +79,54 @@ class CollectorNamespaceTests(SimpleTestCase):
         self.metadata.apply_data_source.assert_called_once_with(
             {"bk_data_id": 123, "target_namespace": "orders"}, bk_tenant_id="example", request_cookies=False
         )
-        self.list_projects.assert_not_called()
+        self.list_projects.assert_called_once_with({"tenant": "example"}, bk_tenant_id="example")
+
+    def test_post_rejects_names_outside_the_business_namespace_list(self):
+        for name in ("foreign", "unbound", "default_2", "missing", "bklog", "bkmonitor"):
+            with self.subTest(name=name), self.assertRaises(ValidationError):
+                self.handler.authorize_namespace(name)
+        self.metadata.apply_data_source.assert_not_called()
+
+    def test_post_rechecks_business_after_listing(self):
+        self.assertIn("orders", [row["name"] for row in self.handler.list_authorized_namespaces()])
+        self.list_projects.return_value[0]["spec"]["bk_biz_id"] = 3
+        with self.assertRaises(ValidationError):
+            self.handler.authorize_namespace("orders")
+        self.metadata.apply_data_source.assert_not_called()
+
+    def test_container_project_uses_its_related_cmdb_business(self):
+        self.handler.data.bk_biz_id = -7
+        container = SimpleNamespace(
+            space_uid="bcs__orders",
+            extend={
+                "resources": [
+                    {"resource_type": "bkcc", "resource_id": "2"},
+                ]
+            },
+        )
+        business = SimpleNamespace(bk_biz_id=2)
+
+        def get_space(space_uid="", id=0):
+            if id == 7:
+                return container
+            return {"bcs__orders": container, "bkcc__2": business}[space_uid]
+
+        with mock.patch.object(SpaceApi, "get_space_detail", side_effect=get_space):
+            self.assertEqual([row["name"] for row in self.handler.list_authorized_namespaces()], ["orders", "other"])
+            self.handler.authorize_namespace("orders")
+            self.metadata.apply_data_source.assert_called_once()
+            self.metadata.apply_data_source.reset_mock()
+            container.extend["resources"] = []
+            self.assertEqual(self.handler.list_authorized_namespaces(), [])
+            with self.assertRaises(ValidationError):
+                self.handler.authorize_namespace("orders")
+            self.metadata.apply_data_source.assert_not_called()
+
+    def test_post_propagates_namespace_lookup_failure_before_writing(self):
+        self.list_projects.side_effect = RuntimeError("bkbase unavailable")
+        with self.assertRaisesRegex(RuntimeError, "bkbase unavailable"):
+            self.handler.authorize_namespace("orders")
+        self.metadata.apply_data_source.assert_not_called()
 
     def test_rejects_cross_tenant_or_missing_data_id_before_upstream_calls(self):
         for tenant, data_id, error in [
@@ -106,13 +158,18 @@ class CollectorNamespaceTests(SimpleTestCase):
             "bk_data_id": 123,
             "name": "bkm_datasource_123",
         }
-        self.list_projects.return_value = [{"metadata": {"name": "orders"}, "spec": {}}]
+        self.list_projects.return_value = [{"metadata": {"name": "orders"}, "spec": {"bk_biz_id": 2}}]
         self.metadata.list_data_source_namespaces.return_value = [{"namespace": "orders"}]
         with (
             mock.patch.object(ResourceEnum.COLLECTION, "create_instance"),
             mock.patch("apps.iam.handlers.drf.Permission.is_allowed", return_value=True),
             mock.patch.object(base.CollectorConfig.objects, "get", return_value=self.handler.data),
         ):
+            rejected = match.func(
+                factory.post(PATH, {"name": "foreign", "bk_biz_id": 2}, format="json"), **match.kwargs
+            )
+            self.assertFalse(json.loads(rejected.content)["result"])
+            self.metadata.apply_data_source.assert_not_called()
             applied = match.func(
                 factory.post(PATH, {"name": "orders", "bk_data_id": 456}, format="json"), **match.kwargs
             )
@@ -120,7 +177,7 @@ class CollectorNamespaceTests(SimpleTestCase):
         self.assertTrue(applied.data["result"])
         self.assertEqual(applied.data["data"]["bk_data_id"], 123)
         self.assertEqual(
-            listed.data["data"], [{"name": "orders", "alias": None, "bk_biz_id": None, "is_authorized": True}]
+            listed.data["data"], [{"name": "orders", "alias": None, "bk_biz_id": 2, "is_authorized": True}]
         )
         self.metadata.apply_data_source.assert_called_once_with(
             {"bk_data_id": 123, "target_namespace": "orders"}, bk_tenant_id="example", request_cookies=False
