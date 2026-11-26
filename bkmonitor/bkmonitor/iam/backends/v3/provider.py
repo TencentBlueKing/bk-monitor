@@ -114,12 +114,15 @@ class V3PermissionProvider(PermissionProvider):
 
     def _encode_batch_request(self, request, *, resolve_resources=False):
         client = self._get_client(request.subject.tenant_id)
-        encoded_actions = [self.codec.encode_action(canonicalize_action_id(to_definition_id(a))) for a in request.action_ids]
+        encoded_actions = [
+            self.codec.encode_action(canonicalize_action_id(to_definition_id(a))) for a in request.action_ids
+        ]
         groups = [
             [
                 self.codec.encode_resource(
                     self._resolve(r, tenant_id=request.subject.tenant_id) if resolve_resources else r,
-                    client, batch=True,
+                    client,
+                    batch=True,
                 )
                 for r in group
             ]
@@ -144,15 +147,17 @@ class V3PermissionProvider(PermissionProvider):
     def batch_is_allowed(self, request: BatchAuthRequest) -> BatchAuthResult:
         try:
             client, sdk_request, groups, encoded_ids = self._encode_batch_request(request, resolve_resources=True)
-            raw = client.batch_resource_multi_actions_allowed(
-                sdk_request, groups
-            )
+            raw = client.batch_resource_multi_actions_allowed(sdk_request, groups)
         except Exception as error:
             result = self._error(error)
             return BatchAuthResult(tuple(BatchAuthResultItem(a, r, result) for a, r in request.iter_keys()))
         items = []
         for action_id, resource_id in request.iter_keys():
-            rt = next(canonicalize_action_id(to_definition_id(g[0].type)) for g in request.resource_groups if str(g[0].id) == resource_id)
+            rt = next(
+                canonicalize_action_id(to_definition_id(g[0].type))
+                for g in request.resource_groups
+                if str(g[0].id) == resource_id
+            )
             encoded_id = encoded_ids[(rt, resource_id)]
             row = raw.get(encoded_id, {})
             aid = self.codec.encode_action(action_id)
@@ -169,15 +174,10 @@ class V3PermissionProvider(PermissionProvider):
         return BatchAuthResult(tuple(items))
 
     def list_authorized_resources(self, *, action_id, resource_type="space", subject=None, candidate_ids=None):
-        if candidate_ids is None:
-            return AuthorizedResourceScope.error(
-                resource_type,
-                provider_name=self.name,
-                reason="V3 scope requires local candidate ids",
-                error_type="MissingCandidates",
-            )
         request_subject = Subject(id=(subject or {}).get("id", self.username), tenant_id=self.tenant_id)
         try:
+            if candidate_ids is None:
+                return self._scope_without_candidates(request_subject, action_id, resource_type)
             result = self.filter_visible_resources(
                 request_subject, action_id, tuple(ResourceInstance(type=resource_type, id=i) for i in candidate_ids)
             )
@@ -188,6 +188,24 @@ class V3PermissionProvider(PermissionProvider):
         if result.all_granted:
             return AuthorizedResourceScope.wildcard(resource_type, provider_name=self.name)
         return AuthorizedResourceScope.concrete(resource_type, set(result.visible_ids), provider_name=self.name)
+
+    def _scope_without_candidates(self, subject, action_id, resource_type):
+        if resource_type == "space":
+            expr = self.query_policy(subject, action_id)
+            if not expr or expr.get("op") == "none":
+                return AuthorizedResourceScope.empty(resource_type, provider_name=self.name)
+            if expr.get("op") == "any":
+                return AuthorizedResourceScope.wildcard(resource_type, provider_name=self.name)
+            if expr.get("field") == "space.id" and expr.get("op") in ("in", "eq"):
+                values = expr.get("value") if expr["op"] == "in" else [expr.get("value")]
+                if isinstance(values, list | tuple) and all(isinstance(value, str) for value in values):
+                    return AuthorizedResourceScope.concrete(resource_type, set(values), provider_name=self.name)
+        return AuthorizedResourceScope.error(
+            resource_type,
+            provider_name=self.name,
+            reason="V3 scope requires local candidate ids",
+            error_type="MissingCandidates",
+        )
 
     def query_policy(
         self,

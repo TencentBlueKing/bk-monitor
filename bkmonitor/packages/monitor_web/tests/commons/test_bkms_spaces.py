@@ -40,7 +40,7 @@ def spaces():
 
 def test_user_space_list_hides_only_disabled_bkms_and_restores(spaces, monkeypatch):
     permission = Mock()
-    permission.filter_space_list_by_action.return_value = spaces
+    permission.list_visible_spaces.return_value = spaces
     monkeypatch.setattr(module, "Permission", Mock(return_value=permission))
     assert [space["bk_biz_id"] for space in module.ListSpacesResource.get_space_by_user("system", "tester")] == [
         -102,
@@ -55,7 +55,7 @@ def test_user_space_list_hides_only_disabled_bkms_and_restores(spaces, monkeypat
 def test_show_all_retains_disabled_bkms(spaces, monkeypatch, settings, block_rule):
     settings.BLOCK_SPACE_RULE = block_rule
     permission = Mock()
-    permission.filter_space_list_by_action.return_value = spaces
+    permission.list_visible_spaces.return_value = spaces
     monkeypatch.setattr(module, "Permission", Mock(return_value=permission))
     monkeypatch.setattr(module, "get_request", lambda **kwargs: None)
     monkeypatch.setattr(module, "get_request_username", lambda: "tester")
@@ -118,3 +118,32 @@ def test_gateway_and_backend_route_agree(monkeypatch, settings):
     match = resolve("/set_bkms_space_status/", urlconf=tuple(router.urls))
     assert match.func.cls is SetBkmsSpaceStatusViewSet
     assert SetBkmsSpaceStatusViewSet.resource_routes[0].resource_class is SetBkmsSpaceStatusResource
+
+
+def test_authorized_spaces_preserve_fields_and_full_list_cache(monkeypatch):
+    from bkmonitor.space import space_api
+
+    cursor = MagicMock()
+    fields = ["id", "bk_tenant_id", "space_type_id", "space_id", "space_name", "type_name", "status", "space_uid"]
+    cursor.description = [(name,) for name in fields]
+    cursor.fetchall.return_value = [
+        (3, "system", "bkcc", "2", "业务", "CMDB", "normal", "bkcc__2"),
+        (42, "system", "bkci", "demo", "项目", "CI", "disabled", "bkci__demo"),
+        (43, "system", "bkci", "other", "其他", "CI", "normal", "bkci__other"),
+        (45, "other", "bkcc", "2", "其他租户", "CMDB", "normal", "bkcc__2"),
+    ]
+    cursor.__enter__.return_value = cursor
+    cache = Mock()
+    monkeypatch.setattr(space_api, "connections", {"monitor_api": SimpleNamespace(cursor=lambda: cursor)})
+    monkeypatch.setattr(space_api, "local_mem", cache)
+    monkeypatch.setattr(space_api, "_space_transform", {})
+    full = InjectSpaceApi.list_spaces_dict(using_cache=False, bk_tenant_id="system")
+    cache.reset_mock()
+    previous_map = space_api._space_transform.copy()
+    scoped = InjectSpaceApi.list_spaces_dict(bk_tenant_id="system", authorized_ids=frozenset({"2", "-42", "-043"}))
+    assert scoped == full[:2]
+    sql, params = cursor.execute.call_args.args
+    assert "s.space_id IN" in sql and "s.id IN" in sql and "s.bk_tenant_id = %s" in sql
+    assert {"2", "42", "system"} <= set(params)
+    assert cache.mock_calls == []
+    assert space_api._space_transform == previous_map

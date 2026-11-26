@@ -896,6 +896,38 @@ class Permission:
     # 空间列表过滤 — 走框架 filter_visible_resources（provider 中立）
     # ================================================================
 
+    def list_visible_spaces(self, action: ActionMeta | str, using_cache=True) -> list[dict]:
+        """页面空间列表优先按授权范围加载，V3 复杂策略仍使用本地候选求值。"""
+        if self.skip_check:
+            return SpaceApi.list_spaces_dict(bk_tenant_id=self.bk_tenant_id, using_cache=using_cache)
+        try:
+            with tracer.start_as_current_span("iam.authorized_space_scope", record_exception=False):
+                resolution = self.mode_router.list_authorized_scope(
+                    self.mode_provider.get_mode(),
+                    action_id=_to_business_action_id(action),
+                    resource_type="space",
+                    subject={"type": "user", "id": self.username},
+                )
+        except InvalidAuthModeError as error:
+            logger.exception("[IAM Policy Query Error]: %s", error)
+            return []
+
+        scope = resolution.scope
+        if scope.is_wildcard:
+            return SpaceApi.list_spaces_dict(bk_tenant_id=self.bk_tenant_id, using_cache=using_cache)
+        # union 单侧成功会合并为成功范围，仍需补算另一侧依赖候选的策略。
+        if any(part.error_type == "MissingCandidates" for part in resolution.provider_scopes):
+            return self.filter_space_list_by_action(action, using_cache)
+        if not scope.ok:
+            logger.error("[IAM Policy Query Error]: %s", scope.reason)
+            return []
+        if not scope.ids:
+            return []
+        with tracer.start_as_current_span("iam.list_spaces", record_exception=False) as span:
+            spaces = SpaceApi.list_spaces_dict(bk_tenant_id=self.bk_tenant_id, authorized_ids=scope.ids)
+            span.set_attribute("iam.visible_count", len(spaces))
+            return spaces
+
     def filter_space_list_by_action(self, action: ActionMeta | str, using_cache=True) -> list[dict]:
         """
         获取有对应action权限的空间列表

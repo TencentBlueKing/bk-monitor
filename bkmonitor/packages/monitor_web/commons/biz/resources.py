@@ -134,7 +134,7 @@ class ListSpacesResource(Resource):
     ) -> list[dict]:
         perm_client = Permission(username=username, bk_tenant_id=bk_tenant_id)
         perm_client.skip_check = False
-        spaces = perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, use_cache)
+        spaces = perm_client.list_visible_spaces(ActionEnum.VIEW_BUSINESS, use_cache)
         return spaces if include_disabled_bkms else [space for space in spaces if not is_disabled_bkms_space(space)]
 
     def perform_request(self, validated_request_data) -> list[dict]:

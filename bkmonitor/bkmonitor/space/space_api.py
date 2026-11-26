@@ -52,6 +52,22 @@ def enrich_space_display_name(space_dict):
     return
 
 
+def _space_id_conditions(cc_space_ids, non_cc_space_ids):
+    cc_placeholders = ", ".join(["%s"] * len(cc_space_ids))
+    non_cc_placeholders = ", ".join(["%s"] * len(non_cc_space_ids))
+    where_parts = []
+    sql_params: list[object] = []
+    if cc_space_ids:
+        where_parts.append(f"(s.space_type_id = %s AND s.space_id IN ({cc_placeholders}))")
+        sql_params.append(SpaceTypeEnum.BKCC.value)
+        sql_params.extend(cc_space_ids)
+    if non_cc_space_ids:
+        where_parts.append(f"(s.space_type_id != %s AND s.id IN ({non_cc_placeholders}))")
+        sql_params.append(SpaceTypeEnum.BKCC.value)
+        sql_params.extend(non_cc_space_ids)
+    return where_parts, sql_params
+
+
 class InjectSpaceApi(space_api.AbstractSpaceApi):
     @classmethod
     def _init_space(cls, space_dict: dict) -> SpaceDefine:
@@ -143,7 +159,11 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
 
     @classmethod
     def list_spaces_dict(
-        cls, using_cache=True, bk_tenant_id: str | None = None, filters: dict[str, str | int] | None = None
+        cls,
+        using_cache=True,
+        bk_tenant_id: str | None = None,
+        filters: dict[str, str | int] | None = None,
+        authorized_ids: frozenset[str] | None = None,
     ) -> list[dict]:
         """
         告警性能版本获取空间列表
@@ -154,9 +174,12 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         else:
             cache_key = "metadata:list_spaces_dict"
 
+        if authorized_ids is not None and not authorized_ids:
+            return []
+        cache_full_list = not filters and authorized_ids is None
         ret = miss_cache
         # 如果指定了过滤条件，则不使用缓存
-        if using_cache and not filters:
+        if using_cache and cache_full_list:
             ret = local_mem.get(cache_key, miss_cache)
         if ret is not miss_cache:
             return ret
@@ -183,14 +206,22 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                 ON
                     s.space_type_id = t.type_id
             """
+            where_conditions = []
             sql_params: list[object] = []
-            if filters:
-                where_conditions = []
-                for field, value in filters.items():
-                    where_conditions.append(f"s.{field} = %s")
-                    sql_params.append(value)
-                if where_conditions:
-                    sql += " WHERE " + " AND ".join(where_conditions)
+            for field, value in (filters or {}).items():
+                where_conditions.append(f"s.{field} = %s")
+                sql_params.append(value)
+            if authorized_ids is not None:
+                cc_ids = [value for value in authorized_ids if not value.startswith("-")]
+                non_cc_ids = [value[1:] for value in authorized_ids if value.startswith("-")]
+                parts, params = _space_id_conditions(cc_ids, non_cc_ids)
+                where_conditions.append("(" + " OR ".join(parts) + ")")
+                sql_params.extend(params)
+                if bk_tenant_id:
+                    where_conditions.append("s.bk_tenant_id = %s")
+                    sql_params.append(bk_tenant_id)
+            if where_conditions:
+                sql += " WHERE " + " AND ".join(where_conditions)
 
             cursor.execute(sql, sql_params)
             columns = [col[0] for col in cursor.description]
@@ -201,13 +232,14 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                 spaces = [space for space in spaces if space["bk_tenant_id"] == bk_tenant_id]
 
         # db 无数据， 开发环境给出提示， 生产环境不提示（正常部署不会出现该问题）
-        if not spaces and settings.RUN_MODE == "DEVELOP" and not filters and not bk_tenant_id:
+        if not spaces and settings.RUN_MODE == "DEVELOP" and cache_full_list and not bk_tenant_id:
             raise Exception(
                 "未成功初始化metadata空间数据，请执行"
                 "env DJANGO_CONF_MODULE=conf.worker.development.enterprise python manage.py init_space_data"
             )
 
-        _space_transform.clear()
+        if authorized_ids is None:
+            _space_transform.clear()
         for space in spaces:
             cc_space = space["space_type_id"] == SpaceTypeEnum.BKCC.value
             # bk_biz_id
@@ -218,6 +250,8 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             # is_demo
             space["is_demo"] = space["bk_biz_id"] == int(settings.DEMO_BIZ_ID or 0)
             enrich_space_display_name(space)
+            if authorized_ids is not None:
+                continue
             if cc_space:
                 # 仅针对cmdb空间，进行缓存， 非cc空间，需要额外resource信息，走api丰富。
                 local_mem.set(f"metadata:spaces_map:{space['space_uid']}", space, timeout=SPACE_CACHE_TIMEOUT)
@@ -226,7 +260,10 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                 _space_transform[space["bk_biz_id"]] = space["space_uid"]
 
         # 如果指定了过滤条件，则不缓存
-        if not filters:
+        if authorized_ids is not None:
+            # 权限 ID 沿用候选路径的字符串精确匹配，避免数据库隐式类型转换扩大结果。
+            return [space for space in spaces if str(space["bk_biz_id"]) in authorized_ids]
+        if cache_full_list:
             local_mem.set(cache_key, spaces, timeout=SPACE_CACHE_TIMEOUT)
 
         return spaces
@@ -258,18 +295,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         if not cc_space_ids and not non_cc_space_ids:
             return []
 
-        cc_placeholders = ", ".join(["%s"] * len(cc_space_ids))
-        non_cc_placeholders = ", ".join(["%s"] * len(non_cc_space_ids))
-        where_parts = []
-        sql_params: list[object] = []
-        if cc_space_ids:
-            where_parts.append(f"(s.space_type_id = %s AND s.space_id IN ({cc_placeholders}))")
-            sql_params.append(SpaceTypeEnum.BKCC.value)
-            sql_params.extend(cc_space_ids)
-        if non_cc_space_ids:
-            where_parts.append(f"(s.space_type_id != %s AND s.id IN ({non_cc_placeholders}))")
-            sql_params.append(SpaceTypeEnum.BKCC.value)
-            sql_params.extend(non_cc_space_ids)
+        where_parts, sql_params = _space_id_conditions(cc_space_ids, non_cc_space_ids)
 
         # JOIN 必须与 list_spaces_dict 一致（INNER JOIN）：space_type_id 为空、或不在
         # metadata_spacetype 中的空间，旧实现不会返回。漏掉 JOIN 只会让这里多出旧路径
