@@ -311,7 +311,7 @@ class Command(BaseCommand):
             "consumer_group": compose_transfer_consumer_group(self.source) if self.topic else None,
             "transfer_consul_path": self.source.consul_config_path,
             "steps": [
-                "查询已有 V4 组件；已有组件不重新注册 Data ID，仅指定 Databus 集群时重新 apply",
+                "查询已有 V4 组件；已有组件不重新注册 Data ID，指定的 Databus 集群尚未下发时重新 apply",
                 "申请链路时写入 CMDB 集群和模块配置",
                 "仅首次且无组件记录时注册 Data ID 并申请 V4 链路，沿用原 Kafka Topic、Transfer 消费组和 VM 集群",
                 "默认等待组件 Ok；--no-wait 跳过等待及远端状态检查，直接收尾",
@@ -320,8 +320,29 @@ class Command(BaseCommand):
             ],
         }
 
-    def save_link_options(self):
+    def databus_cluster_needs_apply(self, components):
+        if not self.databus_cluster_name:
+            return False
+
+        # 本地 option 先于 apply 写入，续跑要以 BKBase 已接收的配置为准。
+        databuses = [component for component in components if component.kind == DataBusConfig.kind and component.name]
+        datalink = models.DataLink(bk_tenant_id=self.tenant)
+        for component in databuses:
+            remote = datalink.get_existing_component_config(component.kind, component.name, component.namespace)
+            spec = (remote or {}).get("spec") or {}
+            prefer_cluster = spec.get("preferCluster") or {}
+            if (
+                prefer_cluster.get("name") != self.databus_cluster_name
+                or prefer_cluster.get("namespace", self.namespace) != self.namespace
+                or (settings.ENABLE_MULTI_TENANT_MODE and prefer_cluster.get("tenant", self.tenant) != self.tenant)
+            ):
+                return True
+        return not databuses
+
+    def save_link_options(self, *, apply_link):
         for name, value in self.link_options.items():
+            if not apply_link and name == models.ResultTableOption.OPTION_CMDB_LEVEL_CONFIG:
+                continue
             models.ResultTableOption.objects.update_or_create(
                 bk_tenant_id=self.tenant,
                 table_id=self.table_id,
@@ -331,17 +352,18 @@ class Command(BaseCommand):
 
     def execute_migration(self, *, no_wait=False, wait_timeout=300, poll_interval=10):
         components = self.component_records()
-        newly_applied = not any(component.name for component in components)
-        if not newly_applied and not self.databus_cluster_name:
+        first_apply = not any(component.name for component in components)
+        newly_applied = first_apply or self.databus_cluster_needs_apply(components)
+        if first_apply:
+            self.stdout.write("首次注册 Data ID 并申请 V4 链路……")
+            self.source.register_to_bkbase(bk_biz_id=self.datalink_biz_id, namespace=self.namespace)
+        self.save_link_options(apply_link=newly_applied)
+        if not newly_applied:
             # 普通续跑不重复 apply，避免将已就绪组件重置为 Pending。
             self.stdout.write("已有 V4 组件记录，复用已有资源，不重新注册或 apply……")
         else:
-            if newly_applied:
-                self.stdout.write("首次注册 Data ID 并申请 V4 链路……")
-                self.source.register_to_bkbase(bk_biz_id=self.datalink_biz_id, namespace=self.namespace)
-            else:
+            if not first_apply:
                 self.stdout.write("已更新链路 option，复用已有资源重新 apply……")
-            self.save_link_options()
             create_bkbase_data_link(
                 bk_biz_id=self.datalink_biz_id,
                 data_source=self.source,
@@ -351,7 +373,6 @@ class Command(BaseCommand):
                 namespace=self.namespace,
                 consumer_group=compose_transfer_consumer_group(self.source),
             )
-            newly_applied = True
             components = self.component_records()
         missing = [component.kind for component in components if not component.name]
         if not components or missing:
@@ -386,7 +407,7 @@ class Command(BaseCommand):
             if remaining <= 0:
                 self.output({"components": components})
                 raise CommandError(
-                    f"等待 V4 组件就绪超时（{wait_timeout} 秒），未执行收尾；稍后重试 execute 不会重新 apply"
+                    f"等待 V4 组件就绪超时（{wait_timeout} 秒），未执行收尾；保留原参数重试 execute 可继续等待"
                 )
             delay = min(poll_interval, remaining)
             self.stdout.write(f"等待 V4 组件就绪，{delay:g} 秒后检查……")

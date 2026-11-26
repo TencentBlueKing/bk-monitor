@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 from django.core.management import call_command
+from django.core.management.base import CommandError
 
 from metadata import models
 
@@ -64,9 +65,12 @@ def test_read_only_phases_do_not_save_options_or_apply(command_module, mocker, p
     apply_link.assert_not_called()
 
 
-@pytest.mark.parametrize("existing,configured", [(False, False), (False, True), (True, True), (True, False)])
+@pytest.mark.parametrize(
+    "existing,configured,first_failure",
+    [(False, False, None), (False, True, "wait"), (True, True, "wait"), (True, True, "apply"), (True, False, None)],
+)
 def test_options_saved_before_apply_without_reregistering_existing_resources(
-    command_module, mocker, existing, configured
+    command_module, mocker, existing, configured, first_failure
 ):
     command = command_module.Command()
     command.tenant, command.namespace, command.operator = "test-tenant", "bkmonitor", "tester"
@@ -82,9 +86,12 @@ def test_options_saved_before_apply_without_reregistering_existing_resources(
         delete_consul_config=mocker.Mock(),
     )
     command.cluster = SimpleNamespace(cluster_name="vm-test")
-    component = SimpleNamespace(name="existing", kind="Databus")
-    mocker.patch.object(command, "component_records", side_effect=[([component] if existing else []), [component]])
+    component = SimpleNamespace(name="existing", kind="Databus", namespace="bkmonitor")
+    component_records = mocker.patch.object(command, "component_records", return_value=[component] if existing else [])
+    get_remote = mocker.patch.object(models.DataLink, "get_existing_component_config", return_value=None)
     wait = mocker.patch.object(command, "wait_for_components")
+    if first_failure == "wait":
+        wait.side_effect = [CommandError("等待 V4 组件就绪超时"), None]
     writes = mocker.patch.object(models.ResultTableOption.objects, "update_or_create")
     mocker.patch.object(command_module, "compose_transfer_consumer_group", return_value="original-group")
     if hasattr(command, "prepare_default"):
@@ -100,12 +107,21 @@ def test_options_saved_before_apply_without_reregistering_existing_resources(
             assert json.loads(saved[name]["defaults"]["value"]) == value
             assert saved[name]["defaults"]["value_type"] == type(value).__name__
         assert kwargs["consumer_group"] == "original-group"
+        if first_failure == "apply" and apply_link.call_count == 1:
+            raise CommandError("申请失败")
+        component_records.return_value = [component]
+        get_remote.return_value = {"spec": {"preferCluster": {"name": "databus-test"}}}
 
     apply_link = mocker.patch.object(command_module, "create_bkbase_data_link", side_effect=apply)
+    if first_failure:
+        with pytest.raises(CommandError, match="超时|申请失败"):
+            command.execute_migration()
+        writes.reset_mock()
     command.execute_migration()
     saved_names = {call.kwargs["name"] for call in writes.call_args_list}
-    assert ("cmdb_level_config" in saved_names) == (not existing or configured)
+    should_apply = first_failure != "wait" and (not existing or configured)
+    assert ("cmdb_level_config" in saved_names) == should_apply
     assert ("databus_prefer_cluster" in saved_names) == configured
-    assert apply_link.call_count == int(not existing or configured)
+    assert apply_link.call_count == (2 if first_failure == "apply" else int(not existing or configured))
     assert command.source.register_to_bkbase.call_count == int(not existing)
-    assert wait.call_args.kwargs["newly_applied"] == (not existing or configured)
+    assert wait.call_args.kwargs["newly_applied"] == should_apply
