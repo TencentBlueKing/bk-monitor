@@ -106,6 +106,7 @@ DATABUS_MONITOR_SPACE_TYPES = {
     SpaceTypes.BKSAAS.value,
 }
 DATABUS_MONITOR_METRIC_STRATEGIES = {
+    "metric_doris_raw",
     "bk_standard_v2_time_series",
     "bk_exporter_time_series",
     "bk_standard_time_series",
@@ -452,6 +453,8 @@ class DataLink(models.Model):
     SYSTEM_PROC_PORT = "system_proc_port"  # 系统进程端口链路
     BASE_EVENT_V1 = "base_event_v1"  # 基础事件链路
     BK_LOG = "bk_log"  # 日志链路
+    METRIC_DORIS_RAW = "metric_doris_raw"
+    METRIC_DORIS_AGGREGATE = "metric_doris_aggregate"
     CUSTOM_FORMAT_VM = "custom_format_vm"
     CUSTOM_FORMAT_ES = "custom_format_es"
     CUSTOM_FORMAT_DORIS = "custom_format_doris"
@@ -471,6 +474,8 @@ class DataLink(models.Model):
         (CUSTOM_FORMAT_VM, "自定义格式 VM 链路"),
         (CUSTOM_FORMAT_ES, "自定义格式 Elasticsearch 链路"),
         (CUSTOM_FORMAT_DORIS, "自定义格式 Doris 链路"),
+        (METRIC_DORIS_RAW, "指标明细 Doris 链路"),
+        (METRIC_DORIS_AGGREGATE, "指标汇总 Doris 链路"),
     )
 
     # 各个套餐所需要的链路资源
@@ -513,6 +518,8 @@ class DataLink(models.Model):
         CUSTOM_FORMAT_VM: [ResultTableConfig, ChannelBindingConfig, VMStorageBindingConfig, DataBusConfig],
         CUSTOM_FORMAT_ES: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
         CUSTOM_FORMAT_DORIS: [ResultTableConfig, DorisStorageBindingConfig, DataBusConfig],
+        METRIC_DORIS_RAW: [ResultTableConfig, DorisStorageBindingConfig, DataBusConfig],
+        METRIC_DORIS_AGGREGATE: [ResultTableConfig, DorisStorageBindingConfig],
     }
 
     STORAGE_TYPE_MAP = {
@@ -531,6 +538,8 @@ class DataLink(models.Model):
         CUSTOM_FORMAT_VM: ClusterInfo.TYPE_VM,
         CUSTOM_FORMAT_ES: ClusterInfo.TYPE_ES,
         CUSTOM_FORMAT_DORIS: ClusterInfo.TYPE_DORIS,
+        METRIC_DORIS_RAW: ClusterInfo.TYPE_DORIS,
+        METRIC_DORIS_AGGREGATE: ClusterInfo.TYPE_DORIS,
     }
 
     DATABUS_TRANSFORMER_FORMAT = {
@@ -626,6 +635,8 @@ class DataLink(models.Model):
     def _get_compose_method(self):
         """获取当前 strategy 对应的配置组装方法。"""
 
+        from metadata.service.metric_doris import compose_metric_configs
+
         switcher = {
             DataLink.BK_STANDARD_V2_TIME_SERIES: self.compose_standard_time_series_configs,
             DataLink.BK_STANDARD_TIME_SERIES: self.compose_bk_plugin_time_series_config,
@@ -642,6 +653,8 @@ class DataLink(models.Model):
                 self.compose_system_proc_configs, data_link_strategy=DataLink.SYSTEM_PROC_PORT
             ),
             DataLink.BK_LOG: self.compose_log_configs,
+            DataLink.METRIC_DORIS_RAW: partial(compose_metric_configs, self),
+            DataLink.METRIC_DORIS_AGGREGATE: partial(compose_metric_configs, self),
             DataLink.BK_STANDARD_V2_EVENT: self.compose_custom_event_configs,
             DataLink.CUSTOM_FORMAT_VM: self.compose_custom_format_configs,
             DataLink.CUSTOM_FORMAT_ES: self.compose_custom_format_configs,
@@ -3141,6 +3154,7 @@ class DataLink(models.Model):
                     "monitor_table_id": monitor_table_id,
                     "bkbase_data_name": ""
                     if self.data_link_strategy in utils.RANDOM_NAME_STRATEGIES
+                    or self.data_link_strategy in {self.METRIC_DORIS_RAW, self.METRIC_DORIS_AGGREGATE}
                     else self.data_link_name,
                     "storage_type": storage_type,
                     "status": DataLinkResourceStatus.INITIALIZING.value,

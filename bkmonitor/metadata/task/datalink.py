@@ -53,6 +53,13 @@ from metadata.models.storage import ClusterInfo, DorisStorage, ESStorage, Surrea
 logger = logging.getLogger(__name__)
 
 
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def reconcile_metric_doris_rt(result_table_pk: int):
+    from metadata.service.metric_doris_reconcile import reconcile_pipeline
+
+    reconcile_pipeline(result_table_pk)
+
+
 def compose_custom_format_data_link_name(bk_tenant_id: str, bk_data_id: int, table_id: str) -> str:
     """生成不超过组件 64 字符限制且可重复计算的链路名称。"""
     digest = hashlib.sha256(f"{bk_tenant_id}:{bk_data_id}:{table_id}".encode()).hexdigest()[:16]
@@ -797,8 +804,15 @@ def rebuild_built_in_metric_datalink(bk_data_id: int, kafka_cluster_id: int):
             f"rebuild_built_in_metric_datalink: tenant({bk_tenant_id}) bk_data_id->[%s] not found", bk_data_id
         )
 
-    table_ids = DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id).values_list(
-        "table_id", flat=True
+    from metadata.models.data_link import MetricDorisPipeline
+
+    extra_tables = MetricDorisPipeline.objects.filter(
+        result_table__bk_tenant_id=bk_tenant_id, data_link__bk_data_id=bk_data_id
+    ).values("result_table__table_id")
+    table_ids = (
+        DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id)
+        .exclude(table_id__in=extra_tables)
+        .values_list("table_id", flat=True)
     )
     if not table_ids:
         raise ValueError(

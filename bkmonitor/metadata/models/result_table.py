@@ -555,7 +555,15 @@ class ResultTable(models.Model):
         # NOTE: 添加参数标识是否创建存储，以便于可以兼容不需要存储或者已经存在的场景
         if create_storage:
             result_table.check_and_create_storage(
-                is_sync_db=is_sync_db,
+                # 独立指标 RT 由事务提交后的 Worker 下发，创建存储记录时无需刷新原 DataID 的 Transfer 配置。
+                is_sync_db=is_sync_db
+                and not (
+                    (option or {}).keys()
+                    & {
+                        ResultTableOption.OPTION_METRIC_INGEST,
+                        ResultTableOption.OPTION_METRIC_AGGREGATE,
+                    }
+                ),
                 external_storage=external_storage,
                 default_storage_config=default_storage_config or {},
                 bk_tenant_id=bk_tenant_id,
@@ -570,9 +578,15 @@ class ResultTable(models.Model):
 
         return result_table
 
-    def delete_datalink(self) -> None:
+    def delete_datalink(self, *, metric_cluster_id=None) -> None:
         """停止链路的 Databus，保留所有组件及关联记录。"""
         from metadata.models.data_link.data_link import DataLink
+
+        if self.default_storage == ClusterInfo.TYPE_DORIS:
+            from metadata.service.metric_doris import stop_managed_pipeline
+
+            if stop_managed_pipeline(self, target_cluster_id=metric_cluster_id):
+                return
 
         # 查询结果表对应的Datalink
         records = BkBaseResultTable.objects.filter(bk_tenant_id=self.bk_tenant_id, monitor_table_id=self.table_id)
@@ -589,7 +603,7 @@ class ResultTable(models.Model):
             record.status = DataLinkResourceStatus.TERMINATING.value
             record.save()
 
-    def apply_datalink(self, force_update: bool = False, delay: bool = True) -> None:
+    def apply_datalink(self, force_update: bool = False, delay: bool = True, *, metric_cluster_id=None) -> None:
         """创建数据链路"""
         from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
         from metadata.task.datalink import (
@@ -605,6 +619,19 @@ class ResultTable(models.Model):
             option.name: option.get_value()
             for option in ResultTableOption.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
         }
+
+        if self.default_storage == ClusterInfo.TYPE_DORIS or options.keys() & {
+            ResultTableOption.OPTION_METRIC_INGEST,
+            ResultTableOption.OPTION_METRIC_AGGREGATE,
+        }:
+            from metadata.service.metric_doris import declare
+
+            if declare(self, options, delay=delay, target_cluster_id=metric_cluster_id):
+                if not delay:
+                    from metadata.service.metric_doris_reconcile import reconcile_pipeline
+
+                    reconcile_pipeline(self.pk)
+                return
 
         # 获取数据源ID
         datasource = self.get_related_datasource()
@@ -1353,6 +1380,23 @@ class ResultTable(models.Model):
         old_is_enable = self.is_enable
         old_active_cluster_id = self._get_storage_cluster_id(old_default_storage)
         old_es_cluster_id = self._get_storage_cluster_id(ClusterInfo.TYPE_ES)
+        metric_cluster_id = None
+        if (default_storage or old_default_storage) == old_default_storage == ClusterInfo.TYPE_DORIS and (
+            external_storage or {}
+        ).get(ClusterInfo.TYPE_DORIS):
+            from metadata.models.data_link import MetricDorisPipeline
+
+            doris_config = external_storage[ClusterInfo.TYPE_DORIS]
+            if "storage_cluster_id" in doris_config and MetricDorisPipeline.objects.filter(result_table=self).exists():
+                # 当前可查询集群留在 DorisStorage，期望集群随新输出登记；就绪时一次切换映射和历史段。
+                metric_cluster_id = doris_config["storage_cluster_id"]
+                external_storage = {
+                    **external_storage,
+                    ClusterInfo.TYPE_DORIS: {
+                        **doris_config,
+                        "storage_cluster_id": old_active_cluster_id,
+                    },
+                }
         related_data_source = self.get_related_datasource()
         is_custom_format = related_data_source.etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value
 
@@ -1808,11 +1852,16 @@ class ResultTable(models.Model):
                 previous_field_types=previous_field_types,
             )
 
+        metric_args = {"metric_cluster_id": metric_cluster_id} if metric_cluster_id is not None else {}
+        if old_default_storage == ClusterInfo.TYPE_DORIS and self.default_storage != old_default_storage:
+            from metadata.service.metric_doris import stop_managed_pipeline
+
+            stop_managed_pipeline(self)
         if self.is_enable:
-            self.apply_datalink(force_update=force_update_datalink)
+            self.apply_datalink(force_update=force_update_datalink, **metric_args)
         else:
             try:
-                self.delete_datalink()
+                self.delete_datalink(**metric_args)
             except Exception as e:  # pylint: disable=broad-except
                 logger.error("delete datalink error, table_id: %s, %s", self.table_id, e)
 
@@ -2076,10 +2125,13 @@ class ResultTable(models.Model):
             "last_modify_user": self.last_modify_user,
             "last_modify_time": self.last_modify_time.strftime("%Y-%m-%d %H:%M:%S"),
             "field_list": [
-                field_info.to_json() for field_info in ResultTableField.objects.filter(table_id=self.table_id)
+                field_info.to_json()
+                for field_info in ResultTableField.objects.filter(
+                    table_id=self.table_id, bk_tenant_id=self.bk_tenant_id
+                )
             ],
             "bk_biz_id": self.bk_biz_id,
-            "option": ResultTableOption.get_option(self.table_id),
+            "option": ResultTableOption.batch_result_table_option([self.table_id], self.bk_tenant_id)[self.table_id],
             "label": self.label,
             "bk_data_id": self.data_source.bk_data_id if self.default_storage != ClusterInfo.TYPE_BKDATA else None,
             "is_enable": self.is_enable,
@@ -3285,6 +3337,8 @@ class ResultTableOption(OptionBase):
     OPTION_ENABLE_V4_EVENT_GROUP_DATA_LINK = "enable_v4_event_group_data_link"
     OPTION_ENABLE_V4_LOG_DATA_LINK = "enable_log_v4_data_link"
     OPTION_V4_LOG_DATA_LINK = "log_v4_data_link"
+    OPTION_METRIC_INGEST = "metric_ingest"
+    OPTION_METRIC_AGGREGATE = "metric_aggregate"
     OPTION_ENABLE_PLUGIN_V4_DATA_LINK = "enable_plugin_v4_data_link"
     OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE = "enable_data_link_component_reuse"
     OPTION_GRAPH_RELATION_V4_DATA_LINK = "graph_relation_v4_data_link"
@@ -3324,6 +3378,8 @@ class ResultTableOption(OptionBase):
             (OPTION_IS_VIRTUAL_TABLE, _("是否为虚拟结果表")),
             (OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE, _("是否开启DataLink组件复用")),
             (OPTION_GRAPH_RELATION_V4_DATA_LINK, _("Graph Relation V4 数据链路配置")),
+            (OPTION_METRIC_INGEST, _("指标明细入库配置")),
+            (OPTION_METRIC_AGGREGATE, _("指标汇总配置")),
             (OPTION_DATABUS_LABELS, _("Databus 标签注入配置")),
             (OPTION_ENABLE_CUSTOM_FORMAT_V4_DATA_LINK, _("是否开启自定义格式 V4 数据链路")),
             (OPTION_CUSTOM_FORMAT_V4_DATA_LINK, _("自定义格式 V4 数据链路配置")),

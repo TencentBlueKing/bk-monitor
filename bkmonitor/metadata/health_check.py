@@ -152,6 +152,7 @@ def get_data_id_status(bk_tenant_id: str, bk_biz_id: int, bk_data_id: int, with_
                     bk_tenant_id=bk_tenant_id,
                     bk_data_id=bk_data_id,
                     namespace__in=[BKBASE_NAMESPACE_BK_MONITOR, BKBASE_NAMESPACE_BK_LOG],
+                    event_type_override="",
                 )
                 .order_by("namespace")
                 .values_list("namespace", flat=True)

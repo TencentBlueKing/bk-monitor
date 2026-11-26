@@ -75,7 +75,9 @@ class SpaceTableIDRedis:
     TABLE_ID_DETAIL_BATCH_SIZE = 500
     APM_APPLICATION_NAME_LABEL = "apm_application_name"
 
-    def push_space_table_ids(self, space_type: str, space_id: str, is_publish: bool | None = False):
+    def push_space_table_ids(
+        self, space_type: str, space_id: str, is_publish: bool | None = False, *, bk_tenant_id: str | None = None
+    ):
         """
         推送空间及对应的结果表和过滤条件
         多租户环境下,需要统一在table_id后拼接租户ID
@@ -84,7 +86,8 @@ class SpaceTableIDRedis:
         # NOTE: 为防止 space_id 传递非字符串，转换一次
         space_id = str(space_id)
 
-        space = models.Space.objects.get(space_type_id=space_type, space_id=space_id)
+        scope = {"bk_tenant_id": bk_tenant_id} if bk_tenant_id is not None else {}
+        space = models.Space.objects.get(space_type_id=space_type, space_id=space_id, **scope)
         bk_tenant_id = space.bk_tenant_id
         if settings.ENABLE_BMW_ROUTE_REFRESH:
             api.bmw.refresh_space_route(bk_tenant_id=bk_tenant_id, space_type=space_type, space_id=space_id)

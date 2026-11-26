@@ -17,11 +17,12 @@ from .data_link_configs import (  # noqa
     LogClusteringSinkConfig,
 )
 
-from .doris_job import DorisJobConfig, DorisJobTableRelation
+from .doris_job import DorisJobConfig, DorisJobTableRelation, MetricDorisPipeline
 from .vm_query_cluster import VmQueryClusterConfig
 
 __all__ = [
     "DorisJobConfig",
+    "MetricDorisPipeline",
     "DorisJobTableRelation",
     "VmQueryClusterConfig",
     "DataLinkResourceConfigBase",

@@ -2627,3 +2627,7 @@ def reconcile_doris_jobs():
             reconcile_job(job_id)
         except Exception:
             logger.exception("reconcile_doris_jobs: job_id=%s", job_id)
+
+    from metadata.service.metric_doris_reconcile import reconcile_pending_pipelines
+
+    reconcile_pending_pipelines()

@@ -15,6 +15,8 @@ class DataLinkNameScene(Enum):
     """BKBase 资源命名场景；短码用于资源名，调用方使用有业务含义的枚举成员。"""
 
     # bkm_ + 场景 + _ + 最长 19 位来源 ID + _ + 12 位随机串，总长不超过 40。
+    METRIC_DORIS_RAW = "mdr"
+    METRIC_DORIS_AGGREGATE = "mda"
     DATA_ID = "did"  # 已有 DataId 注册
     STANDARD_V2_TIME_SERIES = "ts"  # 标准 V2 时序
     STANDARD_PLUGIN = "std"  # 标准插件

@@ -23,9 +23,13 @@ def quote_identifier(value):
 
 
 def render_configs(config):
-    """自由 SQL 返回一个定义；时间窗口投影模板按目标各生成一个 INSERT。"""
+    """自由 SQL、分钟汇总或按目标展开的窗口投影，最终均生成受管 INSERT。"""
     if not config.get("template_key"):
         return [config]
+    if config["template_key"] == "sum_without":
+        from metadata.service.metric_aggregate import render_sum_without
+
+        return [render_sum_without(config)]
     if config["template_key"] != "window_projection":
         raise ValueError("未知 DorisJob 模板")
     params = config["params"]

@@ -12,9 +12,11 @@ from metadata.models.storage import ClusterInfo
 
 
 def connect(job):
-    cluster = ClusterInfo.objects.get(
-        bk_tenant_id=job.data_link.bk_tenant_id, cluster_id=job.cluster_id, cluster_type=ClusterInfo.TYPE_DORIS
-    )
+    return connect_cluster(job.data_link.bk_tenant_id, job.cluster_id)
+
+
+def connect_cluster(tenant, cluster_id):
+    cluster = ClusterInfo.objects.get(bk_tenant_id=tenant, cluster_id=cluster_id, cluster_type=ClusterInfo.TYPE_DORIS)
     return pymysql.connect(
         host=cluster.domain_name,
         port=int(cluster.port),

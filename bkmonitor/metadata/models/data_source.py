@@ -283,11 +283,14 @@ class DataSource(models.Model):
 
             result_table_info_list = []
             # 获取存在的结果表
+            tables = ResultTable.objects.filter(
+                bk_tenant_id=self.bk_tenant_id, table_id__in=result_table_id_list, is_deleted=False, is_enable=True
+            )
+            if is_consul_config:
+                # 独立消费者和 FE Job 的目标 RT 不属于原 Transfer 的写入目的地。
+                tables = tables.filter(metricdorispipeline__isnull=True)
             real_table_ids = {
-                rt["table_id"]: rt
-                for rt in ResultTable.objects.filter(
-                    table_id__in=result_table_id_list, is_deleted=False, is_enable=True
-                ).values("table_id", "bk_biz_id", "schema_type", "bk_tenant_id")
+                rt["table_id"]: rt for rt in tables.values("table_id", "bk_biz_id", "schema_type", "bk_tenant_id")
             }
 
             real_table_id_list = list(real_table_ids.keys())
@@ -373,19 +376,7 @@ class DataSource(models.Model):
             bk_tenant_id=self.bk_tenant_id, namespace=source_namespace, kind="dataids", name=name
         )
         spec = {**source["spec"], "bizId": bk_biz_id}
-        if not (spec.get("predefined") or {}).get("topic"):
-            # 动态申请或未显式指定 topic 的 DataId，复用源项目实际绑定的通道和 topic。
-            binding = api.bkdata.get_data_link(
-                bk_tenant_id=self.bk_tenant_id,
-                namespace=source_namespace,
-                kind="channelbindings",
-                name=f"{name}_default",
-            )
-            spec["predefined"] = {
-                "dataId": self.bk_data_id,
-                "channel": binding["spec"]["channel"],
-                "topic": binding["metadata"].get("annotations", {}).get("topic") or f"{name}{source['spec']['bizId']}",
-            }
+        spec["predefined"] = self.get_registered_predefined(source_namespace, name, source["spec"])
 
         metadata = {"name": name, "namespace": target_namespace, "labels": source["metadata"].get("labels", {})}
         if settings.ENABLE_MULTI_TENANT_MODE:
@@ -408,6 +399,19 @@ class DataSource(models.Model):
                 name=f"bkm_datasource_{self.bk_data_id}",
             ).exclude(name=name).delete()
         return {"bk_data_id": self.bk_data_id, "name": name, "target_namespace": target_namespace}
+
+    def get_registered_predefined(self, namespace, name, spec):
+        """共享 DataId 或更换事件类型时保留原数据源实际绑定的跨项目通道和 topic。"""
+        if (predefined := spec.get("predefined")) and predefined.get("topic"):
+            return predefined
+        binding = api.bkdata.get_data_link(
+            bk_tenant_id=self.bk_tenant_id, namespace=namespace, kind="channelbindings", name=f"{name}_default"
+        )
+        return {
+            "dataId": self.bk_data_id,
+            "channel": binding["spec"]["channel"],
+            "topic": binding["metadata"].get("annotations", {}).get("topic") or f"{name}{spec['bizId']}",
+        }
 
     def register_to_bkbase(self, bk_biz_id: int, namespace: str = "bkmonitor", bkbase_data_name: str = ""):
         """
