@@ -19,6 +19,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
+import copy
+import json
+from unittest.mock import patch
+
 from django.test import TestCase
 
 from apps.log_search.models import Scenario
@@ -37,3 +42,26 @@ class TestBkdata(TestCase):
         self.assertIn("1_foo_2020010100", result)
         self.assertNotIn("1_foo_bar_2020010100", result)
         return True
+
+    def test_query_keeps_dsl_without_probing_cluster_version(self):
+        body = {
+            "aggs": {
+                "hist": {"date_histogram": {"field": "ts", "fixed_interval": "1d"}},
+                "group": {"terms": {"field": "host", "order": {"_key": "asc"}}},
+            }
+        }
+        original = copy.deepcopy(body)
+        with (
+            patch(
+                "apps.log_esquery.esquery.client.QueryClientBkData.BkDataQueryApi.query", return_value={"list": {}}
+            ) as query,
+            patch("apps.log_esquery.esquery.client.QueryClientBkData.BkDataMetaApi.result_tables.storages") as storages,
+            patch("apps.log_esquery.esquery.client.QueryClientBkData.BkDataStorekitApi.storekit_es_route") as route,
+        ):
+            QueryClient(scenario_id=Scenario.BKDATA).get_instance().query("2_first_*,2_second_*", body)
+            self.assertEqual(
+                json.loads(query.call_args.args[0]["sql"]), {"index": "2_first_*,2_second_*", "body": original}
+            )
+            storages.assert_not_called()
+            route.assert_not_called()
+            self.assertEqual(body, original)

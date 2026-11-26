@@ -19,11 +19,13 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import json
 from dataclasses import dataclass
 from typing import Any
 
 from django.conf import settings
 
+from apps.api import BkDataMetaApi, BkDataQueryApi
 from apps.api.modules.utils import update_bkdata_auth_info
 from apps.constants import ApiTokenAuthType
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
@@ -34,12 +36,18 @@ from apps.log_esquery.esquery.client.QueryClient import QueryClient
 from apps.log_esquery.esquery.client.QueryClientBkData import QueryClientBkData
 from apps.log_esquery.esquery.client.QueryClientEs import QueryClientEs
 from apps.log_esquery.esquery.client.QueryClientLog import QueryClientLog
+from apps.log_esquery.utils.es_client import adapt_es_query_body, needs_es_query_body_adaptation, parse_es_version
 from apps.log_search.constants import DEFAULT_TIME_FIELD
 from apps.log_search.models import LogIndexSet, Scenario
+from apps.utils.cache import cache_five_minute
+from apps.utils.local import get_request_tenant_id
+from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 from bk_dataview.grafana.provisioning import Datasource
 from bkm_space.utils import bk_biz_id_to_space_uid
 import builtins
+
+BKDATA_ES_VERSION_QUERY_TIMEOUT = 3
 
 
 @dataclass
@@ -248,19 +256,58 @@ class ESCustomESDataSource(CustomESDataSourceTemplate):
 
 
 class BkDataCustomESDataSource(CustomESDataSourceTemplate):
+    def get_es_version(self) -> str | None:
+        indexes = self.data.indexes
+        result_table_id = indexes[0].get("result_table_id") if indexes else None
+        if not result_table_id:
+            return None
+        try:
+            return self._get_cached_es_version(result_table_id=result_table_id, bk_tenant_id=get_request_tenant_id())[
+                "version"
+            ]
+        except Exception:  # pylint: disable=broad-except
+            logger.warning(
+                "[grafana] read BKDATA ES version cache failed, result_table_id=%s", result_table_id, exc_info=True
+            )
+            return None
+
     @staticmethod
-    def _get_auth_params() -> dict:
-        params = {"no_request": True}
+    @cache_five_minute("grafana_bkdata_es_version_{bk_tenant_id}_{result_table_id}", need_md5=True)
+    def _get_cached_es_version(result_table_id: str, bk_tenant_id: str) -> dict:
+        version = None
+        try:
+            storages = BkDataMetaApi.result_tables.storages(
+                {"result_table_id": result_table_id},
+                bk_tenant_id=bk_tenant_id,
+                timeout=BKDATA_ES_VERSION_QUERY_TIMEOUT,
+            )
+            candidate = (storages.get("es", {}).get("storage_cluster") or {}).get("version")
+            if isinstance(candidate, str) and parse_es_version(candidate) is not None:
+                version = candidate
+        except Exception:  # pylint: disable=broad-except
+            logger.warning(
+                "[grafana] query BKDATA ES version failed, result_table_id=%s", result_table_id, exc_info=True
+            )
+        # 失败结果同样缓存，避免异常期间每个面板都重复探测。
+        return {"version": version}
+
+    def query_bkdata(self, body: dict[str, Any] = None) -> list[dict[str, Any]]:
+        sql = {"index": self.index}
+        if body:
+            sql["body"] = body
+        else:
+            sql["mapping"] = True
+        params = {"prefer_storage": "es", "sql": json.dumps(sql), "no_request": True}
         update_bkdata_auth_info(params)
-        return params
+        return BkDataQueryApi.query(params, request_cookies=False)["list"]
 
     def _query(self, body: dict[str, Any]):
-        return self.get_client().query(
-            index=self.index, body=body, extra_params=self._get_auth_params(), request_cookies=False
-        )
+        if needs_es_query_body_adaptation(body):
+            body = adapt_es_query_body(body, self.get_es_version())
+        return self.query_bkdata(body=body)
 
     def _mapping(self):
-        return self.get_client().mapping(index=self.index, extra_params=self._get_auth_params(), request_cookies=False)
+        return self.query_bkdata()
 
 
 class CustomESDataSourceHandler:
