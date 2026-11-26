@@ -17,7 +17,7 @@ class TestBkdataQueryBodyCompat(SimpleTestCase):
     def setUp(self):
         cache.clear()
         self.meta = self.enterContext(patch(f"{CLIENT_MODULE}.BkDataMetaApi.result_tables.storages"))
-        self.meta.return_value = {"es": {"storage_cluster": {"cluster_name": "first-es"}}}
+        self.meta.return_value = {"es": {"storage_cluster": {"cluster_name": "first-es", "version": "9.4.3"}}}
         self.route = self.enterContext(patch(f"{CLIENT_MODULE}.BkDataStorekitApi.storekit_es_route"))
         self.route.return_value = json.dumps({"version": {"number": "9.4.3"}})
         self.query = self.enterContext(patch(f"{CLIENT_MODULE}.BkDataQueryApi.query"))
@@ -55,7 +55,33 @@ class TestBkdataQueryBodyCompat(SimpleTestCase):
             self.assertEqual(group["aggs"]["fixed"]["date_histogram"], {"field": "ts", "fixed_interval": "1d"})
             self.assertEqual(body, original)
         self.meta.assert_called_once_with({"result_table_id": "2_first"}, bk_tenant_id="tenant-a", timeout=3)
-        self.route.assert_called_once_with({"cluster_name": "first-es", "uri": "/"}, bk_tenant_id="tenant-a", timeout=3)
+        self.route.assert_not_called()
+
+    def test_storage_metadata_version_is_preferred(self):
+        for version in ("5.6.16", "7.10.2", "8.19.19", "9.4.3"):
+            with self.subTest(version=version):
+                cache.clear()
+                self.meta.return_value["es"]["storage_cluster"]["version"] = version
+                QueryClientBkData().query("2_first_*", self.body())
+                group = self.sent_sql()["body"]["aggregations"]["group"]
+                self.assertEqual(group["terms"]["order"][0], {"_term" if version == "5.6.16" else "_key": "asc"})
+        self.route.assert_not_called()
+
+    def test_root_request_is_only_used_when_metadata_version_is_missing_or_invalid(self):
+        for version in (None, "", "unknown"):
+            with self.subTest(version=version):
+                cache.clear()
+                self.meta.reset_mock()
+                self.route.reset_mock()
+                self.meta.return_value["es"]["storage_cluster"]["version"] = version
+                for _ in range(2):
+                    QueryClientBkData().query("2_first_*", self.body())
+                    group = self.sent_sql()["body"]["aggregations"]["group"]
+                    self.assertEqual(group["terms"]["order"][0], {"_key": "asc"})
+                self.meta.assert_called_once()
+                self.route.assert_called_once_with(
+                    {"cluster_name": "first-es", "uri": "/"}, bk_tenant_id="tenant-a", timeout=3
+                )
 
     def test_result_table_normalization_preserves_bare_numeric_suffixes(self):
         cases = (
@@ -102,7 +128,7 @@ class TestBkdataQueryBodyCompat(SimpleTestCase):
             self.tenant.return_value = tenant
             QueryClientBkData().query(index, self.body())
         self.assertEqual(self.meta.call_count, 3)
-        self.assertEqual(self.route.call_count, 3)
+        self.route.assert_not_called()
         self.assertEqual(
             [call.kwargs["bk_tenant_id"] for call in self.meta.call_args_list], ["tenant-a", "tenant-b", "tenant-a"]
         )
@@ -168,3 +194,25 @@ class TestBkdataQueryBodyCompat(SimpleTestCase):
                 self.assertEqual(params["bkdata_data_token"], "test-token")
                 self.assertEqual("track_total_hits" in self.sent_sql()["body"], track_total_hits)
                 self.assertNotIn("track_total_hits", body)
+
+    def test_extra_authentication_params_cannot_override_query_or_explicit_client_token(self):
+        extra_params = {
+            "no_request": True,
+            "operator": "service-user",
+            "bkdata_data_token": "extra-token",
+            "sql": "replaced-query",
+            "prefer_storage": "other-storage",
+        }
+        original = copy.deepcopy(extra_params)
+        QueryClientBkData("token", "client-token").query(
+            "2_first_*", self.body(), extra_params=extra_params, request_cookies=False
+        )
+        params = self.query.call_args.args[0]
+        self.assertEqual(params["operator"], "service-user")
+        self.assertTrue(params["no_request"])
+        self.assertEqual(params["bkdata_authentication_method"], "token")
+        self.assertEqual(params["bkdata_data_token"], "client-token")
+        self.assertEqual(params["prefer_storage"], "es")
+        self.assertEqual(self.sent_sql()["index"], "2_first_*")
+        self.assertFalse(self.query.call_args.kwargs["request_cookies"])
+        self.assertEqual(extra_params, original)

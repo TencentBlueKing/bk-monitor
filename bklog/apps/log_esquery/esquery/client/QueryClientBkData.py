@@ -51,25 +51,30 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
         self.bkdata_authentication_method = bkdata_authentication_method
         self.bkdata_data_token = bkdata_data_token
 
-    def query(self, index: str, body: dict[str, Any], scroll=None, track_total_hits=False):
+    def query(
+        self,
+        index: str,
+        body: dict[str, Any],
+        scroll=None,
+        track_total_hits=False,
+        *,
+        extra_params=None,
+        request_cookies=True,
+    ):
         try:
             tracer = trace.get_tracer(__name__)
             with tracer.start_as_current_span("bkdata_es_query") as span:
-                body = self.adapt_query_body(index, body)
+                body = self._adapt_query_body(index, body)
                 # bkdata情景下,当且仅当用户主动传了 track_total_hits: true 时，才允许往 body 中注入该参数
                 if track_total_hits:
                     body.update({"track_total_hits": True})
                 sql = json.dumps({"index": index, "body": body})
-                params = {"prefer_storage": "es", "sql": sql}
                 span.set_attribute("db.statement", sql)
                 span.set_attribute("db.system", "elasticsearch")
 
-                if self.bkdata_authentication_method:
-                    params["bkdata_authentication_method"] = self.bkdata_authentication_method
-                if self.bkdata_data_token:
-                    params["bkdata_data_token"] = self.bkdata_data_token
-
-                result = self._client.query(params, timeout=settings.ES_QUERY_TIMEOUT)
+                result = self._query_bkdata(
+                    sql, extra_params=extra_params, request_cookies=request_cookies, timeout=settings.ES_QUERY_TIMEOUT
+                )
                 result = result["list"]
                 if not result:
                     result = {"hits": {"hits": [], "total": 0}}
@@ -85,10 +90,19 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
                 code=getattr(e, "code", EsClientSearchException.ERROR_CODE),
             )
 
-    def adapt_query_body(self, index: str, body: dict, default_es_version: str | None = None) -> dict:
+    def _query_bkdata(self, sql: str, *, extra_params=None, request_cookies=True, timeout=None):
+        params = dict(extra_params or {})
+        params.update({"prefer_storage": "es", "sql": sql})
+        if self.bkdata_authentication_method:
+            params["bkdata_authentication_method"] = self.bkdata_authentication_method
+        if self.bkdata_data_token:
+            params["bkdata_data_token"] = self.bkdata_data_token
+        return self._client.query(params, timeout=timeout, request_cookies=request_cookies)
+
+    def _adapt_query_body(self, index: str, body: dict) -> dict:
         if not needs_es_query_body_adaptation(body):
             return deepcopy(body)
-        version = self.get_es_version(index) or default_es_version
+        version = self.get_es_version(index)
         if version is None:
             return deepcopy(body)
         return adapt_es_query_body(body, version)
@@ -116,7 +130,11 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
                 bk_tenant_id=bk_tenant_id,
                 timeout=BKDATA_ES_VERSION_QUERY_TIMEOUT,
             )
-            cluster_name = (storages.get("es", {}).get("storage_cluster") or {}).get("cluster_name")
+            cluster = storages.get("es", {}).get("storage_cluster") or {}
+            candidate = cluster.get("version")
+            if isinstance(candidate, str) and parse_es_version(candidate) is not None:
+                return {"version": candidate}
+            cluster_name = cluster.get("cluster_name")
             if cluster_name:
                 response = BkDataStorekitApi.storekit_es_route(
                     {"cluster_name": cluster_name, "uri": "/"},
@@ -132,7 +150,9 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
         # 缓存探测失败结果，避免异常期间每次聚合查询都重复探测。
         return {"version": version}
 
-    def mapping(self, index: str, add_settings_details: bool = False) -> dict:
+    def mapping(
+        self, index: str, add_settings_details: bool = False, *, extra_params=None, request_cookies=True
+    ) -> dict:
         index_list: list = index.split(",")
         new_index_list: list = []
         has_wildcard = False
@@ -146,17 +166,9 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
             result_table_ids.append(_index.rsplit("_", maxsplit=1)[0])
         index = ",".join(new_index_list)
 
-        params = {
-            "prefer_storage": "es",
-            "sql": json.dumps({"index": index, "mapping": True}),
-        }
-
-        if self.bkdata_authentication_method:
-            params["bkdata_authentication_method"] = self.bkdata_authentication_method
-        if self.bkdata_data_token:
-            params["bkdata_data_token"] = self.bkdata_data_token
-
-        mapping_dict: type_mapping_dict = self._client.query(params)
+        mapping_dict: type_mapping_dict = self._query_bkdata(
+            json.dumps({"index": index, "mapping": True}), extra_params=extra_params, request_cookies=request_cookies
+        )
         result_dict: dict = mapping_dict.get("list", {})
         data = self.filter_mapping(index_list, result_dict) if not has_wildcard else result_dict
         if add_settings_details:

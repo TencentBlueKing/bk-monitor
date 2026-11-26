@@ -13,7 +13,7 @@ from apps.grafana.data_source import (
 from apps.log_search.models import Scenario
 
 
-class TestESBodyAdapterAndCustomDataSource(TestCase):
+class TestCustomESDataSource(TestCase):
     def test_custom_es_datasource_query_routing(self):
         mock_query_client = MagicMock()
         mock_query_client.query.return_value = {"hits": {"total": 1, "hits": []}}
@@ -64,6 +64,7 @@ class TestESBodyAdapterAndCustomDataSource(TestCase):
             sent_body = mock_query_client.query.call_args.kwargs["body"]
             self.assertEqual(sent_body["aggs"]["hist"]["date_histogram"]["fixed_interval"], "5m")
 
+        mock_query_client.reset_mock()
         fake_bkdata_index_set = MagicMock(
             index_set_id=12,
             storage_cluster_id=-1,
@@ -72,19 +73,23 @@ class TestESBodyAdapterAndCustomDataSource(TestCase):
         )
         with (
             patch("apps.grafana.data_source.LogIndexSet") as mock_model,
-            patch("apps.grafana.data_source.update_bkdata_auth_info"),
-            patch("apps.grafana.data_source.BkDataQueryApi.query", return_value={"list": []}) as mock_bkdata_query,
-            patch("apps.grafana.data_source.QueryClientBkData.get_es_version", return_value=None),
+            patch("apps.grafana.data_source.update_bkdata_auth_info") as update_auth,
+            patch("apps.grafana.data_source.QueryClient") as mock_client_cls,
         ):
             mock_model.objects.filter.return_value.first.return_value = fake_bkdata_index_set
+            mock_client_cls.return_value.get_instance.return_value = mock_query_client
 
             ds_bkdata = BkDataCustomESDataSource(index_set_id=12)
             ds_bkdata.query(copy.deepcopy(body))
-            sent_sql = json.loads(mock_bkdata_query.call_args.args[0]["sql"])
-            self.assertEqual(sent_sql["body"]["aggs"]["hist"]["date_histogram"]["interval"], "5m")
-            self.assertNotIn("fixed_interval", sent_sql["body"]["aggs"]["hist"]["date_histogram"])
+            mock_query_client.query.assert_called_once_with(
+                index="2_bklog_bkdata_*", body=body, extra_params={"no_request": True}, request_cookies=False
+            )
+            update_auth.assert_called_once()
 
-    def test_bkdata_query_uses_version_adapter_and_preserves_grafana_authentication(self):
+    def test_bkdata_query_uses_client_and_preserves_grafana_authentication(self):
+        def fill_auth(params):
+            params.update({"bkdata_authentication_method": "token", "bkdata_data_token": "grafana-token"})
+
         body = {
             "aggs": {
                 "hist": {"date_histogram": {"field": "ts", "fixed_interval": "1d"}},
@@ -102,8 +107,10 @@ class TestESBodyAdapterAndCustomDataSource(TestCase):
             with (
                 self.subTest(version=version),
                 patch("apps.grafana.data_source.LogIndexSet") as model,
-                patch("apps.grafana.data_source.update_bkdata_auth_info") as update_auth,
-                patch("apps.grafana.data_source.BkDataQueryApi.query", return_value={"list": {}}) as query,
+                patch("apps.grafana.data_source.update_bkdata_auth_info", side_effect=fill_auth) as update_auth,
+                patch(
+                    "apps.log_esquery.esquery.client.QueryClientBkData.BkDataQueryApi.query", return_value={"list": {}}
+                ) as query,
                 patch("apps.grafana.data_source.QueryClientBkData.get_es_version", return_value=version) as get_version,
             ):
                 model.objects.filter.return_value.first.return_value = index_set
@@ -112,12 +119,14 @@ class TestESBodyAdapterAndCustomDataSource(TestCase):
                 get_version.assert_called_once_with("2_first_*,2_second_*")
                 sql = json.loads(query.call_args.args[0]["sql"])
                 self.assertEqual(sql["index"], "2_first_*,2_second_*")
-                histogram_key = "fixed_interval" if version in ("8.19.19", "9.4.3") else "interval"
-                order_key = "_key" if version in ("8.19.19", "9.4.3") else "_term"
+                histogram_key = "interval" if version == "5.6.16" else "fixed_interval"
+                order_key = "_term" if version == "5.6.16" else "_key"
                 self.assertEqual(sql["body"]["aggs"]["hist"]["date_histogram"], {"field": "ts", histogram_key: "1d"})
                 self.assertEqual(sql["body"]["aggs"]["group"]["terms"]["order"], {order_key: "asc"})
                 self.assertEqual(body, original)
                 self.assertTrue(query.call_args.args[0]["no_request"])
+                self.assertEqual(query.call_args.args[0]["bkdata_authentication_method"], "token")
+                self.assertEqual(query.call_args.args[0]["bkdata_data_token"], "grafana-token")
                 self.assertFalse(query.call_args.kwargs["request_cookies"])
                 update_auth.assert_called_once()
 
@@ -128,3 +137,26 @@ class TestESBodyAdapterAndCustomDataSource(TestCase):
                 self.assertEqual(
                     json.loads(query.call_args.args[0]["sql"]), {"index": "2_first_*,2_second_*", "mapping": True}
                 )
+                self.assertTrue(query.call_args.args[0]["no_request"])
+                self.assertEqual(query.call_args.args[0]["bkdata_data_token"], "grafana-token")
+                self.assertFalse(query.call_args.kwargs["request_cookies"])
+
+    def test_bkdata_mapping_uses_client(self):
+        index_set = MagicMock(
+            index_set_id=12,
+            storage_cluster_id=-1,
+            scenario_id=Scenario.BKDATA,
+            indexes=[{"result_table_id": "2_first"}],
+        )
+        with (
+            patch("apps.grafana.data_source.LogIndexSet") as model,
+            patch("apps.grafana.data_source.update_bkdata_auth_info"),
+            patch("apps.grafana.data_source.QueryClient") as client_cls,
+        ):
+            model.objects.filter.return_value.first.return_value = index_set
+            client = client_cls.return_value.get_instance.return_value
+            client.mapping.return_value = {}
+            self.assertEqual(BkDataCustomESDataSource(index_set_id=12).mapping(), {})
+            client.mapping.assert_called_once_with(
+                index="2_first_*", extra_params={"no_request": True}, request_cookies=False
+            )
