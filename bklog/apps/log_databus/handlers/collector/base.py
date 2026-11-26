@@ -1247,7 +1247,7 @@ class CollectorHandler:
             name = entry["metadata"]["name"]
             spec = entry["spec"]
             namespace_biz_id = spec.get("bk_biz_id", spec.get("bkBizId"))
-            if namespace_biz_id == bk_biz_id and name not in ("bkmonitor", "bklog"):
+            if namespace_biz_id == bk_biz_id:
                 business_namespaces[name] = {"alias": spec.get("alias"), "bk_biz_id": namespace_biz_id}
         return business_namespaces
 

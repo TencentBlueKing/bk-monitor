@@ -35,8 +35,6 @@ class CollectorNamespaceTests(SimpleTestCase):
             {"metadata": {"name": "foreign"}, "spec": {"bkBizId": 3}},
             {"metadata": {"name": "unbound"}, "spec": {"bk_biz_id": None}},
             {"metadata": {"name": "default_2"}, "spec": {}},
-            {"metadata": {"name": "bklog"}, "spec": {"bk_biz_id": 2}},
-            {"metadata": {"name": "bkmonitor"}, "spec": {"bkBizId": 2}},
         ]
         self.metadata = self.enterContext(mock.patch.object(base, "TransferApi"))
 
@@ -82,7 +80,7 @@ class CollectorNamespaceTests(SimpleTestCase):
         self.list_projects.assert_called_once_with({"tenant": "example"}, bk_tenant_id="example")
 
     def test_post_rejects_names_outside_the_business_namespace_list(self):
-        for name in ("foreign", "unbound", "default_2", "missing", "bklog", "bkmonitor"):
+        for name in ("foreign", "unbound", "default_2", "missing"):
             with self.subTest(name=name), self.assertRaises(ValidationError):
                 self.handler.authorize_namespace(name)
         self.metadata.apply_data_source.assert_not_called()
@@ -94,6 +92,27 @@ class CollectorNamespaceTests(SimpleTestCase):
                 self.metadata.apply_data_source.assert_called_with(
                     {"bk_data_id": 123, "target_namespace": name}, bk_tenant_id="example", request_cookies=False
                 )
+
+    def test_bklog_and_bkmonitor_follow_business_scope(self):
+        self.list_projects.return_value = [
+            {"metadata": {"name": "bklog"}, "spec": {"bk_biz_id": 2}},
+            {"metadata": {"name": "bkmonitor"}, "spec": {"bkBizId": 2}},
+        ]
+        names = ["bklog", "bkmonitor"]
+        self.assertEqual([row["name"] for row in self.handler.list_authorized_namespaces()], names)
+        for name in names:
+            self.handler.authorize_namespace(name)
+            self.metadata.apply_data_source.assert_called_with(
+                {"bk_data_id": 123, "target_namespace": name}, bk_tenant_id="example", request_cookies=False
+            )
+
+        self.handler.data.bk_biz_id = 3
+        self.metadata.apply_data_source.reset_mock()
+        self.assertEqual(self.handler.list_authorized_namespaces(), [])
+        for name in names:
+            with self.subTest(name=name), self.assertRaises(ValidationError):
+                self.handler.authorize_namespace(name)
+        self.metadata.apply_data_source.assert_not_called()
 
     def test_post_rechecks_business_after_listing(self):
         self.assertIn("orders", [row["name"] for row in self.handler.list_authorized_namespaces()])
