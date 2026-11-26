@@ -1213,32 +1213,52 @@ def test_standard_v2_compose_prefers_existing_databus_when_data_id_config_missin
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_register_to_bkbase_generates_name_when_data_id_config_missing(create_or_delete_records, mocker):
+@pytest.mark.parametrize(
+    ("data_name", "description", "expected_alias"),
+    [
+        ('指标 "请求数"', "按路径\n聚合", '指标 "请求数"'),
+        ("x", "", None),
+        ("指" * 128, "述" * 300, "指" * 100),
+    ],
+)
+def test_register_to_bkbase_generates_name_when_data_id_config_missing(
+    create_or_delete_records, mocker, settings, data_name, description, expected_alias
+):
     """DataSource 注册阶段允许在 DataIdConfig 缺失时生成并保存随机名称。"""
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
     ds = models.DataSource.objects.get(bk_data_id=50010)
+    ds.data_name = data_name
+    ds.data_description = description
     models.DataIdConfig.objects.filter(
         bk_tenant_id=ds.bk_tenant_id,
         namespace="bkmonitor",
         bk_data_id=ds.bk_data_id,
     ).delete()
-    mocker.patch.object(models.DataIdConfig, "compose_predefined_config", return_value={"kind": "DataId"})
-    mocker.patch.object(models.DataIdConfig, "compose_data_source_config", return_value={"kind": "DataSource"})
+    mocker.patch.object(models.DataSource, "mq_config", SimpleNamespace(topic="raw_metrics"))
+    mocker.patch.object(models.DataSource, "mq_cluster", SimpleNamespace(cluster_name="kafka1"))
     apply_mock = mocker.patch("metadata.models.data_source.api.bkdata.apply_data_link")
 
     ds.register_to_bkbase(bk_biz_id=1001, namespace="bkmonitor")
 
-    generated_name = models.DataIdConfig.objects.get(bk_tenant_id=ds.bk_tenant_id, bk_data_id=ds.bk_data_id).name
-    assert generated_name.startswith(f"bkm_did_{ds.bk_data_id}_")
-    assert models.DataIdConfig.objects.filter(
+    generated_name = models.DataIdConfig.objects.get(
         bk_tenant_id=ds.bk_tenant_id,
         namespace="bkmonitor",
         bk_data_id=ds.bk_data_id,
-        name=generated_name,
-    ).exists()
-    assert apply_mock.call_count == 2
-    data_id_call, data_source_call = apply_mock.call_args_list
-    assert data_id_call.kwargs == {"config": [{"kind": "DataId"}], "bk_tenant_id": ds.bk_tenant_id}
-    assert data_source_call.kwargs == {"config": [{"kind": "DataSource"}], "bk_tenant_id": ds.bk_tenant_id}
+    ).name
+    assert generated_name.startswith(f"bkm_did_{ds.bk_data_id}_")
+    apply_mock.assert_called_once()
+    (data_id,) = apply_mock.call_args.kwargs["config"]
+    assert apply_mock.call_args.kwargs["bk_tenant_id"] == ds.bk_tenant_id
+    assert data_id["kind"] == "DataId"
+    assert data_id["metadata"]["name"] == generated_name
+    assert data_id["spec"]["alias"] == expected_alias
+    assert data_id["spec"]["description"] == (description[:256] or generated_name)
+    assert data_id["spec"]["predefined"] == {
+        "dataId": ds.bk_data_id,
+        "channel": {"kind": "KafkaChannel", "namespace": "bkmonitor", "tenant": ds.bk_tenant_id, "name": "kafka1"},
+        "topic": "raw_metrics",
+    }
 
 
 @pytest.mark.django_db(databases="__all__")

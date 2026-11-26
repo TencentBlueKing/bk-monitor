@@ -9,14 +9,12 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
-import datetime
 import json
 import logging
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 
 from django.conf import settings
 from django.db import models
-from django.utils import timezone
 from typing_extensions import deprecated
 
 from bkmonitor.utils.db.fields import SymmetricJsonField
@@ -27,14 +25,6 @@ from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG, BKBASE_
 from metadata.models.space.constants import LOG_EVENT_ETL_CONFIGS
 
 logger = logging.getLogger("metadata")
-
-
-def _format_data_source_datetime(value: datetime.datetime | str) -> str:
-    if isinstance(value, str):
-        return value
-    if timezone.is_aware(value):
-        value = timezone.localtime(value)
-    return value.strftime("%Y-%m-%d %H:%M:%S")
 
 
 if TYPE_CHECKING:
@@ -134,176 +124,48 @@ class DataIdConfig(DataLinkResourceConfigBase):
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
 
-    def compose_data_source_config(
-        self,
-        data_source_alias: str | None = None,
-        description: str | None = None,
-        created_by: str | None = None,
-        created_at: datetime.datetime | str | None = None,
-        updated_by: str | None = None,
-        updated_at: datetime.datetime | str | None = None,
-    ) -> dict[str, Any]:
-        """组装引用当前 DataId 的 BKBase DataSource 资源配置。"""
-        default_operator = settings.BK_DATA_PROJECT_MAINTAINER.split(",")[0]
-        default_time = timezone.now()
-        created_at = created_at or self.create_time or default_time
-        updated_at = updated_at or self.last_modify_time or default_time
-        basic_info = {
-            "data_source_name": self.name,
-            "data_source_alias": self.name if data_source_alias is None else data_source_alias,
-            "data_encoding": "UTF-8",
-            "bk_biz_id": self.datalink_biz_ids.data_biz_id,
-            "time_zone": settings.TIME_ZONE,
-            "tags": [],
-            "description": self.name if description is None else description,
-            "access_channel": "bkbase",
-            "access_channel_alias": "计算平台",
-        }
-        data_id = {
-            "kind": DataLinkKind.DATAID.value,
-            "namespace": self.namespace,
-            "name": self.name,
-        }
-        metadata = {
-            "namespace": self.namespace,
-            "name": self.name,
-            "labels": {},
-        }
-        if self.bk_data_id > 0:
-            metadata["labels"]["raw_data_id"] = str(self.bk_data_id)
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            metadata["tenant"] = self.bk_tenant_id
-            data_id["tenant"] = self.bk_tenant_id
-
-        return {
-            "kind": "DataSource",
-            "metadata": metadata,
-            "spec": {
-                "basic_info": basic_info,
-                "report_config": {"type": "custom"},
-                "data_id": data_id,
-                "data_conn": None,
-                "created_by": created_by or default_operator,
-                "created_at": _format_data_source_datetime(created_at),
-                "updated_by": updated_by or default_operator,
-                "updated_at": _format_data_source_datetime(updated_at),
-                "desired_status": "Running",
-            },
-        }
-
     def compose_predefined_config(self, data_source: "DataSource") -> dict[str, Any]:
-        """
-        组装预定义数据源配置
-        """
-        tpl = """
-        {
-            "kind": "DataId",
-            "metadata": {
-                "name": "{{name}}",
-                {% if tenant %}
-                "tenant": "{{ tenant }}",
-                {% endif %}
-                "namespace": "{{namespace}}",
-                "labels": {"bk_biz_id": "{{bk_biz_id}}"}
-            },
-            "spec": {
-                "alias": "{{name}}",
-                "bizId": {{monitor_biz_id}},
-                "description": "{{name}}",
-                "maintainers": {{maintainers}},
-                "predefined": {
-                    "dataId": {{bk_data_id}},
-                    "channel": {
-                        "kind": "KafkaChannel",
-                        {% if tenant %}
-                        "tenant": "{{ tenant }}",
-                        {% endif %}
-                        "namespace": "{{namespace}}",
-                        "name": "{{kafka_name}}"
-                    },
-                    "topic": "{{topic_name}}"
-                },
-                "eventType": "{{event_type}}"
-            }
-        }
-        """
-        maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
-
-        render_params = {
-            "name": self.name,
-            "namespace": self.namespace,
-            "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
-            "monitor_biz_id": self.datalink_biz_ids.data_biz_id,  # 接入者的业务ID
-            "bk_data_id": data_source.bk_data_id,
-            "topic_name": data_source.mq_config.topic,
-            "kafka_name": data_source.mq_cluster.cluster_name,
-            "maintainers": json.dumps(maintainer),
-            "event_type": "log" if data_source.etl_config in LOG_EVENT_ETL_CONFIGS else "metric",
-        }
-
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            render_params["tenant"] = self.bk_tenant_id
-
-        return utils.compose_config(
-            tpl=tpl,
-            render_params=render_params,
-            err_msg_prefix="compose predefined data_id config",
+        """按监控已有的 Data ID、Kafka 通道和 topic 注册 DataId。"""
+        config = self.compose_config(
+            event_type="log" if data_source.etl_config in LOG_EVENT_ETL_CONFIGS else "metric",
+            alias=data_source.data_name,
         )
-
-    def compose_config(self, event_type: str = "metric", prefer_kafka_cluster_name: str | None = None) -> dict:
-        """
-        数据源下发计算平台的资源配置
-        """
-        tpl = """
-            {
-                "kind": "DataId",
-                "metadata": {
-                    "name": "{{name}}",
-                    "namespace": "{{namespace}}",
-                    {% if tenant %}
-                    "tenant": "{{ tenant }}",
-                    {% endif %}
-                    "labels": {"bk_biz_id": "{{bk_biz_id}}"}
-                },
-                "spec": {
-                    "alias": "{{name}}",
-                    "bizId": {{monitor_biz_id}},
-                    "description": "{{name}}",
-                    "maintainers": {{maintainers}},
-                    {% if prefer_kafka_cluster_name %}
-                    "preferCluster": {
-                        "kind": "KafkaChannel",
-                        {% if tenant %}
-                        "tenant": "{{ tenant }}",
-                        {% endif %}
-                        "namespace": "{{namespace}}",
-                        "name": "{{prefer_kafka_cluster_name}}"
-                    },
-                    {% endif %}
-                    "eventType": "{{event_type}}"
-                }
-            }
-            """
-        maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
-        render_params = {
-            "name": self.name,
-            "namespace": self.namespace,
-            "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
-            "monitor_biz_id": self.datalink_biz_ids.data_biz_id,  # 接入者的业务ID
-            "maintainers": json.dumps(maintainer),
-            "event_type": event_type,
-            "prefer_kafka_cluster_name": prefer_kafka_cluster_name,
-        }
-
-        # 现阶段仅在多租户模式下添加tenant字段
+        channel = {"kind": "KafkaChannel", "namespace": self.namespace, "name": data_source.mq_cluster.cluster_name}
         if settings.ENABLE_MULTI_TENANT_MODE:
-            render_params["tenant"] = self.bk_tenant_id
+            channel["tenant"] = self.bk_tenant_id
+        # BKBase DataId 的描述最多 256 个字符。
+        config["spec"]["description"] = (data_source.data_description or self.name)[:256]
+        config["spec"]["predefined"] = {
+            "dataId": data_source.bk_data_id,
+            "channel": channel,
+            "topic": data_source.mq_config.topic,
+        }
+        return config
 
-        return utils.compose_config(
-            tpl=tpl,
-            render_params=render_params,
-            err_msg_prefix="compose data_id config",
-        )
+    def compose_config(
+        self, event_type: str = "metric", prefer_kafka_cluster_name: str | None = None, *, alias: str | None = None
+    ) -> dict[str, Any]:
+        """组装 BKBase DataId 配置，供控制器派生同名 DataSource。"""
+        scope = {"namespace": self.namespace}
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            scope["tenant"] = self.bk_tenant_id
+        biz_ids = self.datalink_biz_ids
+        display_name = alias or self.name
+        spec = {
+            # BKBase DataId 的别名接受 2 到 100 个字符，未提供时由 BKBase 展示资源名。
+            "alias": display_name[:100] if len(display_name) >= 2 else None,
+            "bizId": biz_ids.data_biz_id,
+            "description": self.name,
+            "maintainers": settings.BK_DATA_PROJECT_MAINTAINER.split(","),
+            "eventType": event_type,
+        }
+        if prefer_kafka_cluster_name:
+            spec["preferCluster"] = {"kind": "KafkaChannel", **scope, "name": prefer_kafka_cluster_name}
+        return {
+            "kind": DataLinkKind.DATAID.value,
+            "metadata": {"name": self.name, **scope, "labels": {"bk_biz_id": str(biz_ids.label_biz_id)}},
+            "spec": spec,
+        }
 
 
 class ResultTableConfig(DataLinkResourceConfigBase):

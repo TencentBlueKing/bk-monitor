@@ -422,7 +422,6 @@ class DataSource(models.Model):
 
         from metadata.models.data_link import DataIdConfig, utils
         from metadata.models.data_link.constants import DataLinkNameScene
-        from metadata.models.data_link.service import apply_data_source_config
 
         # 名称先落库再下发；远端失败及并发注册都复用同一资源。
         with atomic(config.DATABASE_CONNECTION_NAME):
@@ -451,16 +450,7 @@ class DataSource(models.Model):
         # 下发发生在名称提交之后；即使 BKBase 请求失败，下次注册仍使用这条登记记录。
         logger.info("register_to_bkbase: bkbase_data_name: %s", data_id_config_ins.name)
         data_id_config = data_id_config_ins.compose_predefined_config(data_source=self)
-        data_source_config = data_id_config_ins.compose_data_source_config(
-            data_source_alias=self.data_name,
-            description=self.data_description,
-            created_by=self.creator,
-            created_at=self.create_time,
-            updated_by=self.last_modify_user,
-            updated_at=self.last_modify_time,
-        )
         api.bkdata.apply_data_link(config=[data_id_config], bk_tenant_id=self.bk_tenant_id)
-        apply_data_source_config(bk_tenant_id=self.bk_tenant_id, data_source_config=data_source_config)
 
         # 更新数据源的创建来源
         self.created_from = DataIdCreatedFromSystem.BKDATA.value
