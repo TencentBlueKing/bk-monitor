@@ -149,3 +149,137 @@ test('Trace observer leaves host overlay layers intact and assigns embedded mess
   assert.equal(hostPopup.style.zIndex, undefined);
   assert.ok(Number(log.style.zIndex) >= Z_INDEX_LAYERS.MESSAGE);
 });
+
+test('global overlay watcher manages dialog, drawer, popup reopens, stacked dialogs, messages and raw tippy', () => {
+  class MockElement {
+    constructor(classes = [], attrs = {}) {
+      this._classes = new Set(classes);
+      this._attrs = { ...attrs };
+      this._props = new Map();
+      this.style = {
+        display: '',
+        visibility: '',
+        zIndex: '',
+        setProperty: (k, v) => this._props.set(k, v),
+        getPropertyValue: k => this._props.get(k) ?? '',
+      };
+      this.classList = {
+        contains: name => this._classes.has(name),
+        add: name => this._classes.add(name),
+        remove: name => this._classes.delete(name),
+      };
+    }
+    hasAttribute(name) { return Object.prototype.hasOwnProperty.call(this._attrs, name); }
+    matches(selector) {
+      return selector.split(',').map(s => s.trim()).some(part => {
+        if (part.startsWith('.')) return this._classes.has(part.slice(1));
+        if (part === '[data-tippy-root]') return this.hasAttribute('data-tippy-root');
+        return false;
+      });
+    }
+    closest(selector) { return this.matches(selector) ? this : null; }
+  }
+
+  let notify;
+  let observedOptions;
+  const win = {
+    Element: MockElement,
+    MutationObserver: class {
+      constructor(callback) { notify = callback; }
+      observe(_target, options) { observedOptions = options; }
+    },
+    document: {
+      body: {},
+      documentElement: { style: { setProperty: () => {} } },
+      querySelectorAll: () => [],
+    },
+  };
+  const manager = installZIndexManager(win);
+  assert.equal(observedOptions.attributes, true);
+  assert.deepEqual(observedOptions.attributeFilter, ['style', 'class']);
+
+  // Case 1: unmanaged Dialog mounted hidden, then opened; Select popup inside it must sit ABOVE the Dialog.
+  const dialog1 = new MockElement(['t-dialog__ctx', 't-dialog__ctx--fixed']);
+  dialog1.style.display = 'none';
+  notify([{ type: 'childList', addedNodes: [dialog1] }]);
+  assert.equal(dialog1.style.getPropertyValue('--bklog-el-z'), '');
+
+  dialog1.style.display = '';
+  notify([{ type: 'attributes', target: dialog1 }]);
+  const dialog1Z = Number(dialog1.style.getPropertyValue('--bklog-el-z'));
+  assert.ok(dialog1Z > Z_INDEX_LAYERS.DIALOG);
+
+  const selectPopup = new MockElement(['t-popup']);
+  notify([{ type: 'childList', addedNodes: [selectPopup] }]);
+  const popupZ1 = Number(selectPopup.style.getPropertyValue('--bklog-el-z'));
+  assert.ok(popupZ1 > dialog1Z);
+
+  // Case 3 & 4: explicit parent Dialog (e.g. 全局设置 / 收藏管理) -> unmanaged child Dialog (AuthDialog / DialogPlugin) sits ABOVE it.
+  const parentDialog = new MockElement(['t-dialog__ctx', 't-dialog__ctx--fixed']);
+  parentDialog.style.zIndex = String(manager.nextLayerZIndex('DIALOG'));
+  notify([{ type: 'childList', addedNodes: [parentDialog] }]);
+  const childDialog = new MockElement(['t-dialog__ctx', 't-dialog__ctx--fixed']);
+  notify([{ type: 'childList', addedNodes: [childDialog] }]);
+  const childDialogZ = Number(childDialog.style.getPropertyValue('--bklog-el-z'));
+  assert.ok(childDialogZ > Number(parentDialog.style.zIndex));
+
+  // Reopening an existing cached .t-popup (destroyOnClose=false) must climb above the newest Dialog.
+  selectPopup.style.display = 'none';
+  notify([{ type: 'attributes', target: selectPopup }]);
+  selectPopup.style.display = '';
+  notify([{ type: 'attributes', target: selectPopup }]);
+  const popupZ2 = Number(selectPopup.style.getPropertyValue('--bklog-el-z'));
+  assert.ok(popupZ2 > childDialogZ);
+
+  // Drawer open class transition allocates above the current stack.
+  const drawer = new MockElement(['t-drawer', 't-drawer--right']);
+  notify([{ type: 'childList', addedNodes: [drawer] }]);
+  assert.equal(drawer.style.getPropertyValue('--bklog-el-z'), '');
+  drawer.classList.add('t-drawer--open');
+  notify([{ type: 'attributes', target: drawer }]);
+  const drawerZ = Number(drawer.style.getPropertyValue('--bklog-el-z'));
+  assert.ok(drawerZ > popupZ2);
+
+  // Reused .t-message__list bumps z-index whenever a new message child is appended.
+  const msgList = new MockElement(['t-message__list']);
+  notify([{ type: 'childList', addedNodes: [msgList] }]);
+  const msgZ1 = Number(msgList.style.zIndex);
+  assert.ok(msgZ1 > Z_INDEX_LAYERS.MESSAGE);
+  const msgItem = new MockElement(['t-message']);
+  notify([{ type: 'childList', target: msgList, addedNodes: [msgItem] }]);
+  const msgZ2 = Number(msgList.style.zIndex);
+  assert.ok(msgZ2 > msgZ1);
+
+  // Raw tippy default 9999 is clamped into the managed stack below MESSAGE.
+  const rawTippy = new MockElement([], { 'data-tippy-root': '' });
+  rawTippy.style.zIndex = '9999';
+  notify([{ type: 'childList', addedNodes: [rawTippy] }]);
+  const tippyZ = Number(rawTippy.style.zIndex);
+  assert.ok(tippyZ > drawerZ && tippyZ < Z_INDEX_LAYERS.MESSAGE);
+});
+
+test('OverlayRegistry respects DIALOG and DRAWER floors and scene-filter active field clears sticky search bar', () => {
+  const previousWindow = globalThis.window;
+  try {
+    globalThis.window = {};
+    const registry = new OverlayRegistry();
+    const drawerRecord = registry.open('test-drawer', { type: 'slider' });
+    assert.ok(drawerRecord.zIndex > Z_INDEX_LAYERS.DRAWER);
+    const dialogRecord = registry.open('test-dialog', { type: 'dialog' });
+    assert.ok(dialogRecord.zIndex > Z_INDEX_LAYERS.DIALOG);
+  } finally {
+    if (previousWindow === undefined) delete globalThis.window;
+    else globalThis.window = previousWindow;
+  }
+
+  const overlayCss = readFileSync(new URL('../src/shared/styles/theme/overlay.scss', import.meta.url), 'utf8');
+  assert.match(overlayCss, /var\(--bklog-el-z,\s*var\(--bklog-z-popup\)\)/);
+  assert.match(overlayCss, /var\(--bklog-el-z,\s*var\(--bklog-z-dialog\)\)/);
+  assert.match(overlayCss, /var\(--bklog-el-z,\s*var\(--bklog-z-drawer\)\)/);
+
+  const sceneFilterCss = readFileSync(
+    new URL('../src/features/retrieval/workspace/search-bar/scene-filter/filter-panel.scss', import.meta.url),
+    'utf8',
+  );
+  assert.match(sceneFilterCss, /&\.is-active\s*\{[\s\S]*z-index:\s*var\(--bklog-z-float\)/);
+});

@@ -106,8 +106,8 @@
             }
 
             .principal-tag-input {
-              .bk-tag-input {
-                background: #f5f7fa;
+              > .t-input:not(.t-input--focused, :focus-within) {
+                background: var(--bklog-surface-hover, #f5f7fa);
               }
             }
 
@@ -279,15 +279,20 @@
             }
 
             .principal-tag-input {
-              .bk-tag-input {
+              > .t-input {
                 border-color: transparent;
+                background: transparent;
+                box-shadow: none;
 
-                &:hover {
-                  background: #eaebf0;
+                &:not(.t-input--focused, :focus-within):hover {
+                  border-color: transparent;
+                  background: var(--bklog-surface-component-hover, #eaebf0);
                 }
-                &.active {
-                  border-color: #3a84ff;
-                  background: #fff;
+
+                &.t-input--focused,
+                &:focus-within {
+                  border-color: var(--bklog-brand-primary, #3a84ff);
+                  background: var(--bklog-surface, #fff);
                 }
               }
             }

@@ -22,25 +22,28 @@
   --bklog-z-dialog: 3000;
   --bklog-z-message: 5000;
   --bklog-z-message-current: 5000;
+  // 元素级动态层号，由 z-index-manager 按打开顺序写入具体浮层元素，未设置时走 guaranteed-invalid 回退。
+  --bklog-el-z: initial;
 }
 
 // TDesign 默认 popup 5500、dialog 2500、drawer 1500、message 6000，改走同一套变量。
-// 内联 z-index（管理器分配）优先于这里的样式。
+// 优先级：组件显式内联 style="z-index: N" > watcher 写入的元素级 --bklog-el-z > 全局分层兜底变量。
 body .t-popup {
-  z-index: var(--bklog-z-popup);
+  z-index: var(--bklog-el-z, var(--bklog-z-popup));
 }
 
 body .t-drawer {
-  z-index: var(--bklog-z-drawer);
+  z-index: var(--bklog-el-z, var(--bklog-z-drawer));
 }
 
-body .t-dialog__ctx.t-dialog__ctx--fixed {
-  z-index: var(--bklog-z-dialog);
+body .t-dialog__ctx.t-dialog__ctx--fixed,
+body .t-dialog__ctx.t-dialog__ctx--modeless {
+  z-index: var(--bklog-el-z, var(--bklog-z-dialog));
 }
 
 body .t-message__list,
 body .t-notification {
-  z-index: var(--bklog-z-message-current);
+  z-index: var(--bklog-el-z, var(--bklog-z-message-current));
 }
 
 // bk-exception 的 scene 只决定尺寸。文案放在标题里，避免再渲染 scene 字符串。

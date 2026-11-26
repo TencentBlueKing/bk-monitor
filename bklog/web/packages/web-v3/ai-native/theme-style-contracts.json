@@ -389,10 +389,28 @@
       "pendingNormalization": 0
     },
     {
+      "file": "features/charts/components/grade-option.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-form__item"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 0,
+      "contextualDeclarations": 1,
+      "localVisualProperties": [],
+      "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
       "file": "features/charts/components/grade-option.tsx",
       "owner": "business-context",
       "inline": {
-        "nativeStyleSites": 3,
+        "nativeStyleSites": 2,
         "dynamicStyleSites": 0,
         "pendingInlineNormalization": 0
       },
@@ -760,6 +778,34 @@
       "pendingNormalization": 0
     },
     {
+      "file": "features/client-logs/search/log-detail-panel/toolbar/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input",
+        ".t-input__inner",
+        ".t-tag",
+        ".t-tag--default",
+        ".t-tag--disabled",
+        ".t-tag__icon-close"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 9,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [
+        "background",
+        "background-color",
+        "border",
+        "border-radius"
+      ],
+      "localVisualDeclarations": 10,
+      "pendingNormalization": 0
+    },
+    {
       "file": "features/client-logs/search/task-list-panel/index.scss",
       "owner": "business-context",
       "inline": {
@@ -1015,9 +1061,11 @@
         "dynamicStyleSites": 0,
         "pendingInlineNormalization": 0
       },
-      "componentClasses": [],
+      "componentClasses": [
+        ".t-input"
+      ],
       "sharedContracts": [],
-      "semanticDeclarations": 0,
+      "semanticDeclarations": 1,
       "contextualDeclarations": 0,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
@@ -1088,10 +1136,12 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
+        ".t-input",
+        ".t-input--focused",
         ".t-input__inner"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 1,
+      "semanticDeclarations": 4,
       "contextualDeclarations": 4,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
@@ -1179,12 +1229,15 @@
       },
       "componentClasses": [
         ".t-button",
+        ".t-input",
+        ".t-input--focused",
         ".t-input__inner",
-        ".t-input__wrap"
+        ".t-input__wrap",
+        ".t-tag-input"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 2,
-      "contextualDeclarations": 7,
+      "semanticDeclarations": 3,
+      "contextualDeclarations": 9,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
       "pendingNormalization": 0
@@ -1355,7 +1408,7 @@
         ".t-input__suffix"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 1,
+      "semanticDeclarations": 2,
       "contextualDeclarations": 5,
       "localVisualProperties": [
         "border-radius"
@@ -1390,13 +1443,15 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
+        ".t-input",
+        ".t-input--focused",
         ".t-input__inner"
       ],
       "sharedContracts": [
         "join-next",
         "join-previous"
       ],
-      "semanticDeclarations": 0,
+      "semanticDeclarations": 1,
       "contextualDeclarations": 0,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
@@ -2180,16 +2235,19 @@
       },
       "componentClasses": [
         ".t-input",
+        ".t-input--focused",
         ".t-input__inner",
         ".t-input__suffix",
         ".t-input__wrap",
         ".t-popup__content",
-        ".t-select-input"
+        ".t-select-input",
+        ".t-select__wrap",
+        ".t-tag-input"
       ],
       "sharedContracts": [
         "filter-operator"
       ],
-      "semanticDeclarations": 0,
+      "semanticDeclarations": 2,
       "contextualDeclarations": 7,
       "localVisualProperties": [
         "background",
@@ -3567,12 +3625,13 @@
         ".t-size-s"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 4,
-      "contextualDeclarations": 21,
+      "semanticDeclarations": 6,
+      "contextualDeclarations": 22,
       "localVisualProperties": [
+        "background",
         "line-height"
       ],
-      "localVisualDeclarations": 3,
+      "localVisualDeclarations": 4,
       "pendingNormalization": 0
     },
     {
@@ -3769,7 +3828,7 @@
         ".t-popup__content"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 3,
+      "semanticDeclarations": 4,
       "contextualDeclarations": 2,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
@@ -4400,12 +4459,16 @@
         "pendingInlineNormalization": 0
       },
       "componentClasses": [
-        ".t-input__wrap"
+        ".t-input",
+        ".t-input--focused",
+        ".t-input__wrap",
+        ".t-select__wrap",
+        ".t-tag-input"
       ],
       "sharedContracts": [
         "filter-operator"
       ],
-      "semanticDeclarations": 0,
+      "semanticDeclarations": 2,
       "contextualDeclarations": 0,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
@@ -4453,12 +4516,20 @@
         "dynamicStyleSites": 0,
         "pendingInlineNormalization": 0
       },
-      "componentClasses": [],
+      "componentClasses": [
+        ".t-input",
+        ".t-input--focused",
+        ".t-tag-input"
+      ],
       "sharedContracts": [],
-      "semanticDeclarations": 0,
+      "semanticDeclarations": 3,
       "contextualDeclarations": 0,
-      "localVisualProperties": [],
-      "localVisualDeclarations": 0,
+      "localVisualProperties": [
+        "background-color",
+        "border-color",
+        "box-shadow"
+      ],
+      "localVisualDeclarations": 4,
       "pendingNormalization": 0
     },
     {
@@ -4909,20 +4980,17 @@
         ".t-input--prefix",
         ".t-input__prefix",
         ".t-loading--full",
-        ".t-select",
         ".t-select__wrap",
         ".t-tag",
-        ".t-tag--text",
-        ".t-tag-input"
+        ".t-tag--text"
       ],
       "sharedContracts": [],
       "semanticDeclarations": 1,
       "contextualDeclarations": 15,
       "localVisualProperties": [
-        "background",
-        "border"
+        "background"
       ],
-      "localVisualDeclarations": 2,
+      "localVisualDeclarations": 1,
       "pendingNormalization": 0
     },
     {
@@ -4957,6 +5025,29 @@
       "contextualDeclarations": 0,
       "localVisualProperties": [],
       "localVisualDeclarations": 0,
+      "pendingNormalization": 0
+    },
+    {
+      "file": "features/retrieval/workspace/search-result/log-clustering/log-table/content-table/index.scss",
+      "owner": "business-context",
+      "inline": {
+        "nativeStyleSites": 0,
+        "dynamicStyleSites": 0,
+        "pendingInlineNormalization": 0
+      },
+      "componentClasses": [
+        ".t-input",
+        ".t-input--focused"
+      ],
+      "sharedContracts": [],
+      "semanticDeclarations": 4,
+      "contextualDeclarations": 0,
+      "localVisualProperties": [
+        "background",
+        "border-color",
+        "box-shadow"
+      ],
+      "localVisualDeclarations": 4,
       "pendingNormalization": 0
     },
     {
@@ -6100,6 +6191,7 @@
         ".t-is-checked",
         ".t-is-current",
         ".t-is-disabled",
+        ".t-is-focus",
         ".t-is-left",
         ".t-is-right",
         ".t-is-top",
@@ -6196,6 +6288,7 @@
         ".t-table__expandable-icon-cell",
         ".t-table__expanded-row",
         ".t-table__filter-icon",
+        ".t-table__filter-icon-wrap",
         ".t-table__filter-pop-content",
         ".t-table__filter-pop-content-inner",
         ".t-table__header",
@@ -6258,7 +6351,7 @@
         ".t-tree__operations"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 416,
+      "semanticDeclarations": 418,
       "contextualDeclarations": 476,
       "localVisualProperties": [
         "background",
@@ -6270,9 +6363,10 @@
         "color",
         "font-family",
         "font-size",
-        "font-weight"
+        "font-weight",
+        "line-height"
       ],
-      "localVisualDeclarations": 63,
+      "localVisualDeclarations": 65,
       "pendingNormalization": 0
     },
     {
@@ -6313,12 +6407,14 @@
         ".t-input-number__increase",
         ".t-input__extra",
         ".t-input__inner",
+        ".t-input__prefix",
         ".t-input__suffix",
         ".t-input__wrap",
         ".t-is--active",
         ".t-is-checked",
         ".t-is-controls-right",
         ".t-is-disabled",
+        ".t-is-empty",
         ".t-is-error",
         ".t-is-focused",
         ".t-is-indeterminate",
@@ -6353,6 +6449,11 @@
         ".t-switch",
         ".t-switch__content",
         ".t-switch__handle",
+        ".t-tag",
+        ".t-tag--default",
+        ".t-tag--disabled",
+        ".t-tag-input",
+        ".t-tag__icon-close",
         ".t-textarea",
         ".t-textarea__info_wrapper_align",
         ".t-textarea__inner",
@@ -6382,15 +6483,15 @@
         ".t-upload__trigger"
       ],
       "sharedContracts": [],
-      "semanticDeclarations": 207,
-      "contextualDeclarations": 164,
+      "semanticDeclarations": 228,
+      "contextualDeclarations": 175,
       "localVisualProperties": [
         "background-color",
         "border",
         "border-color",
         "line-height"
       ],
-      "localVisualDeclarations": 12,
+      "localVisualDeclarations": 13,
       "pendingNormalization": 0
     },
     {

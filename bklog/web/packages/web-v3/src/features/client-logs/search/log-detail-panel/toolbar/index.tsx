@@ -127,16 +127,17 @@ export default defineComponent({
 
     /** 更新 tag-input 组件中的颜色 */
     const initTagInputColor = () => {
-      if (!tagInputRef.value) return;
-      const childEl = tagInputRef.value.$el.querySelectorAll('.key-node');
-      childEl.forEach((child: { querySelectorAll: (arg0: string) => any[]; }) => {
-        const tag = child.querySelectorAll('.tag')[0];
-        const colorObj = colorHighlightList.value.find(item => item.heightKey === tag.innerText);
+      const rootEl = tagInputRef.value?.$el as HTMLElement | undefined;
+      if (!rootEl) return;
+      const tags = rootEl.querySelectorAll<HTMLElement>('.t-tag');
+      tags.forEach(tag => {
+        const textEl = tag.querySelector<HTMLElement>('.t-tag--text');
+        const keyText = (textEl?.innerText || tag.innerText || '').trim();
+        const colorObj = colorHighlightList.value.find(item => item.heightKey === keyText);
         if (colorObj) {
-          [child, tag].forEach(el => {
-            Object.assign(el.style, {
-              backgroundColor: colorObj.color.light,
-            });
+          Object.assign(tag.style, {
+            backgroundColor: colorObj.color.light,
+            color: 'var(--bklog-text-secondary, #63656e)',
           });
         }
       });

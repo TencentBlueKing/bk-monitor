@@ -226,6 +226,7 @@ import {
   Select as TSelect,
   Option as TOption,
 } from 'tdesign-vue-next';
+import { allocateOverlayZIndex } from '@/shared/global/overlay/use-overlay-z-index';
 import { ServicesInstance } from '@/platform/services';
 
 import axios from 'axios';
@@ -567,6 +568,7 @@ export default {
       if (!this.totalCount) {
         const infoDialog = TDesignDialog.alert({
           attach: 'body',
+          zIndex: allocateOverlayZIndex('DIALOG'),
           theme: 'danger',
           header: this.$t('导出失败'),
           body: this.$t('检索结果条数为0'),

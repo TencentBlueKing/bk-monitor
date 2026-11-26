@@ -38,6 +38,8 @@ import {
   showAdvancedMessage,
   type AdvancedMessageOptions,
 } from '@/shared/lib/advanced-message';
+import { overlayRegistry } from '@/shared/global/overlay/overlay-registry.js';
+import { Z_INDEX_LAYERS } from '@/shared/global/overlay/z-index-manager.js';
 import { Button, Checkbox, Dialog, DialogPlugin, Empty, Form, FormItem, Input as TInput, MessagePlugin, Popconfirm, Popup, Select as TSelect, Option as TOption, OptionGroup as TOptionGroup, Tag as TTag, Tabs, TabPanel } from 'tdesign-vue-next';
 
 export { Button, Checkbox, Dialog, Form, Loading };
@@ -312,7 +314,8 @@ function notify(theme: FeedbackTheme, options: FeedbackOptions = {}) {
       actions: options.actions,
     });
   }
-  return MessagePlugin[theme]({ content: contentOf(options), duration });
+  const zIndex = (window as unknown as { __bk_zIndex_manager?: { nextMessageZIndex?: () => number } }).__bk_zIndex_manager?.nextMessageZIndex?.();
+  return MessagePlugin[theme]({ content: contentOf(options), duration, zIndex });
 }
 
 export const Message = Object.assign(
@@ -329,11 +332,19 @@ export function InfoBox(options: Exclude<FeedbackOptions, string> = {}) {
   return DialogPlugin.confirm({
     header: options.title || '',
     body: contentOf(options),
+    zIndex: overlayRegistry.nextZIndex('DIALOG'),
   });
 }
 
 export function $bkPopover(target: Element, options: { content?: string } = {}) {
-  return tippy(target as Element, { content: options.content || '', placement: 'top' });
+  return tippy(target as Element, {
+    content: options.content || '',
+    placement: 'top',
+    zIndex: Z_INDEX_LAYERS.DROPDOWN,
+    onShow(instance) {
+      instance.setProps({ zIndex: overlayRegistry.nextZIndex('DROPDOWN') });
+    },
+  });
 }
 
 const clickoutsideDirective: Directive = {

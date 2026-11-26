@@ -65,20 +65,39 @@
 
             .filter-key-input {
                 flex: 1;
+                min-width: 0;
 
-                .bk-tag-input {
+                > .t-input {
                     border-radius: 0 6px 6px 0;
                     border: 1px solid #464E5C;
                     background: #111214;
-                    color: #4D4F56;
+                    color: var(--bklog-text-disabled, #C4C6CC);
 
-                    .placeholder {
-                        color: #4D4F56;
+                    .t-input__inner {
+                        color: var(--bklog-text-disabled, #C4C6CC);
+                        background: #111214;
+
+                        &::placeholder {
+                            color: var(--bklog-text-strong, #4D4F56);
+                        }
                     }
-                }
 
-                .bk-tag-input.active input {
-                    background: #111214;
+                    .t-tag.t-tag--default:not(.t-tag--disabled) {
+                        color: var(--bklog-text-disabled, #C4C6CC);
+                        background-color: #2B2F36;
+
+                        &:hover {
+                            background-color: #383D47;
+                        }
+
+                        .t-tag__icon-close {
+                            color: var(--bklog-text-placeholder, #979BA5);
+
+                            &:hover {
+                                color: var(--bklog-text-disabled, #C4C6CC);
+                            }
+                        }
+                    }
                 }
             }
 
@@ -113,19 +132,22 @@
 
             .highlight-tag-input {
                 flex: 1;
+                min-width: 0;
 
-                .bk-tag-input {
+                > .t-input {
+                    border-radius: 0;
                     border: 1px solid #464E5C;
                     background: #111214;
-                    color: #4D4F56;
+                    color: var(--bklog-text-disabled, #C4C6CC);
 
-                    .placeholder {
-                        color: #4D4F56;
+                    .t-input__inner {
+                        color: var(--bklog-text-disabled, #C4C6CC);
+                        background: #111214;
+
+                        &::placeholder {
+                            color: var(--bklog-text-strong, #4D4F56);
+                        }
                     }
-                }
-
-                .bk-tag-input.active input {
-                    background: #111214;
                 }
             }
 

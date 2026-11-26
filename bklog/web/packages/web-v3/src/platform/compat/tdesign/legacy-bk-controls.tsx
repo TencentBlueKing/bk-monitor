@@ -405,13 +405,14 @@ const BkSelect = defineComponent({
       placeholder: props.placeholder,
       options: optionNodes(flattenNodes(slots.default?.())),
       popupProps: {
+        ...((attrs.popupProps ?? attrs['popup-props']) as Record<string, unknown> | undefined),
         overlayClassName: props.extPopoverCls || undefined,
         zIndex: popupZIndex.value,
       },
       onChange: publish,
       onClear: () => emit('clear'),
       onPopupVisibleChange: (visible: boolean) => {
-        if (visible) popupZIndex.value = overlayRegistry.nextZIndex();
+        if (visible) popupZIndex.value = overlayRegistry.nextZIndex('DROPDOWN');
         emit('toggle', visible);
       },
     }, {
@@ -544,7 +545,7 @@ const BkDialog = defineComponent({
     watch(
       () => visibleProp(props),
       (visible) => {
-        if (visible) dialogZIndex.value = overlayRegistry.nextZIndex();
+        if (visible) dialogZIndex.value = overlayRegistry.nextZIndex('DIALOG');
       },
       { immediate: true },
     );
@@ -716,7 +717,7 @@ const BkSideslider = defineComponent({
     watch(
       () => props.isShow,
       (visible) => {
-        if (visible) drawerZIndex.value = overlayRegistry.nextZIndex();
+        if (visible) drawerZIndex.value = overlayRegistry.nextZIndex('DRAWER');
         if (drawerReady && visible) emit('shown');
         drawerReady = true;
       },
@@ -871,27 +872,176 @@ const BkSwitch = defineComponent({
 const BkTagInput = defineComponent({
   name: 'bk-tag-input',
   ...mode3,
+  inheritAttrs: false,
   props: {
     value: { type: Array, default: () => [] },
     modelValue: { type: Array, default: undefined },
     placeholder: { type: String, default: '' },
     disabled: { type: Boolean, default: false },
+    clearable: { type: Boolean, default: true },
+    extCls: { type: String, default: '' },
+    hasDeleteIcon: { type: [Boolean, String], default: undefined },
+    maxData: { type: [Number, String], default: undefined },
+    pasteFn: { type: Function as PropType<(value: string) => unknown>, default: undefined },
+    separator: { type: String, default: '' },
   },
-  emits: ['update:modelValue', 'change', 'input', 'blur'],
-  setup(props, { attrs, emit }) {
-    return () => h(TagInput, {
-      ...attrs,
-      value: (modelValue(props) as string[]) || [],
-      placeholder: props.placeholder,
-      disabled: props.disabled,
-      clearable: true,
-      onChange: (value: string[]) => {
-        emit('update:modelValue', value);
-        emit('input', value);
-        emit('change', value);
+  emits: [
+    'update:modelValue',
+    'change',
+    'input',
+    'blur',
+    'focus',
+    'remove',
+    'remove-all',
+    'removeAll',
+    'inputchange',
+    'input-change',
+    'clear',
+  ],
+  setup(props, { attrs, emit, expose, slots }) {
+    const innerInputValue = ref('');
+    expose({
+      clearInput: () => {
+        innerInputValue.value = '';
+        emit('inputchange', '');
+        emit('input-change', '');
       },
-      onBlur: () => emit('blur'),
     });
+    return () => {
+      const {
+        extCls: _extCls,
+        'ext-cls': extClsKebab,
+        allowCreate: _allowCreate,
+        'allow-create': _allowCreateKebab,
+        allowNextFocus: _allowNextFocus,
+        'allow-next-focus': _allowNextFocusKebab,
+        allowAutoMatch: _allowAutoMatch,
+        'allow-auto-match': _allowAutoMatchKebab,
+        freePaste: _freePaste,
+        'free-paste': _freePasteKebab,
+        contentWidth: _contentWidth,
+        'content-width': _contentWidthKebab,
+        trigger: _trigger,
+        list: _list,
+        saveKey: _saveKey,
+        'save-key': _saveKeyKebab,
+        displayKey: _displayKey,
+        'display-key': _displayKeyKebab,
+        searchKey: _searchKey,
+        'search-key': _searchKeyKebab,
+        tooltipKey: _tooltipKey,
+        'tooltip-key': _tooltipKeyKebab,
+        isAsyncList: _isAsyncList,
+        'is-async-list': _isAsyncListKebab,
+        tagTpl: _tagTpl,
+        'tag-tpl': _tagTplKebab,
+        tpl: _tpl,
+        hasDeleteIcon: _hasDeleteIcon,
+        'has-delete-icon': _hasDeleteIconKebab,
+        maxData: _maxData,
+        'max-data': _maxDataKebab,
+        pasteFn: _pasteFn,
+        'paste-fn': _pasteFnKebab,
+        separator: _separator,
+        onInputchange: _onInputchange,
+        onRemoveAll: _onRemoveAll,
+        'on-inputchange': _onInputchangeKebab,
+        'on-remove-all': _onRemoveAllKebab,
+        class: attrClass,
+        inputValue: attrInputValue,
+        'input-value': attrInputValueKebab,
+        max: attrMax,
+        tagProps: attrTagProps,
+        onPaste: attrOnPaste,
+        ...rest
+      } = attrs as Record<string, unknown>;
+
+      const currentTags = ((modelValue(props) as string[]) || []).map(item => String(item));
+      const resolvedInputValue = attrInputValue !== undefined
+        ? (attrInputValue as string)
+        : attrInputValueKebab !== undefined
+          ? (attrInputValueKebab as string)
+          : innerInputValue.value;
+      const resolvedMax = attrMax !== undefined
+        ? Number(attrMax)
+        : props.maxData !== undefined
+          ? Number(props.maxData)
+          : undefined;
+      const disableTagClose = props.hasDeleteIcon === false || props.hasDeleteIcon === 'false';
+      const resolvedTagProps = disableTagClose
+        ? { ...(attrTagProps as Record<string, unknown> | undefined), closable: false }
+        : (attrTagProps as Record<string, unknown> | undefined);
+
+      const publish = (nextValue: string[]) => {
+        emit('update:modelValue', nextValue);
+        emit('input', nextValue);
+        emit('change', nextValue);
+      };
+
+      const handlePaste = typeof attrOnPaste === 'function'
+        ? attrOnPaste
+        : props.pasteFn || props.separator
+          ? ({ e, pasteValue }: { e: ClipboardEvent; pasteValue: string }) => {
+              e?.preventDefault?.();
+              if (props.pasteFn) {
+                const returned = props.pasteFn(pasteValue);
+                if (Array.isArray(returned) && returned.length > 0) {
+                  const merged = [...currentTags];
+                  for (const item of returned) {
+                    const text = String(item).trim();
+                    if (!text || merged.includes(text)) continue;
+                    if (resolvedMax !== undefined && merged.length >= resolvedMax) break;
+                    merged.push(text);
+                  }
+                  if (merged.length !== currentTags.length) publish(merged);
+                }
+                return;
+              }
+              const splitSep = props.separator === '\\n' ? /\r?\n/ : props.separator;
+              const parts = String(pasteValue || '')
+                .split(splitSep)
+                .map(item => item.trim())
+                .filter(Boolean);
+              if (!parts.length) return;
+              const merged = [...currentTags];
+              for (const item of parts) {
+                if (merged.includes(item)) continue;
+                if (resolvedMax !== undefined && merged.length >= resolvedMax) break;
+                merged.push(item);
+              }
+              if (merged.length !== currentTags.length) publish(merged);
+            }
+          : undefined;
+
+      return h(TagInput, {
+        ...rest,
+        class: normalizeClass([props.extCls, extClsKebab, attrClass]),
+        value: currentTags,
+        inputValue: resolvedInputValue,
+        placeholder: props.placeholder,
+        disabled: props.disabled,
+        clearable: props.clearable,
+        max: resolvedMax,
+        tagProps: resolvedTagProps,
+        onPaste: handlePaste,
+        onChange: (value: unknown[]) => publish((value || []).map(item => String(item))),
+        onBlur: (value: unknown[], context?: { inputValue?: string | number }) => {
+          emit('blur', String(context?.inputValue ?? ''), (value || []).map(item => String(item)));
+        },
+        onFocus: (value: unknown[], context?: unknown) => emit('focus', value, context),
+        onRemove: (context?: unknown) => emit('remove', context),
+        onClear: (context?: unknown) => {
+          emit('removeAll', context);
+          emit('remove-all', context);
+          emit('clear', context);
+        },
+        onInputChange: (value: string, context?: unknown) => {
+          innerInputValue.value = String(value ?? '');
+          emit('inputchange', value, context);
+          emit('input-change', value, context);
+        },
+      }, slots);
+    };
   },
 });
 
@@ -1175,7 +1325,7 @@ const BkDatePicker = defineComponent({
       const popupProps = (attrs.popupProps ?? attrs['popup-props']) as PopupProps | undefined;
       const onVisibleChange: NonNullable<PopupProps['onVisibleChange']> = (visible, context) => {
         // 日期选择后内部会直接关闭面板，不能依赖关闭通知才能分配下一层。
-        if (visible) popupZIndex.value = overlayRegistry.nextZIndex();
+        if (visible) popupZIndex.value = overlayRegistry.nextZIndex('DROPDOWN');
         popupProps?.onVisibleChange?.(visible, context);
       };
       return h(DatePicker, {

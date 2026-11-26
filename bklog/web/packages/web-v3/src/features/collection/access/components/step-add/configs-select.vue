@@ -776,12 +776,11 @@ import { ServicesInstance } from '@/platform/services';
       }
 
       .container-input {
-        .input {
-          max-width: none;
-        }
+        flex: 1;
+        min-width: 0;
 
-        .bk-tag-input {
-          border-radius: 0 2px 2px 0;
+        :deep(> .t-input) {
+          border-radius: var(--bklog-radius-none) var(--bklog-radius-control, 2px) var(--bklog-radius-control, 2px) var(--bklog-radius-none);
         }
       }
 

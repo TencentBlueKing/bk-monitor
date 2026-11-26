@@ -48,6 +48,7 @@ import { buildSpaceRecoveryLocation, buildSpaceSwitchQuery, omitRouteIndexId } f
 
 import './index.scss';
 import NavigationSkeleton from '@/shared/ui/loading/navigation-skeleton';
+import { useOverlayZIndex } from '@/shared/global/overlay/use-overlay-z-index';
 
 
 export type ThemeType = 'dark' | 'light';
@@ -76,6 +77,7 @@ export default defineComponent({
     const checkSpaceChange = navMenu.checkSpaceChange;
     const spaceBgColor = ref('#3799BA');
     const showBizList = ref(false);
+    const bizListZIndex = useOverlayZIndex(showBizList, 'DROPDOWN');
     const keyword = ref('');
     const searchTypeId = ref('');
     const exterlAuthSpaceName = ref('');
@@ -549,7 +551,7 @@ export default defineComponent({
       return (
         props.isExpand && (
           <div
-            style={{ display: showBizList.value ? 'flex' : 'none' }}
+            style={{ display: showBizList.value ? 'flex' : 'none', zIndex: bizListZIndex.value }}
             class='menu-select-list'
           >
             {/* 搜索框 */}

@@ -209,20 +209,10 @@
           }
 
           &.is-active {
-            z-index: var(--bklog-z-page);
+            // 需高于下方吸顶搜索栏 (--bklog-z-page-top: 40)，低于顶部导航 (--bklog-z-nav: 100)，
+            // 避免激活态输入框及联想下拉框被 .scene-search-sticky 截断。
+            z-index: var(--bklog-z-float);
           }
-        }
-
-        .bk-select, .bk-tag-input, .t-select .t-input, .t-tag-input .t-input {
-          border: 1px solid var(--td-border-level-2-color);
-        }
-
-        .bk-tag-input .tag-list {
-          overflow-x: hidden;
-        }
-
-        .bk-tag-input .tag-list .input {
-          min-width: 12px;
         }
 
         .tag-input-wrapper {

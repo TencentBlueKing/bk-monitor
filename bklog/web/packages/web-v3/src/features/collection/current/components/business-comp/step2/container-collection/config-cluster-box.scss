@@ -86,8 +86,9 @@
             }
             .container-input {
                 flex: 1;
-                .bk-tag-input {
-                    border-radius: 0 2px 2px 0;
+                min-width: 0;
+                > .t-input {
+                    border-radius: var(--bklog-radius-none) var(--bklog-radius-control, 2px) var(--bklog-radius-control, 2px) var(--bklog-radius-none);
                 }
             }
         }

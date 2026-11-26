@@ -173,13 +173,22 @@ class OverlayRegistry {
     this.escapeConsumed = false;
   }
 
-  nextZIndex() {
+  nextZIndex(layer) {
+    const floor = typeof layer === 'string' && Object.prototype.hasOwnProperty.call(Z_INDEX_LAYERS, layer)
+      ? Z_INDEX_LAYERS[layer]
+      : undefined;
     const manager = (typeof globalThis !== 'undefined' ? globalThis.window : undefined)?.__bk_zIndex_manager;
-    if (manager && typeof manager.nextZIndex === 'function') {
-      return manager.nextZIndex();
+    if (manager) {
+      if (floor !== undefined && typeof manager.nextLayerZIndex === 'function') {
+        return manager.nextLayerZIndex(layer);
+      }
+      if (typeof manager.nextZIndex === 'function') {
+        if (floor !== undefined) manager.nextZIndex(floor);
+        return manager.nextZIndex();
+      }
     }
 
-    this.fallbackZIndex = Math.max(this.fallbackZIndex, getOverlayZIndexStart());
+    this.fallbackZIndex = Math.max(this.fallbackZIndex, getOverlayZIndexStart(), floor ?? 0);
     this.fallbackZIndex += 1;
     return this.fallbackZIndex;
   }
@@ -258,7 +267,12 @@ class OverlayRegistry {
       this.hideGroup(record.group, id);
     }
 
-    record.zIndex = this.nextZIndex();
+    const layer = record.type === 'dialog'
+      ? 'DIALOG'
+      : (record.type === 'slider' || record.type === 'drawer')
+        ? 'DRAWER'
+        : 'DROPDOWN';
+    record.zIndex = this.nextZIndex(layer);
     record.visible = true;
     if (!this.stack.includes(id)) {
       this.stack.push(id);
