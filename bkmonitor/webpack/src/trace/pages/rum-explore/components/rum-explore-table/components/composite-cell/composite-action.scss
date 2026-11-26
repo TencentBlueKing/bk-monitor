@@ -1,0 +1,52 @@
+.rum-composite-action {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  padding: 0;
+  color: #4681c5;
+  letter-spacing: -0.36px;
+  text-decoration: none;
+  cursor: pointer;
+  background: #fff;
+  border: 0;
+  border-radius: 4px;
+
+  .rum-composite-action-label {
+    margin-right: -4px;
+    letter-spacing: -0.36px;
+    transform: scale(0.8);
+  }
+
+  .rum-composite-action-icon {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 12px;
+    height: 12px;
+    font-size: 8px;
+    line-height: 8px;
+  }
+
+  &.is-icon-only {
+    width: 18px;
+    height: 18px;
+    color: #49576b;
+    background: transparent;
+
+    &:is(:hover, :focus-visible) {
+      color: #3974ff;
+    }
+
+    .rum-composite-action-icon {
+      font-size: 12px;
+      line-height: 12px;
+    }
+  }
+
+  &:is(:hover, :focus-visible) {
+    background: #e5edff;
+  }
+}

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, nextTick, onBeforeUnmount, useTemplateRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, onBeforeUnmount, useTemplateRef, watch } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
@@ -223,7 +223,7 @@ export default defineComponent({
     const conditionMenuRef = useTemplateRef<InstanceType<typeof ExploreConditionMenu>>('conditionMenuRef');
     /** 触底加载前记录的滚动位置，数据追加后还原以避免仍停在底部重复触发 */
     let scrollTopBeforeLoad: null | number = null;
-    /** 本地请求锁：从发起加载到数据渲染完成期间，忽略滚动事件，避免 scrollLoading 切换间隙重复触发 */
+    /** 本地请求锁：从发起加载到滚动位置恢复后的下一帧，阻止重复触底加载。 */
     let isRequestingLock = false;
     /** 复合列成员可以引用没有作为独立列展示的字段。 */
     const fieldMap = computed(() => {
@@ -318,7 +318,7 @@ export default defineComponent({
         if (isEnd) {
           scrollTopBeforeLoad = scrollTop;
         }
-        // 加锁：在数据返回并渲染完成前，阻止滚动事件重复触发
+        // 在父组件更新 scrollLoading 前先锁住触底事件。
         isRequestingLock = true;
         emit('scrollToEnd');
       }
@@ -336,10 +336,19 @@ export default defineComponent({
       },
     });
 
-    // 监听数据变化：追加数据后还原滚动位置，并兼容无滚动条自动补全场景
+    // 分页状态和数据一起处理，避免请求结束时提前解除滚动保护。
     watch(
-      () => props.data,
-      (newData, oldData) => {
+      [() => props.data, () => props.scrollLoading],
+      ([newData, scrollLoading], [oldData], onCleanup) => {
+        if (scrollLoading) {
+          isRequestingLock = true;
+          return;
+        }
+        if (newData === oldData) {
+          // 追加失败时保留滚动位置，供重试成功后恢复。
+          isRequestingLock = false;
+          return;
+        }
         // 新查询（数据变少或从无到有）时清空记录的滚动位置，避免把旧位置恢复到新结果
         if (!oldData?.length || (newData?.length ?? 0) <= oldData.length) {
           scrollTopBeforeLoad = null;
@@ -347,40 +356,34 @@ export default defineComponent({
         }
         // 单元格条件菜单只能从 DOM 上拿到 rowId/colId，这里按行缓存以便回源取值
         cacheRows(newData);
-        nextTick(() => {
-          requestAnimationFrame(() => {
-            // 数据已渲染完成，释放加载锁，允许下一次触底加载
+        let frameId = requestAnimationFrame(() => {
+          const container = document.querySelector<HTMLElement>(props.scrollContainerSelector);
+          const finishScrollUpdate = () => {
+            scrollTopBeforeLoad = null;
             isRequestingLock = false;
-            const container = document.querySelector(props.scrollContainerSelector) as HTMLElement | null;
-            if (!container) return;
-            // 触底加载完成后还原滚动位置，避免浏览器粘在底部继续触发下一页
-            if (scrollTopBeforeLoad !== null) {
-              const { scrollHeight, clientHeight } = container;
-              const maxScrollTop = scrollHeight - clientHeight;
-              // 预留安全边距，避免还原后仍满足触底条件而循环加载
-              if (maxScrollTop > 0) {
-                container.scrollTop = Math.max(1, Math.min(scrollTopBeforeLoad, maxScrollTop - 2));
-              }
-              scrollTopBeforeLoad = null;
-            }
             // 仅无滚动条时自动补全，兼容屏幕过大或 dpr 很小的场景
-            handleScrollToEnd(container, true);
-          });
+            if (container) handleScrollToEnd(container, true);
+          };
+          if (!container || scrollTopBeforeLoad === null) {
+            finishScrollUpdate();
+            return;
+          }
+          const maxScrollTop = container.scrollHeight - container.clientHeight;
+          // 预留安全边距，避免还原后仍满足触底条件而循环加载。
+          if (maxScrollTop > 0) {
+            container.scrollTop = Math.max(1, Math.min(scrollTopBeforeLoad, maxScrollTop - 2));
+          }
+          // 等恢复位置产生的 scroll 事件处理完再释放锁。
+          frameId = requestAnimationFrame(finishScrollUpdate);
         });
+        onCleanup(() => cancelAnimationFrame(frameId));
       },
-      { immediate: true }
+      { immediate: true, flush: 'post' }
     );
 
     onBeforeUnmount(() => {
       destroyPopover();
     });
-
-    watch(
-      () => props.scrollLoading,
-      loading => {
-        if (!loading) isRequestingLock = false;
-      }
-    );
 
     watch(
       () => props.loading,
@@ -415,18 +418,29 @@ export default defineComponent({
   },
   render() {
     const showSkeleton = this.loading && !this.data.length;
+    const refreshing = this.loading && !showSkeleton;
+    const { headerAffixedTop } = this;
+    const refreshOffsetTop = typeof headerAffixedTop === 'object' ? (headerAffixedTop?.offsetTop ?? 0) : 0;
     return (
       <div
         class='rum-explore-table-wrap'
         aria-busy={this.loading || this.scrollLoading}
       >
+        {refreshing && (
+          <div
+            style={{ top: `${refreshOffsetTop}px` }}
+            class='rum-table-refresh'
+            aria-label={this.t('加载中...')}
+            role='status'
+          />
+        )}
         <div
           class='rum-table-content'
           inert={this.loading ? true : undefined}
         >
           <CommonTable
             ref='tableRef'
-            class='rum-explore-table'
+            class={['rum-explore-table', { 'is-refreshing': refreshing }]}
             columns={[
               ...this.columns,
               ...(this.showSettings
@@ -518,7 +532,7 @@ export default defineComponent({
             activeRowKeys={this.activeRowKeys}
             activeRowType='single'
             autoFillSpace={!this.data.length && !this.loading}
-            headerAffixedTop={this.headerAffixedTop}
+            headerAffixedTop={headerAffixedTop}
             horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
             loading={showSkeleton}
             rowKey={this.tableRowKey}

@@ -84,11 +84,6 @@
       display: contents;
     }
 
-    .rum-composite-actions > .rum-composite-action {
-      height: 16px;
-      white-space: nowrap;
-    }
-
     .rum-composite-badges {
       .rum-cell-badge {
         --rum-badge-opacity: 10%;
@@ -151,66 +146,18 @@
     }
 
     .rum-composite-badge-icon {
+      display: flex;
       flex-shrink: 0;
-      width: 1em;
-      height: 1em;
+      align-items: center;
+      justify-content: center;
+      width: 12px;
+      height: 12px;
       font-size: 10px;
       font-weight: 400;
-      line-height: 1;
+      line-height: 12px;
 
       &.is-viewport {
         font-size: 12px;
-      }
-    }
-
-    .rum-composite-action {
-      display: inline-flex;
-      flex-shrink: 0;
-      gap: 6px;
-      align-items: center;
-      justify-content: center;
-      padding: 0;
-      font:
-        500 9px / normal Roboto,
-        Roboto-Medium,
-        Arial,
-        sans-serif;
-      font-variation-settings: 'wdth' 100;
-      color: #4681c5;
-      letter-spacing: -0.36px;
-      text-decoration: none;
-      cursor: pointer;
-      background: #fff;
-      border: 0;
-      border-radius: 4px;
-
-      .rum-composite-action-icon {
-        flex-shrink: 0;
-        width: 1em;
-        height: 1em;
-        font-size: 8px;
-        font-weight: 400;
-        line-height: 1;
-        letter-spacing: 0;
-      }
-
-      &.is-icon-only {
-        width: 18px;
-        height: 18px;
-        color: #49576b;
-        background: transparent;
-
-        &:is(:hover, :focus-visible) {
-          color: #3974ff;
-        }
-
-        .rum-composite-action-icon {
-          font-size: 12px;
-        }
-      }
-
-      &:is(:hover, :focus-visible) {
-        background: #e5edff;
       }
     }
   }

@@ -23,57 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { IRumCompositeItem, IRumField } from '../../../typings';
-
-/** 某条记录中最终可见的复合列行。 */
-export interface CompositeRow {
-  /** 位于正文后的可见标签。 */
-  badges: CompositeValue[];
-  /** 在接口配置中的行序号，用于区分主行和次行。 */
-  index: number;
-  /** 按配置顺序排列的可见正文成员。 */
-  items: CompositeValue[];
-  /** 两个可见正文成员之间的连接符。 */
-  separator: string;
-}
-
-/** 已定位到当前原始行的复合成员。 */
-export interface CompositeValue {
-  /** 成员自己的元信息，供展示及交互使用。 */
-  field: IRumField;
-  /** 主字段无值时保留该成员的位置。 */
-  isPlaceholder: boolean;
-  /** 由成员位置生成的键，同一字段重复出现时依然唯一。 */
-  key: string;
-  /** 原始行中该字段的值。 */
-  value: unknown;
-}
-
-/** 已解析元信息和展示条件的成员定义。 */
-interface CompositeMember {
-  /** 接口字段索引中的成员元信息。 */
-  field: IRumField;
-  /** 当前成员是否为接口指定的主字段。 */
-  isPrimary: boolean;
-  /** 该成员在配置中的位置标识。 */
-  key: string;
-  /** 由接口 show_if 预处理得到的条件字段和允许值集合，所有字段均须命中。 */
-  showIf: Array<[string, Set<string>]>;
-}
-
-/** 与记录无关的复合列行布局。 */
-interface CompositeSection {
-  /** 按配置顺序解析的标签成员。 */
-  badges: CompositeMember[];
-  /** 在原始 sections 配置中的位置。 */
-  index: number;
-  /** 按配置顺序解析的正文成员。 */
-  items: CompositeMember[];
-  /** 正文成员之间的连接符。 */
-  separator: string;
-}
-
-type Row = Readonly<Record<string, unknown>>;
+import type { CompositeMember, CompositeRow, CompositeSection, IRumCompositeItem, IRumField } from '../../../typings';
 
 /** 判断字段能否展示，保留布尔 false 和数值 0。 */
 export const hasFieldValue = (value: unknown): boolean => {
@@ -138,6 +88,7 @@ export const resolveColumnLayout = (field: IRumField | undefined, fields: Readon
               name,
               new Set(Array.isArray(candidates) ? candidates.map(String) : []),
             ]),
+            type: item.type,
           },
         ];
       });
@@ -163,10 +114,13 @@ export const resolveColumnLayout = (field: IRumField | undefined, fields: Readon
  * @param row 列表接口返回的扁平记录
  * @returns 可以交给复合单元格展示的行
  */
-export const resolveCompositeRows = (sections: CompositeSection[], row: Row): CompositeRow[] => {
+export const resolveCompositeRows = (
+  sections: CompositeSection[],
+  row: Readonly<Record<string, unknown>>
+): CompositeRow[] => {
   /** 在原始行上取值并检查成员的 show_if 条件。 */
   const resolveValues = (members: CompositeMember[]) => {
-    return members.flatMap(({ field, isPrimary, key, showIf }) => {
+    return members.flatMap(({ field, isPrimary, key, showIf, type }) => {
       const value = row[field.name];
       const isPlaceholder = !hasFieldValue(value);
       if (isPlaceholder && !isPrimary) return [];
@@ -175,7 +129,7 @@ export const resolveCompositeRows = (sections: CompositeSection[], row: Row): Co
         const values = Array.isArray(raw) ? raw : [raw];
         return values.some(item => item !== null && item !== undefined && candidates.has(String(item)));
       });
-      return visible ? [{ field, isPlaceholder, key, value }] : [];
+      return visible ? [{ field, isPlaceholder, key, type, value }] : [];
     });
   };
 
