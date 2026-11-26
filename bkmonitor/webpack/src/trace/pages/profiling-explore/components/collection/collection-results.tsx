@@ -343,6 +343,36 @@ export default defineComponent({
         {row.processes.map(item => `${item.process_name} (${item.pid})`).join('，') || '--'}
       </span>
     );
+    const renderFailureStatus = (row: CollectionHostResult) => {
+      const message = failureMessage(row);
+      return (
+        <CollectionExecutionStatus
+          v-slots={{
+            message: () => (
+              <>
+                <span>{message}</span>
+                {!!row.message && [
+                  '，',
+                  <Button
+                    key='view-detail'
+                    theme='primary'
+                    text
+                    onClick={() => {
+                      this.diagnosis = row;
+                    }}
+                  >
+                    {this.t('查看详情')}
+                  </Button>,
+                ]}
+              </>
+            ),
+          }}
+          message={message}
+          status={row.status}
+          result
+        />
+      );
+    };
     // 执行范围下优先使用后端下发的列定义，缺省时沿用固定列
     const hostColumns = this.hostColumns;
     // 结果列表使用结果侧状态文案，含解析中，与采集任务历史的文案区分
@@ -365,14 +395,7 @@ export default defineComponent({
       // ip 列保留点击查看主机结果的交互，其余按后端下发的列类型渲染
       if (column.field === 'ip') return resultLink(row, String(value ?? '--'));
       if (column.type === 'process_list') return renderProcesses(row);
-      if (column.type === 'status')
-        return (
-          <CollectionExecutionStatus
-            message={failureMessage(row)}
-            status={row.status}
-            result
-          />
-        );
+      if (column.type === 'status') return renderFailureStatus(row);
       if (column.type === 'datetime') return value ? formatCollectionTime(value as number, this.timezone) : '--';
       if (column.type === 'duration') return formatExecutionDuration(typeof value === 'number' ? value : null);
       return value ? String(value) : '--';
@@ -411,37 +434,7 @@ export default defineComponent({
             title: this.t('状态'),
             width: 130,
             filter: statusFilter,
-            cell: (_, { row }) => {
-              const hostResult = row as CollectionHostResult;
-              const message = failureMessage(hostResult);
-              return (
-                <CollectionExecutionStatus
-                  v-slots={{
-                    message: () => (
-                      <>
-                        <span>{message}</span>
-                        {!!hostResult.message && [
-                          '，',
-                          <Button
-                            key='view-detail'
-                            theme='primary'
-                            text
-                            onClick={() => {
-                              this.diagnosis = hostResult;
-                            }}
-                          >
-                            {this.t('查看详情')}
-                          </Button>,
-                        ]}
-                      </>
-                    ),
-                  }}
-                  message={message}
-                  status={hostResult.status}
-                  result
-                />
-              );
-            },
+            cell: (_, { row }) => renderFailureStatus(row),
           },
           { colKey: operationField, title: this.t('操作'), width: 176, fixed: 'right', cell: 'operations' },
         ];

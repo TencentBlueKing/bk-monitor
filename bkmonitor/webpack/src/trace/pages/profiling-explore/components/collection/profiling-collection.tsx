@@ -297,9 +297,9 @@ export default defineComponent({
             )}
           </>
         )}
-        {c.meta.value && (
+        {c.meta.value && c.editorSession.value > 0 && (
           <CollectionTaskForm
-            key={`${this.bizId}:${c.editing.value?.task_id || 'new'}`}
+            key={`${this.bizId}:${c.editing.value?.task_id || 'new'}:${c.editorSession.value}`}
             bizId={this.bizId}
             meta={c.meta.value}
             prefill={c.prefill.value}

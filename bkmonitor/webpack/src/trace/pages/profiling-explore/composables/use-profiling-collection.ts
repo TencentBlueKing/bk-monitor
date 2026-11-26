@@ -75,6 +75,8 @@ export function useProfilingCollection(
   /** 新建采集的回填配置，如从执行快照回填 */
   const prefill = shallowRef<Omit<CollectionPayload, 'bk_biz_id'>>();
   const editorOpen = shallowRef(false);
+  /** 表单会话：每次打开递增，用于重建表单实例，避免沿用上一次的草稿 */
+  const editorSession = shallowRef(0);
   const detailId = shallowRef<number>();
   const deleting = shallowRef<CollectionTask>();
   const executing = shallowRef<CollectionTask>();
@@ -168,6 +170,8 @@ export function useProfilingCollection(
     editing.value = task;
     // 回填只用于新建，编辑仍以任务本身为准
     prefill.value = task ? undefined : prefillValue;
+    // 表单只在挂载时按 task/prefill 生成草稿，递增会话保证每次打开都重新初始化
+    editorSession.value += 1;
     editorOpen.value = true;
   }
 
@@ -246,6 +250,7 @@ export function useProfilingCollection(
       meta.value = undefined;
       busy.value = undefined;
       editorOpen.value = false;
+      editorSession.value = 0;
       prefill.value = undefined;
       detailId.value = undefined;
       deleting.value = undefined;
@@ -275,6 +280,7 @@ export function useProfilingCollection(
     editing,
     prefill,
     editorOpen,
+    editorSession,
     detailId,
     detail,
     detailHosts,
