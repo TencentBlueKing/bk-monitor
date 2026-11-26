@@ -401,8 +401,14 @@ def test_query_hosts_orders_by_scheduled_at_and_derives_outdate(query_rows):
     assert rows[0]["started_at"] is None
     assert rows[2]["task"] == {"name": "go-cpu-legacy", "schedule_type": "immediate"}
     assert [row["status"] for row in rows[3:]] == ["failed", "outdate"]
-    # 只有失败的行带失败类型，供前端悬浮在状态上时展示
-    assert [row.get("error_type") for row in rows] == [None, None, None, "dispatch_failed", None]
+    # 只有失败的行带失败类型和原始执行信息，供前端悬浮在状态上时展示、查看详情时展示原始信息
+    assert [(row.get("error_type"), row.get("message")) for row in rows] == [
+        (None, None),
+        (None, None),
+        (None, None),
+        ("dispatch_failed", "agent not ready"),
+        (None, None),
+    ]
 
     page = QueryActiveProfilingHostsResource().request({**TIME_RANGE, "offset": 1, "limit": 2})["data"]
     assert host_keys(page) == [(RECENT_AT, 456), (MID_AT, 459)]
@@ -883,13 +889,13 @@ def test_execution_detail_displays_cancelled_hosts(query_rows):
         ("cancelled", "", "采集已被用户 admin 取消"),
     ]
 
-    # 已采数据只有取消的行带执行信息，与执行详情一致；其余行不带
+    # 已采数据只有失败和取消的行带执行信息，取消的与执行详情一致；其余行不带
     rows = QueryActiveProfilingHostsResource().request(TIME_RANGE)["data"]
     assert {row["bk_host_id"]: row["message"] for row in rows if row["status"] == "cancelled"} == {
         460: "采集已被用户取消",
         461: "采集已被用户 admin 取消",
     }
-    assert all("message" not in row for row in rows if row["status"] != "cancelled")
+    assert all("message" not in row for row in rows if row["status"] not in ("failed", "cancelled"))
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -1751,13 +1757,12 @@ def test_es_query_hosts_returns_error_type_only_on_failed_rows(host_query_apis):
 
     rows = query_es_hosts(EVENT_LIST_REQUEST)
 
-    assert [(row["status"], row.get("error_type")) for row in rows] == [
-        ("failed", "report_failed"),
-        ("succeed", None),
-        ("failed", ""),
+    # 失败的行带原始执行信息，旧版采集端同样带上，成功的行不带
+    assert [(row["status"], row.get("error_type"), row.get("message")) for row in rows] == [
+        ("failed", "report_failed", "send failed"),
+        ("succeed", None, None),
+        ("failed", "", "perf unsuccessful"),
     ]
-    # 列表不返回执行信息
-    assert all("message" not in row for row in rows)
 
 
 def test_es_query_hosts_treats_omitted_processes_as_empty(host_query_apis):

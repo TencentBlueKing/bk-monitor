@@ -194,8 +194,8 @@ class ActiveProfilingEventQueryHandler:
         task = {"name": self._override_task_name(key, dimensions, overrides), "schedule_type": schedule_type}
         if task_id:
             task = {"task_id": int(task_id), **task}
-        # 只有取消的行带执行信息，只有失败的行带失败类型，与 MySQL 查询的口径一致
-        if row["status"] != "cancelled":
+        # 只有失败和取消的行带执行信息，只有失败的行带失败类型，与 MySQL 查询的口径一致
+        if row["status"] not in ("failed", "cancelled"):
             del row["message"]
         if row["status"] != "failed":
             del row["error_type"]
@@ -641,7 +641,7 @@ class ActiveProfilingEventQueryHandler:
                 # 旧版采集端没拿到进程时会省略 processes 字段，这类事件在 Event 保留期内仍会查到
                 processes=content.get("processes", []),
                 status=status,
-                # 旧版采集端不上报 error_type，前端直接显示原始 message
+                # 旧版采集端不上报 error_type，前端显示通用失败文案，原始 message 在查看详情中展示
                 error_type=content.get("error_type", ""),
                 message=message,
                 finished_at=content["finished_at"],
