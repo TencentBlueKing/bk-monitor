@@ -1,1 +1,0 @@
-module.exports={entryJs:"js/main.f069426944651239cdd9.js",entryCss:"css/main47f324f.css"};

@@ -9,6 +9,8 @@ import { fileURLToPath } from 'node:url';
 import { productionOutput } from '../tools/production-paths.mjs';
 import { productionHtml, environmentTemplate } from '../tools/production-delivery.mjs';
 import { verifyProductionBuild } from '../tools/verify-production-build.mjs';
+import { resolveInstalledLogWeb, syncLegacyDeployment } from '../tools/legacy-static-entry.mjs';
+import { verifyLegacyDeployment } from '../tools/verify-legacy-deployment.mjs';
 
 test('production directory and backend runtime template preserve the V2 server contract', () => {
   assert.equal(productionOutput, fileURLToPath(new URL('../../../../static/dist/', import.meta.url)));
@@ -67,4 +69,29 @@ test('Make installer works on npm-only hosts and isolates both commands to the V
   assert.match(lines[0], /--ignore-workspace install --frozen-lockfile --prod=false$/);
   assert.match(lines[1], /\|production\|--loglevel=error exec --yes --package pnpm@/);
   assert.match(lines[1], /--ignore-workspace run build$/);
+});
+
+test('legacy V1 deployment syncs in real time from installed @blueking/log-web matching package.json', t => {
+  const dir = mkdtempSync(join(tmpdir(), 'bklog-legacy-sync-synthetic-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const pkgJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  const resolved = resolveInstalledLogWeb();
+  assert.equal(resolved.version, pkgJson.dependencies['@blueking/log-web']);
+
+  const synced = syncLegacyDeployment(dir);
+  assert.equal(synced.version, resolved.version);
+  assert.deepEqual(synced.entry, resolved.entry);
+
+  const verified = verifyLegacyDeployment(dir);
+  assert.equal(verified.status, 'STATIC_DELIVERY_VERIFIED');
+  assert.equal(verified.version, resolved.version);
+
+  const manifestPath = join(dir, 'legacy-v1/sealed-manifest.json');
+  const stale = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  writeFileSync(manifestPath, JSON.stringify({ ...stale, version: '0.0.0-stale' }));
+  assert.throws(() => verifyLegacyDeployment(dir), /does not match installed @blueking\/log-web/);
+
+  writeFileSync(manifestPath, JSON.stringify(stale));
+  writeFileSync(join(dir, 'legacy-v1/assets/stale-leftover.js'), '// stale');
+  assert.throws(() => verifyLegacyDeployment(dir), /do not match installed @blueking\/log-web dist files/);
 });

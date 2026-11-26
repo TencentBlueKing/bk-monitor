@@ -52,6 +52,7 @@ export default {
   cacheDir: resolve(here, 'node_modules/.vite-application'),
   optimizeDeps: {
     ...native.optimizeDeps,
+    exclude: [...(native.optimizeDeps?.exclude || []), '@blueking/log-web'],
     noDiscovery: false,
     entries: ['index.html'],
     esbuildOptions: {

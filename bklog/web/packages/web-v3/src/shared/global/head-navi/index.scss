@@ -142,6 +142,11 @@
 
     @include clearfix;
 
+    .head-navi-version-switch {
+      flex-shrink: 0;
+      margin-inline-end: var(--bklog-space-12);
+    }
+
     .setting {
       position: relative;
       font-size: 15px;
