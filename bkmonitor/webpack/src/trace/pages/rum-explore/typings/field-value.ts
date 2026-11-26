@@ -29,7 +29,7 @@ import type { CellIconConfig } from '../components/rum-explore-table/components/
 import type { SPAN_KIND_MAPS } from '../constants';
 import type { IRumCountDrillDown } from './common';
 import type { IRumSpanRecord } from './record';
-import type { IRumField } from './view-config';
+import type { IRumCompositeItem, IRumField } from './view-config';
 import type { IUsePopoverTools } from '@/pages/alarm-center/components/alarm-table/hooks/use-popover';
 
 /** 列构建层为复合标签提供的展示配置。 */
@@ -72,6 +72,8 @@ export interface ValueContext {
   field?: IRumField;
   /** 当前值所对应的真实字段名。 */
   fieldName: string;
+  /** 复合成员的展示类型。 */
+  itemType?: IRumCompositeItem['type'];
   /** 当前字段在单元格中的展示位置。 */
   placement: FieldPlacement;
   /** 提供详情、下钻和按行确定单位的原始记录。 */

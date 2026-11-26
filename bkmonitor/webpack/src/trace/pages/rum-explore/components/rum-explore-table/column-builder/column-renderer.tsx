@@ -26,7 +26,6 @@
 import {
   type RumEllipsisModeType,
   EVENTS_FIELD_PREFIX,
-  RUM_FULL_URL_FIELDS,
   RumModeEnum,
   SESSION_ID_FIELD,
   VIEW_URL_FIELD,
@@ -118,6 +117,7 @@ export const buildRumColumnRenderer = (
               context={{
                 field: member.field,
                 fieldName: member.field.name,
+                itemType: member.type,
                 placement,
                 row,
                 rowId,
@@ -233,7 +233,7 @@ function renderRelatedActions(row: IRumSpanRecord, sessionId: string, traceId: s
  * @returns 模拟页面入口节点，缺少可用 URL 时返回 null
  */
 function renderUrlAction(section: CompositeRow, hoverPopoverTools: RumColumnActions['hoverPopoverTools']) {
-  const url = section.items.find(item => !item.isPlaceholder && RUM_FULL_URL_FIELDS.has(item.field.name))?.value;
+  const url = section.items.find(item => !item.isPlaceholder && item.type === 'link')?.value;
   if (typeof url !== 'string') return null;
   try {
     const { protocol } = new URL(url);

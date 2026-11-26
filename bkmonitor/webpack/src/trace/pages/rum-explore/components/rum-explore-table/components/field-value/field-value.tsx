@@ -30,7 +30,6 @@ import { useI18n } from 'vue-i18n';
 import { isEllipsisActiveSingleLine } from '../../../../../../utils/dom-helper';
 import {
   type RumEllipsisModeType,
-  RUM_FULL_URL_FIELDS,
   RUM_HTTP_STATUS_CODE_MAP,
   RUM_OUTCOME_TYPE_MAP,
   RUM_STATUS_CODE_MAP,
@@ -118,7 +117,7 @@ export default defineComponent({
     const tag = badge || (placement === 'column' && STANDALONE_TAG_FIELDS.has(fieldName));
     const tagClasses = tag ? ['rum-cell-badge', badgePresentation?.className] : undefined;
     const spanName = !badge && isSpanName(this.mode, fieldName);
-    const fullUrl = placement === 'item' && RUM_FULL_URL_FIELDS.has(fieldName);
+    const fullUrl = placement === 'item' && this.context.itemType === 'link';
     const target = { fieldName, rowId, searchable: !!field?.is_searched };
     const overflowEvents =
       !spanName && placement !== 'column'

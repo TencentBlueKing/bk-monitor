@@ -45,6 +45,7 @@ export interface CompositeValue {
   isPlaceholder: boolean;
   /** 由成员位置生成的键，同一字段重复出现时依然唯一。 */
   key: string;
+  type?: IRumCompositeItem['type'];
   /** 原始行中该字段的值。 */
   value: unknown;
 }
@@ -59,6 +60,7 @@ interface CompositeMember {
   key: string;
   /** 由接口 show_if 预处理得到的条件字段和允许值集合，所有字段均须命中。 */
   showIf: Array<[string, Set<string>]>;
+  type?: IRumCompositeItem['type'];
 }
 
 /** 与记录无关的复合列行布局。 */
@@ -132,6 +134,7 @@ export const resolveColumnLayout = (field: IRumField | undefined, fields: Readon
         return [
           {
             field: memberField,
+            type: item.type,
             isPrimary: memberField.name === composite.primary,
             key: `${index}:${placement}:${itemIndex}`,
             showIf: Object.entries(item.show_if ?? {}).map(([name, candidates]) => [
@@ -166,7 +169,7 @@ export const resolveColumnLayout = (field: IRumField | undefined, fields: Readon
 export const resolveCompositeRows = (sections: CompositeSection[], row: Row): CompositeRow[] => {
   /** 在原始行上取值并检查成员的 show_if 条件。 */
   const resolveValues = (members: CompositeMember[]) => {
-    return members.flatMap(({ field, isPrimary, key, showIf }) => {
+    return members.flatMap(({ field, isPrimary, key, showIf, type }) => {
       const value = row[field.name];
       const isPlaceholder = !hasFieldValue(value);
       if (isPlaceholder && !isPrimary) return [];
@@ -175,7 +178,7 @@ export const resolveCompositeRows = (sections: CompositeSection[], row: Row): Co
         const values = Array.isArray(raw) ? raw : [raw];
         return values.some(item => item !== null && item !== undefined && candidates.has(String(item)));
       });
-      return visible ? [{ field, isPlaceholder, key, value }] : [];
+      return visible ? [{ field, isPlaceholder, key, type, value }] : [];
     });
   };
 

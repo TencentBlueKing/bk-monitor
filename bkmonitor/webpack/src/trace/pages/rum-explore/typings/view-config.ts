@@ -40,6 +40,7 @@ export interface IRumCompositeConfig {
 export interface IRumCompositeItem {
   field_name: string;
   show_if?: IRumCompositeShowIf;
+  type?: 'link';
 }
 
 /** 复合字段的一行：正文成员按 separator 连接，徽标附在正文之后 */
