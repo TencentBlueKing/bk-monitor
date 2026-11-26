@@ -1241,7 +1241,7 @@ class StorageHandler:
             roles = node_settings.get("roles")
         if roles is not None:
             if isinstance(roles, str):
-                roles = roles.split(",")
+                roles = [role.strip() for role in roles.split(",") if role.strip()]
             return any(role == "data" or role.startswith("data_") for role in roles)
         if "data" in node_settings:
             return str(node_settings["data"]).lower() == "true"

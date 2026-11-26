@@ -1,7 +1,7 @@
 import copy
 import json
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from django.core.cache import cache
 from django.test import SimpleTestCase, override_settings
@@ -18,6 +18,7 @@ class TestCustomESDataSource(SimpleTestCase):
         self.index_set = SimpleNamespace(
             scenario_id=Scenario.BKDATA,
             storage_cluster_id=-1,
+            space_uid="bkcc__99",
             indexes=[{"result_table_id": "2_first"}, {"result_table_id": "2_second"}],
         )
         model = self.enterContext(patch("apps.grafana.data_source.LogIndexSet"))
@@ -28,9 +29,9 @@ class TestCustomESDataSource(SimpleTestCase):
             patch("apps.grafana.data_source.BkDataQueryApi.query", return_value={"list": {}})
         )
         self.route = self.enterContext(patch("apps.api.BkDataStorekitApi.storekit_es_route"))
-        self.tenant = self.enterContext(
-            patch("apps.grafana.data_source.get_request_tenant_id", return_value="tenant-a")
-        )
+        self.space = SimpleNamespace(bk_tenant_id="tenant-a")
+        self.space_lookup = self.enterContext(patch("apps.log_search.models.Space.objects.filter"))
+        self.space_lookup.return_value.first.return_value = self.space
         self.enterContext(patch("apps.grafana.data_source.update_bkdata_auth_info", side_effect=self.fill_auth))
 
     @staticmethod
@@ -114,8 +115,39 @@ class TestCustomESDataSource(SimpleTestCase):
             self.index_set.indexes[1]["result_table_id"] = second
             BkDataCustomESDataSource(index_set_id=12).query(self.body())
             self.assertEqual(self.sent_sql()["index"], f"2_first_123456_*,{second}_*")
-        self.meta.assert_called_once_with({"result_table_id": "2_first_123456"}, bk_tenant_id="tenant-a", timeout=3)
+        self.meta.assert_called_once_with(
+            {"result_table_id": "2_first_123456", "no_request": True}, bk_tenant_id="tenant-a", timeout=3
+        )
         self.route.assert_not_called()
+
+    @override_settings(ENABLE_MULTI_TENANT_MODE=True, BK_APP_TENANT_ID="system")
+    def test_probe_uses_result_table_tenant_for_grafana_system_user(self):
+        for user_tenant in ("", "system"):
+            with self.subTest(user_tenant=user_tenant):
+                request = SimpleNamespace(META={}, user=SimpleNamespace(username="system", tenant_id=user_tenant))
+                with patch("apps.utils.local.get_request", return_value=request):
+                    self.assertEqual(BkDataCustomESDataSource(index_set_id=12).get_es_version(), "9.4.3")
+        self.space_lookup.assert_called_with(bk_biz_id=2)
+        self.meta.assert_called_once_with(
+            {"result_table_id": "2_first", "no_request": True}, bk_tenant_id="tenant-a", timeout=3
+        )
+
+    def test_probe_uses_index_set_space_when_result_table_has_no_business_prefix(self):
+        self.index_set.indexes[0]["result_table_id"] = "bcs_k8s_2_std"
+        self.assertEqual(BkDataCustomESDataSource(index_set_id=12).get_es_version(), "9.4.3")
+        self.space_lookup.assert_called_once_with(space_uid="bkcc__99")
+        self.meta.assert_called_once_with(
+            {"result_table_id": "bcs_k8s_2_std", "no_request": True}, bk_tenant_id="tenant-a", timeout=3
+        )
+
+    def test_probe_uses_index_set_space_when_business_space_is_missing(self):
+        self.space_lookup.side_effect = (
+            SimpleNamespace(first=lambda: None),
+            SimpleNamespace(first=lambda: self.space),
+        )
+        self.assertEqual(BkDataCustomESDataSource(index_set_id=12).get_es_version(), "9.4.3")
+        self.assertEqual(self.space_lookup.call_args_list, [call(bk_biz_id=2), call(space_uid="bkcc__99")])
+        self.assertEqual(self.meta.call_args.kwargs["bk_tenant_id"], "tenant-a")
 
     def test_cache_isolated_by_tenant_and_first_result_table(self):
         for tenant, result_table_id in (
@@ -124,7 +156,7 @@ class TestCustomESDataSource(SimpleTestCase):
             ("tenant-a", "2_other"),
             ("tenant-a", "2_first"),
         ):
-            self.tenant.return_value = tenant
+            self.space.bk_tenant_id = tenant
             self.index_set.indexes[0]["result_table_id"] = result_table_id
             BkDataCustomESDataSource(index_set_id=12).query(self.body())
         self.assertEqual(self.meta.call_count, 3)
@@ -144,6 +176,17 @@ class TestCustomESDataSource(SimpleTestCase):
         self.meta.assert_called_once()
         self.assertEqual(body, original)
         self.route.assert_not_called()
+
+    def test_empty_storage_metadata_is_cached_without_warning(self):
+        for storages in (None, {}, {"es": None}, {"es": {"storage_cluster": None}}):
+            with self.subTest(storages=storages), patch("apps.grafana.data_source.logger.warning") as warning:
+                cache.clear()
+                self.meta.reset_mock()
+                self.meta.return_value = storages
+                for _ in range(2):
+                    self.assertIsNone(BkDataCustomESDataSource(index_set_id=12).get_es_version())
+                self.meta.assert_called_once()
+                warning.assert_not_called()
 
     def test_cache_failure_does_not_break_query(self):
         with patch.object(

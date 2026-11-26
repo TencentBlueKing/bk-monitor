@@ -1636,7 +1636,10 @@ class TestStorageEs8Es9Compat(TestCase):
         self.assertTrue(StorageHandler._is_data_node({}, {}))
         # settings 中的 roles 为逗号分隔字符串
         self.assertTrue(StorageHandler._is_data_node({}, {"roles": "data_hot,master"}))
+        self.assertTrue(StorageHandler._is_data_node({}, {"roles": "master, data_hot"}))
+        self.assertTrue(StorageHandler._is_data_node({}, {"roles": " master, data , "}))
         self.assertFalse(StorageHandler._is_data_node({}, {"roles": "master"}))
+        self.assertFalse(StorageHandler._is_data_node({}, {"roles": " master, , "}))
 
     def test_list_node_attrs_es8_es9_compat(self):
         from unittest.mock import MagicMock, patch

@@ -26,7 +26,7 @@ from typing import Any
 from django.conf import settings
 
 from apps.api import BkDataMetaApi, BkDataQueryApi
-from apps.api.modules.utils import update_bkdata_auth_info
+from apps.api.modules.utils import result_table_id_to_bk_biz_id, update_bkdata_auth_info
 from apps.constants import ApiTokenAuthType
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.models import FeatureToggle
@@ -38,9 +38,8 @@ from apps.log_esquery.esquery.client.QueryClientEs import QueryClientEs
 from apps.log_esquery.esquery.client.QueryClientLog import QueryClientLog
 from apps.log_esquery.utils.es_client import adapt_es_query_body, needs_es_query_body_adaptation, parse_es_version
 from apps.log_search.constants import DEFAULT_TIME_FIELD
-from apps.log_search.models import LogIndexSet, Scenario
+from apps.log_search.models import LogIndexSet, Scenario, Space
 from apps.utils.cache import cache_five_minute
-from apps.utils.local import get_request_tenant_id
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 from bk_dataview.grafana.provisioning import Datasource
@@ -262,13 +261,13 @@ class BkDataCustomESDataSource(CustomESDataSourceTemplate):
         if not result_table_id:
             return None
         try:
-            return self._get_cached_es_version(result_table_id=result_table_id, bk_tenant_id=get_request_tenant_id())[
-                "version"
-            ]
+            bk_biz_id = result_table_id_to_bk_biz_id(result_table_id)
+            bk_tenant_id = Space.get_tenant_id(bk_biz_id=bk_biz_id, is_need_default=False) if bk_biz_id else None
+            if not bk_tenant_id:
+                bk_tenant_id = Space.get_tenant_id(space_uid=self.data.space_uid)
+            return self._get_cached_es_version(result_table_id=result_table_id, bk_tenant_id=bk_tenant_id)["version"]
         except Exception:  # pylint: disable=broad-except
-            logger.warning(
-                "[grafana] read BKDATA ES version cache failed, result_table_id=%s", result_table_id, exc_info=True
-            )
+            logger.warning("[grafana] get BKDATA ES version failed, result_table_id=%s", result_table_id, exc_info=True)
             return None
 
     @staticmethod
@@ -277,11 +276,11 @@ class BkDataCustomESDataSource(CustomESDataSourceTemplate):
         version = None
         try:
             storages = BkDataMetaApi.result_tables.storages(
-                {"result_table_id": result_table_id},
+                {"result_table_id": result_table_id, "no_request": True},
                 bk_tenant_id=bk_tenant_id,
                 timeout=BKDATA_ES_VERSION_QUERY_TIMEOUT,
             )
-            candidate = (storages.get("es", {}).get("storage_cluster") or {}).get("version")
+            candidate = (((storages or {}).get("es") or {}).get("storage_cluster") or {}).get("version")
             if isinstance(candidate, str) and parse_es_version(candidate) is not None:
                 version = candidate
         except Exception:  # pylint: disable=broad-except
