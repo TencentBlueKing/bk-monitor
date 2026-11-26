@@ -264,6 +264,7 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 | 参数名称 | 类型 | 描述 |
 | --- | --- | --- |
 | field_name | String | 取 `record[field_name]`，复用该字段的元信息和查询能力 |
+| type | String | 可选。正文成员取 `link` 时，可在新标签页打开有效的 HTTP(S) 地址。省略时按原有方式展示。 |
 | show_if | Object | 可选，`{字段名: [候选值]}`，同字段取 OR，不同字段取 AND |
 
 取值示例见 [2.2.3 复合字段展示取值](#223-复合字段展示取值)。
@@ -524,8 +525,8 @@ View 默认列（响应节选）：
         {
           "items": [
             {"field_name": "attributes.action.target.tag", "show_if": {"attributes.span_type": ["action"]}},
-            {"field_name": "attributes.view.url", "show_if": {"attributes.span_type": ["view"]}},
-            {"field_name": "attributes.url.full", "show_if": {"attributes.span_type": ["resource"]}}
+            {"field_name": "attributes.view.url", "type": "link", "show_if": {"attributes.span_type": ["view"]}},
+            {"field_name": "attributes.url.full", "type": "link", "show_if": {"attributes.span_type": ["resource"]}}
           ]
         }
       ]
@@ -561,7 +562,7 @@ View 默认列（响应节选）：
           "items": [{"field_name": "attributes.view.url_template"}],
           "badges": [{"field_name": "virtual.viewport"}, {"field_name": "attributes.view.loading_type"}]
         },
-        {"items": [{"field_name": "attributes.view.url"}]}
+        {"items": [{"field_name": "attributes.view.url", "type": "link"}]}
       ]
     }
   }

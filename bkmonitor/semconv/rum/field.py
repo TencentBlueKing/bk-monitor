@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from dataclasses import dataclass, field, replace
 from collections.abc import Iterator
-from typing import NotRequired, Protocol, TypedDict
+from typing import Literal, NotRequired, Protocol, TypedDict
 
 
 class HasChoicesCachedEnum(Protocol):
@@ -43,6 +43,7 @@ class CompositeFieldItem(TypedDict):
     """复用字段元数据的单元格内容。"""
 
     field_name: str
+    type: NotRequired[Literal["link"]]
     # 同一字段的候选值取 OR，不同字段取 AND；由前端选取当前行的成员。
     show_if: NotRequired[dict[str, list[str]]]
 

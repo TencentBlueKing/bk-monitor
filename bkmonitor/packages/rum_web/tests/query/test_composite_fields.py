@@ -72,7 +72,7 @@ def test_column_layouts_reference_available_fields_and_preserve_query_capabiliti
         assert layout.keys() == {"primary", "sections"}
         assert all(section.keys() <= {"items", "badges", "separator"} for section in layout["sections"])
         assert all(
-            item.keys() <= {"field_name", "show_if"}
+            item.keys() <= {"field_name", "show_if", "type"}
             for section in layout["sections"]
             for item in [*section.get("items", []), *section.get("badges", [])]
         )
@@ -148,7 +148,7 @@ def test_page_column_has_identical_members_in_span_and_view():
     page = fields["span"]["attributes.view.url_template"]["extra_config"]["composite"]
     assert page == fields["view"]["attributes.view.url_template"]["extra_config"]["composite"]
     assert page["primary"] == "attributes.view.url_template"
-    assert page["sections"][1]["items"][0]["field_name"] == "attributes.view.url"
+    assert page["sections"][1]["items"] == [{"field_name": "attributes.view.url", "type": "link"}]
     assert page["sections"][0]["badges"] == [
         {"field_name": "virtual.viewport"},
         {"field_name": "attributes.view.loading_type"},
@@ -244,6 +244,10 @@ def test_view_config_includes_frontend_selection_rules():
         "attributes.resource.type": ["xhr", "fetch"],
     }
     subtitle = layout["sections"][1]
+    assert {item["field_name"]: item["type"] for item in subtitle["items"] if "type" in item} == {
+        "attributes.view.url": "link",
+        "attributes.url.full": "link",
+    }
     assert {item["field_name"]: item["show_if"] for item in subtitle["items"]} == {
         "attributes.action.target.tag": {"attributes.span_type": ["action"]},
         "attributes.view.url": {"attributes.span_type": ["view"]},
