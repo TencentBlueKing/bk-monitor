@@ -239,12 +239,15 @@ const taskColumnMinWidths = new Map<string, number>([
 
 // 已知业务字段沿用原表格列宽，避免动态列改变既有布局
 const taskFieldMinWidths = new Map<string, number>([
-  ['collection_type', 160],
+  ['collection_method', 100],
+  ['collection_type', 130],
   ['duration_ms', 100],
-  ['execution_status', 140],
+  ['execution_status', 120],
+  ['finished_at', 160],
   ['hosts', 130],
   ['schedule_type', 140],
-  ['started_at', 200],
+  ['scheduled_at', 160],
+  ['started_at', 160],
   ['target_count', 100],
   ['task_name', 220],
 ]);
