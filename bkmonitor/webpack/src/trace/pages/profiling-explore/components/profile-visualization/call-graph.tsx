@@ -28,6 +28,8 @@ import { type PropType, defineComponent, onScopeDispose, shallowRef, watch } fro
 import { Button, Message } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
+import { resolveExportScale } from '../../utils/export-image';
+
 import type { ProfileViewState } from '../../types';
 
 export default defineComponent({
@@ -93,17 +95,21 @@ export default defineComponent({
             fail();
             return;
           }
+          // SVG 是矢量源，按倍率重新光栅化可得到清晰位图。
+          const scale = resolveExportScale(size.width, size.height);
+          const width = Math.round(size.width * scale);
+          const height = Math.round(size.height * scale);
           const canvas = document.createElement('canvas');
-          canvas.width = size.width;
-          canvas.height = size.height;
+          canvas.width = width;
+          canvas.height = height;
           const context = canvas.getContext('2d');
           if (!context) {
             fail();
             return;
           }
           context.fillStyle = '#fff';
-          context.fillRect(0, 0, size.width, size.height);
-          context.drawImage(image, 0, 0, size.width, size.height);
+          context.fillRect(0, 0, width, height);
+          context.drawImage(image, 0, 0, width, height);
           canvas.toBlob(blob => {
             if (!blob) {
               fail();

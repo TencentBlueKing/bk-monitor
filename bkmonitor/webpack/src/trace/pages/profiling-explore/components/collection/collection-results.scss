@@ -68,3 +68,9 @@
     color: #63656e;
   }
 }
+
+.collection-error-message-dialog.bk-dialog {
+  .bk-modal-footer {
+    display: none;
+  }
+}

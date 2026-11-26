@@ -38,18 +38,32 @@ import './collection-task-detail.scss';
 export default defineComponent({
   name: 'CollectionTaskDetail',
   props: {
-    task: { type: Object as PropType<CollectionTask>, required: true },
+    // 侧栏常驻，关闭后任务会被清空，因此不做必填
+    task: { type: Object as PropType<CollectionTask>, default: undefined },
     hosts: { type: Array as PropType<CollectionHost[]>, required: true },
     hostError: { type: String, default: '' },
     hostLoading: { type: Boolean, default: false },
     readonly: { type: Boolean, default: false },
     busy: { type: Boolean, default: false },
+    // 显隐由外层受控，打开/关闭都只切换 show，不卸载组件
+    show: { type: Boolean, required: true },
   },
   emits: { close: () => true, edit: () => true, history: () => true, delete: () => true, retryHosts: () => true },
   setup() {
     return { t: useI18n().t };
   },
   render() {
+    // 数据被清空后保留侧栏实例等待下次 show，显隐始终由外层 show 控制
+    if (!this.task) {
+      return (
+        <Sideslider
+          width='min(640px, 100vw)'
+          class='collection-task-detail'
+          isShow={false}
+          transfer={false}
+        />
+      );
+    }
     const task = this.task;
     const action = (icon: string, label: string, disabled: boolean, danger: boolean, onClick: () => void) => (
       <button
@@ -66,7 +80,7 @@ export default defineComponent({
       <Sideslider
         width='min(640px, 100vw)'
         class='collection-task-detail'
-        isShow={true}
+        isShow={this.show}
         transfer={false}
         onClosed={() => this.$emit('close')}
       >

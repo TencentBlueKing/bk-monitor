@@ -630,24 +630,24 @@ export default defineComponent({
             </div>
           )}
         </div>
-        {c.selected.value && (
-          <CollectionExecutionDetail
-            bizId={this.bizId}
-            controller={c}
-            readonly={this.readonly}
-            timezone={this.timezone}
-            onBusy={value => {
-              this.executionBusy = value;
-            }}
-            onCreated={() => this.$emit('created')}
-            onRenamed={() => {
-              // 改名只影响这一次执行，重新查询让列表名称同步
-              h.refresh();
-            }}
-            onResult={value => this.$emit('result', value, true)}
-            onShare={value => this.$emit('share', value)}
-          />
-        )}
+        <CollectionExecutionDetail
+          bizId={this.bizId}
+          controller={c}
+          readonly={this.readonly}
+          show={!!c.selected.value}
+          timezone={this.timezone}
+          onBusy={value => {
+            this.executionBusy = value;
+          }}
+          onClose={c.close}
+          onCreated={() => this.$emit('created')}
+          onRenamed={() => {
+            // 改名只影响这一次执行，重新查询让列表名称同步
+            h.refresh();
+          }}
+          onResult={value => this.$emit('result', value, true)}
+          onShare={value => this.$emit('share', value)}
+        />
         <CollectionExecutionAction
           controller={c}
           readonly={this.readonly}

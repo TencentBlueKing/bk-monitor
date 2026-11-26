@@ -25,7 +25,7 @@
  */
 import { defineComponent } from 'vue';
 
-import { Tag } from 'bkui-vue';
+import { Popover, Tag } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { executionStatusLabels, resultStatusLabels } from '../../utils/collection-history';
@@ -64,22 +64,34 @@ export default defineComponent({
         </Tag>
       );
     }
+    // 气泡内容需要承载可点击的按钮，改用 Tippy 组件渲染插槽，指令方式会把事件监听丢掉
     return (
-      <span
-        class='collection-execution-status'
-        v-bk-tooltips={{ content: this.message, allowHTML: false, disabled: !this.message }}
-      >
-        {['running', 'parsing'].includes(this.status) ? (
-          <span class='collection-execution-running'>
-            <i aria-hidden='true' />
-            {text}
-          </span>
-        ) : (
-          <CommonStatus
-            text={text}
-            type={statusTypes[this.status] || 'disabled'}
-          />
-        )}
+      <span class='collection-execution-status'>
+        <Popover
+          disabled={!this.message}
+          maxWidth={350}
+          theme='collection-execution-status'
+        >
+          {{
+            default: () =>
+              ['running', 'parsing'].includes(this.status) ? (
+                <span class='collection-execution-running'>
+                  <i aria-hidden='true' />
+                  {text}
+                </span>
+              ) : (
+                <CommonStatus
+                  text={text}
+                  type={statusTypes[this.status] || 'disabled'}
+                />
+              ),
+            content: () => (
+              <div class='collection-execution-status-tips'>
+                {this.$slots.message?.() || <span>{this.message}</span>}
+              </div>
+            ),
+          }}
+        </Popover>
       </span>
     );
   },

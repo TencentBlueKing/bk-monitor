@@ -234,6 +234,8 @@ export default defineComponent({
     const showFilterSummary = computed(
       () => !!filterSummary.value && h.total.value !== null && !!h.records.value.length
     );
+    // 失败信息弹窗的数据来源：当前行主机结果
+    const diagnosis = shallowRef<CollectionHostResult | null>(null);
     function patch(value: Partial<CollectionResultsState>) {
       // 筛选实际变化即退出执行范围；否则刷新仍会请求本次执行详情，列表不会按新条件变化。
       // 执行范围的条件由 displayFilters 回填，比较基准必须是展示条件，否则清空筛选会被判定为无变化
@@ -304,6 +306,7 @@ export default defineComponent({
       showFilterSummary,
       scrollContainer,
       executionBusy,
+      diagnosis,
       patch,
       open,
       openExecution,
@@ -340,6 +343,36 @@ export default defineComponent({
         {row.processes.map(item => `${item.process_name} (${item.pid})`).join('，') || '--'}
       </span>
     );
+    const renderFailureStatus = (row: CollectionHostResult) => {
+      const message = failureMessage(row);
+      return (
+        <CollectionExecutionStatus
+          v-slots={{
+            message: () => (
+              <>
+                <span>{message}</span>
+                {!!row.message && [
+                  '，',
+                  <Button
+                    key='view-detail'
+                    theme='primary'
+                    text
+                    onClick={() => {
+                      this.diagnosis = row;
+                    }}
+                  >
+                    {this.t('查看详情')}
+                  </Button>,
+                ]}
+              </>
+            ),
+          }}
+          message={message}
+          status={row.status}
+          result
+        />
+      );
+    };
     // 执行范围下优先使用后端下发的列定义，缺省时沿用固定列
     const hostColumns = this.hostColumns;
     // 结果列表使用结果侧状态文案，含解析中，与采集任务历史的文案区分
@@ -355,21 +388,14 @@ export default defineComponent({
     const failureMessage = (row: CollectionHostResult): string => {
       if (row.status === 'cancelled') return row.message || '';
       const message = hostErrorTypeMessage(row.error_type);
-      return message ? this.t(message) : '';
+      return message ? this.t(message) : row.status === 'failed' ? this.t('采集失败') : '';
     };
     const renderHostCell = (column: CollectionExecutionColumn, row: CollectionHostResult) => {
       const value = (row as unknown as Record<string, unknown>)[column.field];
       // ip 列保留点击查看主机结果的交互，其余按后端下发的列类型渲染
       if (column.field === 'ip') return resultLink(row, String(value ?? '--'));
       if (column.type === 'process_list') return renderProcesses(row);
-      if (column.type === 'status')
-        return (
-          <CollectionExecutionStatus
-            message={failureMessage(row)}
-            status={row.status}
-            result
-          />
-        );
+      if (column.type === 'status') return renderFailureStatus(row);
       if (column.type === 'datetime') return value ? formatCollectionTime(value as number, this.timezone) : '--';
       if (column.type === 'duration') return formatExecutionDuration(typeof value === 'number' ? value : null);
       return value ? String(value) : '--';
@@ -408,13 +434,7 @@ export default defineComponent({
             title: this.t('状态'),
             width: 130,
             filter: statusFilter,
-            cell: (_, { row }) => (
-              <CollectionExecutionStatus
-                message={failureMessage(row)}
-                status={row.status}
-                result
-              />
-            ),
+            cell: (_, { row }) => renderFailureStatus(row),
           },
           { colKey: operationField, title: this.t('操作'), width: 176, fixed: 'right', cell: 'operations' },
         ];
@@ -612,41 +632,39 @@ export default defineComponent({
             </div>
           )}
         </div>
-        {this.selection?.scope === 'host' && (
-          <CollectionResultDetail
-            key={JSON.stringify(this.selection)}
-            bizId={this.bizId}
-            busy={h.busy.value}
-            readonly={this.readonly}
-            selection={this.selection}
-            source={this.selectedRow}
-            state={this.state}
-            timezone={this.timezone}
-            onChange={this.patch}
-            onClose={() => this.$emit('change', { result: null })}
-            onExecution={this.openExecution}
-            onRerun={h.requestRerun}
-            onShare={() => this.$emit('share')}
-          />
-        )}
-        {c.selected.value && (
-          <CollectionExecutionDetail
-            bizId={this.bizId}
-            controller={c}
-            readonly={this.readonly}
-            timezone={this.timezone}
-            onBusy={value => {
-              this.executionBusy = value;
-            }}
-            onCreated={() => this.$emit('created')}
-            onResult={value => {
-              // 仅表头「查看全部结果」走此分支，行为保持为切到执行范围的结果列表
-              c.close();
-              this.$emit('result', value, false);
-            }}
-            onShare={value => this.$emit('share', value)}
-          />
-        )}
+        <CollectionResultDetail
+          bizId={this.bizId}
+          busy={h.busy.value}
+          readonly={this.readonly}
+          selection={this.selection}
+          show={this.selection?.scope === 'host'}
+          source={this.selectedRow}
+          state={this.state}
+          timezone={this.timezone}
+          onChange={this.patch}
+          onClose={() => this.$emit('change', { result: null })}
+          onExecution={this.openExecution}
+          onRerun={h.requestRerun}
+          onShare={() => this.$emit('share')}
+        />
+        <CollectionExecutionDetail
+          bizId={this.bizId}
+          controller={c}
+          readonly={this.readonly}
+          show={!!c.selected.value}
+          timezone={this.timezone}
+          onBusy={value => {
+            this.executionBusy = value;
+          }}
+          onClose={c.close}
+          onCreated={() => this.$emit('created')}
+          onResult={value => {
+            // 仅表头「查看全部结果」走此分支，行为保持为切到执行范围的结果列表
+            c.close();
+            this.$emit('result', value, false);
+          }}
+          onShare={value => this.$emit('share', value)}
+        />
         <CollectionExecutionAction
           controller={c}
           readonly={this.readonly}
@@ -697,6 +715,20 @@ export default defineComponent({
               </div>
             ),
           }}
+        </Dialog>
+
+        <Dialog
+          width={640}
+          class='collection-error-message-dialog'
+          isShow={!!this.diagnosis}
+          title={this.t('失败信息')}
+          transfer={false}
+          onClosed={() => {
+            this.diagnosis = null;
+          }}
+        >
+          <p>{this.diagnosis?.ip}</p>
+          <pre class='collection-execution-message'>{this.diagnosis?.message || '--'}</pre>
         </Dialog>
       </section>
     );

@@ -45,12 +45,15 @@ export default defineComponent({
   name: 'CollectionResultDetail',
   props: {
     bizId: { type: Number, required: true },
-    selection: { type: Object as PropType<CollectionResultSelection>, required: true },
+    // 侧栏常驻，关闭后数据会被清空，因此不做必填
+    selection: { type: Object as PropType<CollectionResultSelection | null>, default: null },
     source: { type: Object as PropType<CollectionHostResult>, default: undefined },
     state: { type: Object as PropType<CollectionResultsState>, required: true },
     timezone: { type: String, required: true },
     readonly: Boolean,
     busy: Boolean,
+    // 显隐由外层受控，打开/关闭都只切换 show，不卸载组件
+    show: { type: Boolean, required: true },
     // 叠加在其他侧弹之上时挂到 body，避免受父级定位上下文影响
     transfer: { type: [Boolean, String, Object] as PropType<boolean | HTMLElement | string>, default: false },
   },
@@ -92,6 +95,17 @@ export default defineComponent({
     return { t, fullscreen, d, changeView, changeDataType };
   },
   render() {
+    // 数据被清空后保留侧栏实例等待下次 show，显隐始终由外层 show 控制
+    if (this.selection?.scope !== 'host') {
+      return (
+        <Sideslider
+          width='75%'
+          class='collection-result-detail'
+          isShow={false}
+          transfer={this.transfer}
+        />
+      );
+    }
     const d = this.d;
     const row = d.row.value;
     const processes = row?.processes.map(item => `${item.process_name} (${item.pid})`).join('，') || '--';
@@ -100,7 +114,7 @@ export default defineComponent({
         width={this.fullscreen ? '100%' : '75%'}
         class='collection-result-detail'
         beforeClose={() => !this.busy}
-        isShow={true}
+        isShow={this.show}
         transfer={this.transfer}
         onClosed={() => this.$emit('close')}
       >

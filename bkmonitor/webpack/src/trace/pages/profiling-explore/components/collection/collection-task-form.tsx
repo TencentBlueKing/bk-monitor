@@ -85,6 +85,8 @@ export default defineComponent({
     prefill: { type: Object as PropType<Omit<CollectionPayload, 'bk_biz_id'>>, default: undefined },
     /** 默认时区，时间选择按此时区解析并回写 */
     timezone: { type: String, required: true },
+    /** 显隐由外层受控，打开/关闭都只切换 show，不卸载组件 */
+    show: { type: Boolean, required: true },
   },
   /** 对外事件：close 关闭侧栏；saved 保存成功，参数为是否立即执行 */
   emits: { close: () => true, saved: (_immediate: boolean) => true },
@@ -240,7 +242,7 @@ export default defineComponent({
         class='collection-task-form'
         beforeClose={() => !f.loading.value}
         escClose={!f.loading.value}
-        isShow={true}
+        isShow={this.show}
         quickClose={false}
         title={this.t(this.task ? '编辑采集' : 'trace-新建采集')}
         transfer={false}
