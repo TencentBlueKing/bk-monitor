@@ -81,6 +81,13 @@ const getOverlayZIndexStart = (target = typeof globalThis !== 'undefined' ? glob
   return win?.__IS_MONITOR_COMPONENT__ ? MONITOR_OVERLAY_ZINDEX_BASE : Z_INDEX_LAYERS.DROPDOWN;
 };
 
+const resolveLayerFloor = (layer) => {
+  if (typeof layer === 'string' && Object.prototype.hasOwnProperty.call(Z_INDEX_LAYERS, layer)) {
+    return Z_INDEX_LAYERS[layer];
+  }
+  return undefined;
+};
+
 const createZIndexManager = (start = Z_INDEX_LAYERS.DROPDOWN, target = typeof globalThis !== 'undefined' ? globalThis : undefined) => {
   let current = start;
   let messageCurrent = Z_INDEX_LAYERS.MESSAGE;
@@ -105,6 +112,15 @@ const createZIndexManager = (start = Z_INDEX_LAYERS.DROPDOWN, target = typeof gl
         return numeric;
       }
       current = Math.max(current, getOverlayZIndexStart(target));
+      current += 1;
+      publish();
+      return current;
+    },
+    // 按分层底线单调递增分配（DROPDOWN / DRAWER / DIALOG / MESSAGE）。
+    nextLayerZIndex(layer = 'DROPDOWN') {
+      if (layer === 'MESSAGE') return this.nextMessageZIndex();
+      const floor = resolveLayerFloor(layer) ?? Z_INDEX_LAYERS.DROPDOWN;
+      current = Math.max(current, getOverlayZIndexStart(target), floor);
       current += 1;
       publish();
       return current;
@@ -146,49 +162,164 @@ const publishLayerVariables = (win, layers = Z_INDEX_LAYERS) => {
   });
 };
 
+const OVERLAY_QUERY_SELECTOR = '.t-popup, .t-drawer, .t-dialog__ctx, .t-message__list, .t-notification, [data-tippy-root]';
+const TIPPY_DEFAULT_ZINDEX = '9999';
+
+const getOverlayKind = (el) => {
+  const cl = el.classList;
+  if (cl && typeof cl.contains === 'function') {
+    if (cl.contains('t-dialog__ctx')) return 'DIALOG';
+    if (cl.contains('t-drawer')) return 'DRAWER';
+    if (cl.contains('t-popup')) return 'DROPDOWN';
+    if (cl.contains('t-message__list') || cl.contains('t-notification')) return 'MESSAGE';
+  } else if (typeof el.matches === 'function') {
+    if (el.matches('.t-dialog__ctx')) return 'DIALOG';
+    if (el.matches('.t-drawer')) return 'DRAWER';
+    if (el.matches('.t-popup')) return 'DROPDOWN';
+    if (el.matches('.t-message__list, .t-notification')) return 'MESSAGE';
+  }
+  if ((typeof el.hasAttribute === 'function' && el.hasAttribute('data-tippy-root')) || el.matches?.('[data-tippy-root]')) {
+    return 'TIPPY';
+  }
+  return null;
+};
+
+const isOverlayVisible = (el, kind) => {
+  if (el.style?.display === 'none') return false;
+  if (kind === 'DRAWER') {
+    if (el.classList && typeof el.classList.contains === 'function') {
+      return el.classList.contains('t-drawer--open');
+    }
+    return true;
+  }
+  if (kind === 'DROPDOWN' || kind === 'TIPPY') {
+    if (el.style?.visibility === 'hidden') return false;
+  }
+  return true;
+};
+
+const allocateLayer = (manager, layer) => {
+  if (layer === 'MESSAGE') return manager.nextMessageZIndex();
+  if (typeof manager.nextLayerZIndex === 'function') return manager.nextLayerZIndex(layer);
+  const floor = resolveLayerFloor(layer);
+  if (floor !== undefined) manager.nextZIndex(floor);
+  return manager.nextZIndex();
+};
+
+const writeElementZIndex = (el, zIndex) => {
+  // 写入元素级 CSS 变量 --bklog-el-z，避免 Vue 重新 patch style:{ zIndex: undefined } 时清除内联 z-index。
+  if (typeof el.style?.setProperty === 'function') {
+    el.style.setProperty('--bklog-el-z', String(zIndex));
+  } else if (el.style) {
+    el.style.zIndex = String(zIndex);
+  }
+};
+
 const installOverlayWatcher = (win, manager) => {
   if (!win.document?.body || win.__bk_zIndex_watcher) return;
-  const seen = new WeakSet();
+  const openState = new WeakMap();
   const ownsOverlay = el => {
     const traceBuild = typeof __BKLOG_TRACE_EMBEDDED__ !== 'undefined' && __BKLOG_TRACE_EMBEDDED__;
-    return !(traceBuild || win.__IS_MONITOR_TRACE__) || el.closest('.monitor-trace-log, .bklog-text-tooltip') !== null;
+    return !(traceBuild || win.__IS_MONITOR_TRACE__) || el.closest?.('.monitor-trace-log, .bklog-text-tooltip') !== null;
   };
-  const assignPopup = (el) => {
-    if (!ownsOverlay(el) || seen.has(el) || el.style.zIndex) return;
-    seen.add(el);
-    const zIndex = manager.nextZIndex();
-    win.document.documentElement.style.setProperty('--bklog-z-popup', String(zIndex));
+  const syncExplicitZIndex = (el) => {
+    const raw = el.style?.zIndex;
+    if (raw === undefined || raw === null || raw === '') return false;
+    const numeric = Number(raw);
+    if (Number.isFinite(numeric) && numeric > 0 && numeric < Z_INDEX_LAYERS.MESSAGE) {
+      manager.nextZIndex(numeric);
+    }
+    return true;
   };
-  const assignMessage = (el) => {
-    if (!ownsOverlay(el) || seen.has(el)) return;
-    seen.add(el);
+  const bumpMessageContainer = (el) => {
+    if (!ownsOverlay(el)) return;
     const zIndex = manager.nextMessageZIndex();
-    el.style.zIndex = String(zIndex);
+    if (el.style) {
+      el.style.zIndex = String(zIndex);
+      if (typeof el.style.setProperty === 'function') {
+        el.style.setProperty('--bklog-el-z', String(zIndex));
+      }
+    }
+  };
+  const syncOverlay = (el) => {
+    const kind = getOverlayKind(el);
+    if (!kind || !ownsOverlay(el)) return;
+    const visible = isOverlayVisible(el, kind);
+    const wasVisible = openState.get(el) === true;
+    if (!visible) {
+      openState.set(el, false);
+      return;
+    }
+    if (wasVisible) return;
+    openState.set(el, true);
+
+    if (kind === 'MESSAGE') {
+      bumpMessageContainer(el);
+      return;
+    }
+    if (kind === 'TIPPY') {
+      const raw = el.style?.zIndex;
+      const isDefaultTippy = !raw || (String(raw) === TIPPY_DEFAULT_ZINDEX && manager.getCurrent() < Number(TIPPY_DEFAULT_ZINDEX));
+      if (isDefaultTippy) {
+        const zIndex = allocateLayer(manager, 'DROPDOWN');
+        if (el.style) el.style.zIndex = String(zIndex);
+      } else {
+        syncExplicitZIndex(el);
+      }
+      return;
+    }
+    // DIALOG / DRAWER / DROPDOWN：组件显式传了 :z-index 时同步全局计数器；未传时由元素级变量单调递增分配。
+    if (syncExplicitZIndex(el)) return;
+    const zIndex = allocateLayer(manager, kind);
+    writeElementZIndex(el, zIndex);
   };
   const scan = (node) => {
     if (!(node instanceof win.Element)) return;
-    if (node.matches('.t-popup')) assignPopup(node);
-    node.querySelectorAll?.('.t-popup').forEach(assignPopup);
-    if (node.matches('.t-message__list, .t-notification')) assignMessage(node);
-    node.querySelectorAll?.('.t-message__list, .t-notification').forEach(assignMessage);
+    syncOverlay(node);
+    node.querySelectorAll?.(OVERLAY_QUERY_SELECTOR).forEach(syncOverlay);
   };
   const observer = new win.MutationObserver((records) => {
     records.forEach((record) => {
-      record.addedNodes.forEach(scan);
+      if (record.type === 'attributes') {
+        const target = record.target;
+        if (target instanceof win.Element) syncOverlay(target);
+        return;
+      }
+      if (record.addedNodes?.length) {
+        record.addedNodes.forEach(scan);
+        const target = record.target;
+        if (target instanceof win.Element) {
+          const messageHost = getOverlayKind(target) === 'MESSAGE'
+            ? target
+            : target.closest?.('.t-message__list, .t-notification');
+          if (messageHost) bumpMessageContainer(messageHost);
+        }
+      }
     });
   });
-  observer.observe(win.document.body, { childList: true, subtree: true });
-  win.document.querySelectorAll('.t-popup, .t-message__list, .t-notification').forEach(scan);
+  observer.observe(win.document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['style', 'class'],
+  });
+  win.document.querySelectorAll?.(OVERLAY_QUERY_SELECTOR).forEach(scan);
   win.__bk_zIndex_watcher = observer;
 };
 
 const ensureMagicZIndexApi = (manager, target) => {
   if (!manager) return manager;
-  if (typeof manager.nextMessageZIndex === 'function' && typeof manager.nextTickIndex === 'function' && typeof manager.getCurrent === 'function') {
+  if (
+    typeof manager.nextMessageZIndex === 'function' &&
+    typeof manager.nextLayerZIndex === 'function' &&
+    typeof manager.nextTickIndex === 'function' &&
+    typeof manager.getCurrent === 'function'
+  ) {
     return manager;
   }
   const seeded = createZIndexManager(Math.max(manager.getCurrent?.() ?? 0, manager.zIndex ?? 0, getOverlayZIndexStart(target)), target);
   manager.nextZIndex = seeded.nextZIndex.bind(seeded);
+  manager.nextLayerZIndex = seeded.nextLayerZIndex.bind(seeded);
   manager.nextTickIndex = seeded.nextTickIndex.bind(seeded);
   manager.nextMessageZIndex = seeded.nextMessageZIndex.bind(seeded);
   manager.getCurrent = seeded.getCurrent.bind(seeded);

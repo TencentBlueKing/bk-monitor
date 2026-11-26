@@ -33,6 +33,7 @@ import { defineComponent, onBeforeUnmount, onMounted, ref, computed } from 'vue'
 
 
 import { DialogPlugin } from 'tdesign-vue-next';
+import { allocateOverlayZIndex } from '@/shared/global/overlay/use-overlay-z-index';
 import 'tdesign-vue-next/es/dialog/style/index.css';
 import { debounce } from 'lodash-es';
 
@@ -269,6 +270,7 @@ export default defineComponent({
     // 删除 Grok
     const handleDelete = (row: IGrokItem) => {
       const dialog = DialogPlugin.confirm({
+        zIndex: allocateOverlayZIndex('DIALOG'),
         width: 400,
         theme: 'warning',
         header: false,

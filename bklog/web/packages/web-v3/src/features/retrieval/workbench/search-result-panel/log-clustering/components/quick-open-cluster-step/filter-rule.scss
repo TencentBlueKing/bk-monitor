@@ -48,8 +48,9 @@
       display: none;
     }
 
-    .bk-select, .bk-tag-input {
-      border-radius: 0;
+    .t-select__wrap > .t-input,
+    .t-tag-input > .t-input {
+      border-radius: var(--bklog-radius-none);
     }
 
     .t-input__wrap {
@@ -84,9 +85,8 @@
 
     .is-not-error {
       &.bk-select,
-      &.bk-tag-selector .bk-tag-input {
-        /* stylelint-disable-next-line declaration-no-important */
-        border: 1px solid #c4c6cc !important;
+      &.t-tag-input > .t-input:not(.t-input--focused, :focus-within) {
+        border: var(--bklog-border-width) solid var(--bklog-border-control, #c4c6cc);
       }
     }
 

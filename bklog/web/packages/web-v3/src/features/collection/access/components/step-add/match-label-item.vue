@@ -463,9 +463,10 @@
         max-width: none;
       }
 
-      :deep(.t-input__inner) {
-        border-top-left-radius: 0;
-        border-bottom-left-radius: 0;
+      :deep(.t-input__inner),
+      :deep(> .t-input) {
+        border-top-left-radius: var(--bklog-radius-none);
+        border-bottom-left-radius: var(--bklog-radius-none);
       }
     }
 
@@ -502,8 +503,8 @@
     border-color: var(--bklog-status-error-emphasis, #ff5656);
   }
 
-  :deep(.tag-input-error .bk-tag-input) {
-    border-color: #ff5656;
+  :deep(.tag-input-error > .t-input:not(.t-input--focused, :focus-within)) {
+    border-color: var(--bklog-status-error-emphasis, #ff5656);
   }
 
   .specify-box {

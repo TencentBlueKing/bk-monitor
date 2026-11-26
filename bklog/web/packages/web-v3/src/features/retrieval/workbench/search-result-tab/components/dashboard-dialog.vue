@@ -9,6 +9,7 @@ import { ServicesInstance } from '@/platform/services';
   import { BK_LOG_STORAGE } from '@/app/state/store.type.ts';
   import { Dialog, Form, FormItem, Input, Select, Option, Button, MessagePlugin } from 'tdesign-vue-next';
   import { filterWithPinyin } from '@/platform/compat/tdesign/select-filter';
+  import { useOverlayZIndex } from '@/shared/global/overlay/use-overlay-z-index';
   import 'tdesign-vue-next/es/style/index.css';
   import useLocale from '@/shared/composables/use-locale';
   const { t } = useLocale();
@@ -27,6 +28,7 @@ import { ServicesInstance } from '@/platform/services';
   const isCreatingDirectory = ref(false);
   const newDirectoryName = ref('');
   const visible = ref(false); // 控制弹窗显示状态
+  const dialogZIndex = useOverlayZIndex(visible);
   const formData = ref({
     chartName: '',
     directory: '',
@@ -356,6 +358,7 @@ import { ServicesInstance } from '@/platform/services';
 <template>
   <Dialog
     v-model:visible="visible"
+    :z-index="dialogZIndex"
     data-testid="retrieve-dashboard-dialog"
     :close-on-overlay-click="false"
     :destroy-on-close="false"

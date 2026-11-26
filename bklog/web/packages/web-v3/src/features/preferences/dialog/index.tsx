@@ -29,6 +29,7 @@ import { useApplicationStore } from '@/app/state/domains/application-store';
 import { defineComponent, type PropType } from 'vue';
 
 import { Dialog } from 'tdesign-vue-next';
+import { useOverlayZIndex } from '@/shared/global/overlay/use-overlay-z-index';
 
 
 import './index.scss';
@@ -48,9 +49,10 @@ computed: {},
 methods: {},
 setup(props, { slots, emit }) {
     const store = useApplicationStore();
+    const overlayZIndex = useOverlayZIndex(() => props.value);
     return () => props.value ? (
       <Dialog
-        style='z-index: var(--bklog-z-dialog);'
+        zIndex={overlayZIndex.value}
         width='100%'
         dialogClassName='global-dialog'
         top={0}

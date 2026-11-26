@@ -441,6 +441,9 @@ export default defineComponent({
       selectedItems: new Set<string>(),
     });
 
+    // 当前激活的字段 key，用于控制 z-index 层级
+    const activeFieldKey = ref<string>('');
+
     /** 防抖定时器 */
     let suggestionDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     /** 请求取消执行函数 */
@@ -448,6 +451,7 @@ export default defineComponent({
 
     /** 重置联想状态 */
     const resetSuggestionState = () => {
+      const closingFieldKey = suggestionState.currentFieldKey;
       suggestionState.visible = false;
       suggestionState.items = [];
       suggestionState.count = 0;
@@ -455,6 +459,9 @@ export default defineComponent({
       suggestionState.keyword = '';
       suggestionState.currentFieldKey = '';
       suggestionState.selectedItems.clear();
+      if (closingFieldKey && activeFieldKey.value === closingFieldKey) {
+        activeFieldKey.value = '';
+      }
 
       // 清理防抖定时器
       if (suggestionDebounceTimer) {
@@ -730,9 +737,16 @@ export default defineComponent({
     // 标签输入本地缓存
     const localTagValues = ref<Record<string, string[]>>({});
 
-    // 当前激活的字段 key，用于控制 z-index 层级
-    const activeFieldKey = ref<string>('');
     let blurTimer: ReturnType<typeof setTimeout> | null = null;
+
+    watch(
+      () => props.isSticky,
+      sticky => {
+        if (!sticky) return;
+        resetSuggestionState();
+        activeFieldKey.value = '';
+      },
+    );
 
     const setActiveField = (key: string) => {
       if (blurTimer) {

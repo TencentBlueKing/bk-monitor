@@ -41,15 +41,15 @@
   }
 
   .fill-value {
-    flex-shrink: 0;
-    width: 100%;
+    flex: 1;
+    min-width: 0;
 
-    .input {
-      max-width: none;
+    :deep(> .t-input) {
+      @include bklogControls.join-previous;
     }
 
-    :deep(.t-input__inner) {
-      @include bklogControls.join-previous;
+    &.tag-input-error :deep(> .t-input:not(.t-input--focused, :focus-within)) {
+      border-color: var(--bklog-status-error-emphasis, #ff5656);
     }
   }
 

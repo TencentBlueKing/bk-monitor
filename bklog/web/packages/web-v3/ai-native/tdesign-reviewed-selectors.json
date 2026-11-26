@@ -28,6 +28,14 @@
   "features/client-logs/management/collection-deploy/collection-table.scss": {
     ".t-button__text": "采集名称是表格内的可点击文本，内部文字容器铺满单元格以实现长名称省略。"
   },
+  "features/client-logs/search/log-detail-panel/toolbar/index.scss": {
+    ".t-input": "客户端日志深色工具栏为过滤和高亮标签输入设置深色底色、边框及拼接圆角。",
+    ".t-input__inner": "深色工具栏内的输入文本与占位色保持深底可读对比度。",
+    ".t-tag": "客户端日志工具栏中的过滤标签沿用深色容器下的标签配色。",
+    ".t-tag--default": "仅默认主题过滤标签在深色工具栏内应用深灰背景与浅灰文字。",
+    ".t-tag--disabled": "排除禁用状态标签，避免覆盖禁用态视觉。",
+    ".t-tag__icon-close": "深色过滤标签的关闭按钮采用工具栏次要图标色与悬停反馈。"
+  },
   "features/clusters/current/cluster-manage/es-slider.scss": {
     ".t-button": "页脚使用 flex gap 时移除相邻按钮的默认外边距，避免间距叠加。",
     ".t-drawer__footer": "集群侧栏页脚保留专属 20px 横向内边距和按钮布局。",
@@ -37,10 +45,26 @@
     ".t-input-number__increase": "让范围字段的增加箭头持续可见。",
     ".t-select__wrap": "资源范围下拉与数字输入在同一行等分，允许收缩。"
   },
+  "features/collection/access/components/step-add/configs-select.vue": {
+    ".t-input": "容器名输入与前置操作符选择器水平拼接，移除左侧圆角。"
+  },
+  "features/collection/access/components/step-add/match-label-item.vue": {
+    ".t-input": "标签值输入与前置操作符拼接并承担校验失败边框。",
+    ".t-input--focused": "校验失败态在聚焦时让位给原生品牌聚焦边框。"
+  },
+  "features/collection/access/step-add.vue": {
+    ".t-input": "采集滤规则中的错误态边框仅作用于未聚焦的原生输入框。",
+    ".t-input--focused": "规则输入框聚焦时保留品牌聚焦边框而不被错误色覆盖。",
+    ".t-tag-input": "日志类型补充输入框沿用 320px 宽度及与复选框对齐的偏移位置。"
+  },
   "features/collection/current/components/business-comp/step2/base-info.scss": {
     ".t-button": "数据分类按钮作为分段控件，选中项边框需要覆盖相邻按钮边框。",
     ".t-button--theme-default": "仅默认主题的分类按钮使用选中配色。",
     ".t-form__controls-content": "数据分类表单的按钮组和说明按列排列并横向铺满。"
+  },
+  "features/collection/current/components/business-comp/step2/container-collection/label-item-choose.scss": {
+    ".t-input": "标签值输入框的错误边框样式需与相邻拼接控件区分聚焦态。",
+    ".t-input--focused": "标签值输入框聚焦时恢复原生聚焦边界。"
   },
   "features/collection/current/components/business-comp/step2/index-set-option.scss": {
     ".t-popup__content": "索引集复选下拉由内层列表承担滚动，弹层容器负责裁剪。",
@@ -77,6 +101,12 @@
   },
   "features/collection/current/components/create-operation/step4-storage.scss": {
     ".t-collapse-panel__body": "集群分组卡片提供背景和边框，内部折叠面板需透明。"
+  },
+  "features/collection/filter-rule/index.scss": {
+    ".t-input": "过滤规则组合条内的选择器与标签输入去除圆角并维持未聚焦控制边框。",
+    ".t-input--focused": "过滤规则输入框聚焦时保留品牌聚焦态边界。",
+    ".t-select__wrap": "前置选择器在过滤规则组合条中移除圆角以衔接相邻控件。",
+    ".t-tag-input": "过滤值标签输入在组合条内去除圆角并同步未错误态边框。"
   },
   "features/extraction/current/extract-config/module-select.scss": {
     ".t-is-checked": "模块选择用复选框表达选中，避免勾选状态覆盖行背景。",
@@ -165,11 +195,26 @@
   "features/retrieval/workbench/search-result-chart/index.scss": {
     ".t-input--focused": "汇聚周期在工具栏内以无边框选择器显示，聚焦时保持相同边界。"
   },
+  "features/retrieval/workbench/search-result-panel/log-clustering/components/quick-open-cluster-step/filter-rule.scss": {
+    ".t-input": "聚类过滤规则组合条内的标签输入去除圆角并维持未聚焦边框。",
+    ".t-input--focused": "聚类过滤规则输入框聚焦时保留原生聚焦边界。",
+    ".t-select__wrap": "聚类过滤规则选择器去除圆角以拼接相邻条件控件。",
+    ".t-tag-input": "聚类过滤规则值输入在组合条内同步无圆角及边框边界。"
+  },
+  "features/retrieval/workbench/search-result-panel/log-clustering/data-fingerprint.vue": {
+    ".t-input": "数据指纹表格内责任人标签输入默认透明无边框，悬停与聚焦时显式反馈。",
+    ".t-input--focused": "行内责任人输入聚焦时切换为白底和品牌色边框。",
+    ".t-tag-input": "数据指纹表格责任人列通过标签输入承载行内编辑外观。"
+  },
   "features/retrieval/workspace/search-bar/scene-filter/filter-panel.scss": {
     ".t-input--prefix": "宽度约束仅针对承载过滤标签的前缀输入模式。",
     ".t-input__prefix": "前缀标签容器为后续输入预留 24px 空间。",
     ".t-tag": "普通标签在空间不足时可收缩，折叠计数保留完整宽度。",
     ".t-tag--text": "允许标签文字收缩，以便在可用宽度内截断。"
+  },
+  "features/retrieval/workspace/search-result/log-clustering/log-table/content-table/index.scss": {
+    ".t-input": "聚类内容表责任人列默认透明无边框，悬停与聚焦时切换浅灰与白底反馈。",
+    ".t-input--focused": "聚类内容表责任人输入聚焦时显示白底和品牌色边框。"
   },
   "features/retrieval/workspace/search-result/original-log/standalone-tab/index.scss": {
     ".t-dialog__header--fullscreen": "全屏原始日志使用自绘标题，压缩原生标题行并保留关闭操作。"

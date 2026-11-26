@@ -149,17 +149,6 @@
       .grade-value-tag-input {
         width: 100%;
         min-width: 0;
-
-        .t-tag {
-          box-sizing: border-box;
-          height: 20px;
-          padding: 0 5px;
-          line-height: 20px;
-          color: var(--bklog-text-secondary);
-          background: var(--bklog-surface-component);
-          border: none;
-          border-radius: 2px;
-        }
       }
 
       .grade-table-row {

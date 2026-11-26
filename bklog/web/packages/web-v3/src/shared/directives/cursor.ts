@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import { Z_INDEX_LAYERS } from '@/shared/global/overlay/z-index-manager.js';
+
 const DEFAULT_OPTIONS = {
   active: true,
   offset: [15, 0],
@@ -35,7 +37,8 @@ function init(el: { mouseEnterHandler: () => void; element: HTMLDivElement|null;
     const element = document.createElement('div');
     element.id = 'directive-ele';
     element.style.position = 'absolute';
-    element.style.zIndex = '2501';
+    const nextZ = (window as unknown as { __bk_zIndex_manager?: { nextZIndex?: () => number } }).__bk_zIndex_manager?.nextZIndex?.();
+    element.style.zIndex = String(nextZ ?? Z_INDEX_LAYERS.DROPDOWN);
     el.element = element;
     document.body.appendChild(element);
 

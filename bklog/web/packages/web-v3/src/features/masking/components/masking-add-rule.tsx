@@ -535,9 +535,6 @@ export default class MaskingAddRule extends tsc<IProps> {
                     <TagInput
                       v-model={this.formData.match_fields}
                       disabled={!this.matchFieldCheckValue}
-                      hasDeleteIcon={false}
-                      allowCreate
-                      freePaste
                       onBlur={(_value, { inputValue }) => this.handleValueBlur(inputValue)}
                     />
                   </div>
