@@ -15,30 +15,39 @@
       flex: 1;
       min-width: 0;
       display: flex;
-      min-width: 0;
 
       .filter-select-main {
+        position: relative;
         flex: 0 0 72px;
         width: 72px;
         min-width: 72px;
+        margin-right: -1px;
+
+        &:hover {
+          z-index: 1;
+        }
+
+        &:focus-within {
+          z-index: 2;
+        }
 
         .t-input {
           @include bklogControls.join-next;
         }
-
-        border-top-right-radius: 0;
-        border-bottom-right-radius: 0;
-        margin-right: -1px;
-
-        .t-input {
-          border-top-right-radius: 0;
-          border-bottom-right-radius: 0;
-        }
       }
 
       .filter-key-input {
+        position: relative;
         flex: 1;
         min-width: 0;
+
+        &:hover {
+          z-index: 1;
+        }
+
+        &:focus-within {
+          z-index: 2;
+        }
 
         > .t-input {
           @include bklogControls.join-previous;
@@ -54,23 +63,39 @@
       font-size: 12px;
 
       .prefix-text {
+        box-sizing: border-box;
+        flex-shrink: 0;
         width: 40px;
-        height: 32px;
-        background: var(--td-bg-color-secondarycontainer);
-        border: 1px solid var(--td-border-level-2-color);
+        min-height: 32px;
+        color: var(--bklog-standard-control-text, var(--td-text-color-secondary));
+        background: var(--bklog-standard-control-surface-disabled, var(--td-bg-color-secondarycontainer));
+        border: var(--bklog-border-width) solid var(--bklog-standard-control-border, var(--td-border-level-2-color));
         border-right: none;
-        border-radius: 2px 0 0 2px;
+        border-radius: var(--bklog-standard-control-radius) 0 0 var(--bklog-standard-control-radius);
         display: flex;
         justify-content: center;
         align-items: center;
       }
 
       .highlight-tag-input {
+        position: relative;
         flex: 1;
         min-width: 0;
 
+        &:hover {
+          z-index: 1;
+        }
+
+        &:focus-within {
+          z-index: 2;
+        }
+
         > .t-input {
-          border-radius: 0;
+          @include bklogControls.join-previous;
+        }
+
+        &:has(+ .highlight-control-main) > .t-input {
+          @include bklogControls.join-next;
         }
       }
     }
@@ -120,7 +145,7 @@
     font-family: pingFang-SC, 'Microsoft Yahei', Helvetica, Aria, sans-serif;
     height: 22px;
     padding: 0 5px;
-    margin: 4px 5px 4px 0;
+    margin: 2px 5px 2px 0;
     line-height: 20px;
     color: var(--td-text-color-secondary);
     border: var(--bklog-border-width) solid var(--td-component-stroke);

@@ -43,9 +43,8 @@ import {
   Radio,
   Button,
   MessagePlugin,
-  TagInput,
-  Popup,
 } from 'tdesign-vue-next';
+import BkTagInput from '@/shared/ui/bk-tag-input';
 import { toWorkerMessage } from '@/shared/lib/worker-message';
 import 'tdesign-vue-next/es/style/index.css';
 import { parseTableRowData } from '../../../shared/lib/util';
@@ -167,8 +166,6 @@ export default defineComponent({
 
     const isLoading = ref(false);
     const indexedRows = ref<Record<string, any>[]>([]);
-    const activeQuickIndex = ref<number | null>(null);
-    const quickInputText = ref('');
 
     const fieldList = computed(() =>
       store.rawFieldList.filter((f: { es_doc_values: any; field_type: string; }) => f.es_doc_values && f.field_type === 'keyword'),
@@ -295,21 +292,6 @@ export default defineComponent({
       updateOptions,
     });
 
-    const quickSuggestions = computed(() => {
-      const keyword = quickInputText.value.trim().toLowerCase();
-      return fieldSearchValueList.value.filter(item => !keyword || item.name.toLowerCase().includes(keyword));
-    });
-
-    const addQuickValue = (index: number, raw: string) => {
-      const next = raw.trim();
-      if (!next) return;
-      const current = gradeOptionForm.value.settings[index].fieldValue ?? [];
-      if (!current.includes(next)) {
-        handleSettingItemChange(index, 'fieldValue', [...current, next]);
-      }
-      quickInputText.value = '';
-    };
-
     const fieldValueRender = (item: GradeSetting, index: number) => {
       if (item.id === 'others') {
         return '--';
@@ -317,56 +299,23 @@ export default defineComponent({
 
       if (gradeOptionForm.value.type === 'custom' && !gradeOptionForm.value.disabled) {
         if (gradeOptionForm.value.valueType === GradeFieldValueType.VALUE) {
-          const suggestionVisible = activeQuickIndex.value === index && quickSuggestions.value.length > 0;
           return (
-            <Popup
-              visible={suggestionVisible}
-              placement='bottom-left'
-              overlayClassName='bklog-popover-stop grade-value-suggestion'
-              overlayInnerStyle={{ padding: '4px 0', maxHeight: '240px', overflow: 'auto' }}
-              content={() => (
-                <div class='grade-value-suggestion-list bklog-popover-stop'>
-                  {quickSuggestions.value.map(option => (
-                    <div
-                      key={option.id}
-                      class={[
-                        'grade-value-suggestion-item',
-                        'bklog-popover-stop',
-                        { 'is-selected': item.fieldValue.includes(option.id) },
-                      ]}
-                      onMousedown={(event: MouseEvent) => event.preventDefault()}
-                      onClick={() => addQuickValue(index, option.id)}
-                    >
-                      {option.name}
-                    </div>
-                  ))}
-                </div>
-              )}
-            >
-              <div class='grade-value-tag-input'>
-                <TagInput
-                  value={item.fieldValue}
-                  inputValue={activeQuickIndex.value === index ? quickInputText.value : ''}
-                  placeholder={$t('请输入并按Enter结束')}
-                  clearable
-                  excessTagsDisplayType='scroll'
-                  onFocus={() => {
-                    activeQuickIndex.value = index;
-                  }}
-                  onBlur={() => {
-                    if (activeQuickIndex.value === index) activeQuickIndex.value = null;
-                  }}
-                  onInputChange={value => {
-                    activeQuickIndex.value = index;
-                    quickInputText.value = value;
-                  }}
-                  onChange={value => {
-                    handleSettingItemChange(index, 'fieldValue', (value ?? []).map(current => String(current)));
-                    quickInputText.value = '';
-                  }}
-                />
-              </div>
-            </Popup>
+            <BkTagInput
+              class='grade-value-tag-input'
+              value={item.fieldValue}
+              list={fieldSearchValueList.value}
+              placeholder={$t('请输入并按Enter结束')}
+              trigger='focus'
+              allowCreate
+              allowNextFocus
+              clearable
+              collapseTags
+              hasDeleteIcon={false}
+              popoverClassName='grade-value-suggestion'
+              onChange={(value: string[]) => {
+                handleSettingItemChange(index, 'fieldValue', value);
+              }}
+            />
           );
         }
 

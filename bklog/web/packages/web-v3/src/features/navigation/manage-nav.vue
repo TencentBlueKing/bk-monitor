@@ -250,7 +250,7 @@ import { useCollectionStore } from '@/app/state/domains/collection-store';
     padding-inline: var(--bklog-space-16);
     line-height: var(--bklog-space-24);
     background-color: var(--bklog-surface);
-    box-shadow: var(--bklog-card-shadow);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
 
     .main-title {
       padding-inline: calc(var(--bklog-space-8) + var(--bklog-space-2));

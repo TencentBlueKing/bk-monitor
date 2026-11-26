@@ -40,6 +40,7 @@ import axios from 'axios';
 import './add-existing-collect-dialog.scss';
 
 const CancelToken = axios.CancelToken;
+const VIEWPORT_PADDING = 12;
 
 interface IAvailableItem {
   index_set_id: number;
@@ -614,6 +615,27 @@ export default defineComponent({
           placement: 'bottom-start',
           theme: 'light',
           maxWidth: 'none',
+          popperOptions: {
+            strategy: 'fixed',
+            modifiers: [
+              {
+                name: 'flip',
+                options: {
+                  padding: VIEWPORT_PADDING,
+                  fallbackPlacements: ['bottom-start', 'bottom-end', 'top-start', 'top-end', 'right-start', 'left-start'],
+                },
+              },
+              {
+                name: 'preventOverflow',
+                options: {
+                  boundary: 'viewport',
+                  altAxis: true,
+                  padding: VIEWPORT_PADDING,
+                  tether: false,
+                },
+              },
+            ],
+          },
           onShown: handlePopoverShow,
           onHidden: handlePopoverHide,
         }}

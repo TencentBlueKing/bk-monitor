@@ -1,0 +1,172 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+.bklog-tag-input-host {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+
+  &.bklog-tag-input--collapsible {
+    height: var(--bklog-control-size-medium, 32px);
+
+    .bklog-tag-input__control {
+      width: 100%;
+    }
+
+    &:not(.is-focused) {
+      .bklog-tag-input__control > .t-input {
+        height: var(--bklog-control-size-medium, 32px);
+        min-height: var(--bklog-control-size-medium, 32px);
+        overflow: hidden;
+        flex-wrap: nowrap;
+      }
+
+      .bklog-tag-input__control > .t-input > .t-input__prefix {
+        display: inline-flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        overflow: hidden;
+        max-width: 100%;
+      }
+
+      .bklog-tag-input__control .t-tag:not(.bklog-tag-input__collapsed-tag) {
+        min-width: 0;
+        max-width: 100%;
+      }
+
+      .bklog-tag-input__control > .t-input > .t-input__inner {
+        min-width: 0;
+      }
+    }
+
+    &.is-focused {
+      z-index: var(--bklog-z-dropdown, 30);
+
+      .bklog-tag-input__control {
+        position: absolute;
+        top: 0;
+        right: 0;
+        left: 0;
+        z-index: var(--bklog-z-dropdown, 30);
+
+        > .t-input {
+          min-height: var(--bklog-control-size-medium, 32px);
+          max-height: 150px;
+          overflow-y: auto;
+          background-color: var(--td-bg-color-container);
+          box-shadow: var(--td-shadow-1);
+        }
+      }
+    }
+  }
+}
+
+.bklog-tag-input__measure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: var(--bklog-space-4, 4px);
+  align-items: center;
+  height: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  visibility: hidden;
+  pointer-events: none;
+
+  .bklog-tag-input__measure-tag {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    box-sizing: border-box;
+    height: var(--bklog-tag-size-large, 22px);
+    padding-inline: calc(var(--bklog-space-4, 4px) + var(--bklog-space-2, 2px));
+    font-family: var(--td-font-family, inherit);
+    font-size: var(--bklog-font-body, 12px);
+    line-height: 1;
+    border: var(--bklog-border-width, 1px) solid transparent;
+
+    &.has-close {
+      padding-inline-end: calc(var(--bklog-space-4, 4px) + var(--bklog-space-2, 2px) + 18px);
+    }
+  }
+}
+
+.bklog-tag-input__collapsed-wrap {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.bklog-tag-input__collapsed-tag {
+  flex-shrink: 0;
+  cursor: default;
+}
+
+.bklog-tag-input__clear-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--td-text-color-placeholder);
+  cursor: pointer;
+  transition: color 0.15s ease;
+
+  &:hover {
+    color: var(--td-text-color-secondary);
+  }
+}
+
+.bklog-tag-input__popup {
+  .bklog-tag-input__option-list {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  .bklog-tag-input__option-item {
+    display: flex;
+    align-items: center;
+    min-height: var(--bklog-control-size-medium, 32px);
+    padding: 0 12px;
+    font-size: var(--bklog-font-body, 12px);
+    line-height: var(--bklog-line-height-body, 20px);
+    color: var(--td-text-color-primary);
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+
+    &.has-custom-tpl {
+      padding: 0;
+    }
+
+    &:hover,
+    &.is-active {
+      color: var(--td-brand-color);
+      background-color: var(--bklog-option-surface-hover, var(--td-brand-color-light));
+    }
+  }
+
+  .bklog-tag-input__option-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

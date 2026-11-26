@@ -1,11 +1,13 @@
 .highlight-control-main {
-  height: 32px;
+  box-sizing: border-box;
+  min-height: 32px;
   display: flex;
   align-items: center;
-  border: 1px solid #c4c6cc;
+  background: var(--bklog-surface, var(--td-bg-color-container));
+  border: var(--bklog-border-width) solid var(--bklog-standard-control-border, var(--td-border-level-2-color));
   border-left: none;
-  border-top-right-radius: 2px;
-  border-bottom-right-radius: 2px;
+  border-top-right-radius: var(--bklog-standard-control-radius);
+  border-bottom-right-radius: var(--bklog-standard-control-radius);
 
   .btn-pre,
   .btn-next,

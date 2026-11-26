@@ -1,11 +1,16 @@
 .add-existing-collect-popover-content {
+  box-sizing: border-box;
   padding: 0 6px 10px;
   position: relative;
 
   .add-existing-collect-popover {
-    width: 818px;
+    display: flex;
+    flex-direction: column;
+    width: min(818px, calc(100vw - 48px));
+    max-height: calc(100vh - 44px);
 
     .popover-header {
+      flex-shrink: 0;
       padding: 10px 0;
 
       .popover-title {
@@ -34,10 +39,13 @@
 
     .popover-body {
       display: flex;
-      min-height: 420px;
-      max-height: 560px;
+      flex: 0 1 auto;
+      height: clamp(380px, calc(100vh - 200px), 540px);
+      min-height: min(380px, calc(100vh - 160px));
+      max-height: 540px;
       border-radius: 0 0 2px 2px;
       margin-top: 12px;
+      overflow: hidden;
     }
 
     .popover-column {
@@ -199,7 +207,7 @@
     }
 
     .selected-column {
-      width: 314px;
+      width: min(314px, 38%);
       flex-shrink: 0;
       background: #F5F7FA;
       display: flex;
@@ -361,6 +369,7 @@
     }
 
     .popover-actions {
+      flex-shrink: 0;
       display: flex;
       gap: 8px;
       justify-content: flex-end;

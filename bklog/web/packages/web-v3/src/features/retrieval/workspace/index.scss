@@ -60,6 +60,24 @@
     }
   }
 
+  &.is-sticky-top-result {
+    .search-result-panel.flex .search-result-content .original-log-panel {
+      .bklog-result-container.show-header {
+        .bklog-row-container.row-header {
+          box-shadow: var(--bklog-notification-shadow);
+        }
+      }
+
+      &:has(.bklog-result-container:not(.show-header)) {
+        .original-log-panel-tools {
+          box-shadow:
+            inset 0 calc(-1 * var(--bklog-border-width)) 0 0 var(--td-component-stroke),
+            var(--bklog-notification-shadow);
+        }
+      }
+    }
+  }
+
   &.is-sticky-top {
     .search-result-panel {
       &.flex {
