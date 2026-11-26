@@ -27,7 +27,7 @@
   <div class="alarm-detail">
     <!-- 趋势图 -->
     <monitor-echarts
-      v-if="eventDetail.dataTypeLabel === 'time_series'"
+      v-if="showChart"
       :style="{ backgroundColor: '#f0f1f5' }"
       class="alarm-detail-chart"
       :height="210"
@@ -125,6 +125,7 @@ interface IEventDetail {
   createTime: string;
   currentValue: number | string;
   dataTypeLabel?: string;
+  hideGraph?: boolean;
   dimensionMessage: string;
   duration: string;
   firstAnomalyTime: string;
@@ -181,7 +182,7 @@ export default class AlarmDetail extends Vue {
     status: 'ABNORMAL',
     noticeStatus: '',
     isShield: false,
-    dataTypeLabel: 'time_series',
+    dataTypeLabel: '',
   };
 
   // 事件详情展示字段Map
@@ -244,10 +245,17 @@ export default class AlarmDetail extends Vue {
     this.handleGetData();
   }
 
+  get showChart() {
+    return this.eventDetail.dataTypeLabel === 'time_series' && !this.eventDetail.hideGraph;
+  }
+
   // 获取事件详情和图表数据
   handleGetData() {
     this.$store.commit('app/setPageLoading', true);
-    Promise.all([this.handleGetEventDetail(), this.handleGetSeriesData(), AlarmModule.getEventNum()]).finally(() => {
+    const detail = this.handleGetEventDetail().then(() => {
+      if (this.showChart) return this.handleGetSeriesData();
+    });
+    Promise.all([detail, AlarmModule.getEventNum()]).finally(() => {
       this.$store.commit('app/setPageLoading', false);
     });
   }
@@ -267,6 +275,7 @@ export default class AlarmDetail extends Vue {
       noticeStatus,
       isShield,
       dataTypeLabel,
+      hideGraph,
       dimensionMessage,
     } = await EventModule.getEventDetail({ id: this.id });
 
@@ -284,6 +293,7 @@ export default class AlarmDetail extends Vue {
       noticeStatus,
       isShield,
       dataTypeLabel,
+      hideGraph,
       dimensionMessage,
     };
   }
