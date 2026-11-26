@@ -1486,8 +1486,7 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
   "overview": {
     "title": "longTask",
     "badges": [
-      {"field_name": "elapsed_time", "value": 123500},
-      {"field_name": "attributes.outcome.type", "value": null}
+      {"field_name": "elapsed_time", "value": 123500}
     ]
   },
   "sections": [
