@@ -64,28 +64,24 @@
 
     .grade-field-setting {
       display: flex;
-      flex-wrap: wrap;
+      flex: 1 0 auto;
+      flex-wrap: nowrap;
+      align-items: flex-start;
       min-width: 0;
-      gap: var(--bklog-space-8);
 
-      &.bk-form-vertical .bk-form-item + .bk-form-item {
-        margin-top: 0;
-      }
-
-      .bk-form-item {
+      .t-form__item {
         margin-bottom: 0;
-
-        &.is-error .bk-select-name {
-          padding-right: 50px;
-        }
       }
 
       .grade-type-form-item {
-        width: min(240px, 100%);
+        flex: 0 0 240px;
+        width: 240px;
       }
 
       .grade-custom-field-form-item {
-        width: min(366px, 100%);
+        flex: 0 0 366px;
+        width: 366px;
+        margin-left: 10px;
       }
     }
 
@@ -150,6 +146,22 @@
         }
       }
 
+      .grade-value-tag-input {
+        width: 100%;
+        min-width: 0;
+
+        .t-tag {
+          box-sizing: border-box;
+          height: 20px;
+          padding: 0 5px;
+          line-height: 20px;
+          color: var(--bklog-text-secondary);
+          background: var(--bklog-surface-component);
+          border: none;
+          border-radius: 2px;
+        }
+      }
+
       .grade-table-row {
         display: flex;
 
@@ -191,6 +203,24 @@
       button {
         min-width: 64px;
       }
+    }
+  }
+}
+
+.grade-value-suggestion {
+  .grade-value-suggestion-item {
+    display: flex;
+    align-items: center;
+    min-height: var(--bklog-control-size-medium);
+    padding: 0 12px;
+    font-size: var(--bklog-font-body);
+    line-height: var(--bklog-line-height-body);
+    color: var(--td-text-color-primary);
+    cursor: pointer;
+
+    &:hover,
+    &.is-selected {
+      background: var(--bklog-option-surface-hover);
     }
   }
 }

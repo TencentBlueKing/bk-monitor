@@ -436,7 +436,7 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
           flex: 0 1 auto;
           width: 400px;
           min-width: 0;
-          border-radius: 0 var(--bklog-standard-control-radius) var(--bklog-standard-control-radius) 0;
+          border-radius: 0;
         }
 
         :deep(.bklog-v3-tag-highlight .bklog-tag-choice-input) {
