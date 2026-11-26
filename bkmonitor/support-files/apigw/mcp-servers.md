@@ -10,7 +10,8 @@
 
 ## Server 与权限
 
-声明包含 16 个公开业务 Server。`name` 使用现有名称的后缀，例如 `alarm`，网关生成
+声明包含 16 个业务 Server。`prod` 在 MCP 市场公开，`stage` 同步为非公开并保持启用。
+`name` 使用现有名称的后缀，例如 `alarm`，网关生成
 `bk-monitor-prod-alarm`。同名 Server 原位更新，既有访问地址保持有效；未声明的 Server 不由此接口删除。
 
 全部声明的 Server 使用 Streamable HTTP，开启 OAuth2 公开客户端模式和个人令牌，关闭原始响应。
