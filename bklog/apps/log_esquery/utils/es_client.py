@@ -84,37 +84,55 @@ def build_date_histogram_interval_params(interval: str | int, es_version: str | 
     return {"fixed_interval": interval}
 
 
-def adapt_es_query_body(body: dict, es_version: str | None) -> dict:
-    """使用实际连接版本转换聚合语法，避免多集群查询共用可变请求。"""
-    body = deepcopy(body)
-
-    def adapt_aggs(aggs):
+def _iter_es_aggregations(body: dict):
+    for key in ("aggs", "aggregations"):
+        aggs = body.get(key)
         if not isinstance(aggs, dict):
-            return
+            continue
         for agg in aggs.values():
             if not isinstance(agg, dict):
                 continue
-            histogram = agg.get("date_histogram")
-            if isinstance(histogram, dict):
-                if "interval" in histogram and is_es_version_gte(es_version, ES_NEW_SYNTAX_MIN_VERSION):
-                    histogram.update(build_date_histogram_interval_params(histogram.pop("interval"), es_version))
-                elif not is_es_version_gte(es_version, ES_NEW_SYNTAX_MIN_VERSION):
-                    for key in ("fixed_interval", "calendar_interval"):
-                        if key in histogram:
-                            histogram["interval"] = histogram.pop(key)
-            terms = agg.get("terms")
-            if isinstance(terms, dict):
-                order = terms.get("order")
-                orders = order if isinstance(order, list) else [order]
-                old_key, new_key = ("_term", "_key") if is_es_version_gte(es_version, (6, 0)) else ("_key", "_term")
-                for item in orders:
-                    if isinstance(item, dict) and old_key in item:
-                        item[new_key] = item.pop(old_key)
-            adapt_aggs(agg.get("aggs"))
-            adapt_aggs(agg.get("aggregations"))
+            yield agg
+            yield from _iter_es_aggregations(agg)
 
-    adapt_aggs(body.get("aggs"))
-    adapt_aggs(body.get("aggregations"))
+
+def needs_es_query_body_adaptation(body: dict) -> bool:
+    """仅在存在版本相关聚合语法时获取集群版本。"""
+    for agg in _iter_es_aggregations(body):
+        histogram = agg.get("date_histogram")
+        if isinstance(histogram, dict) and any(
+            key in histogram for key in ("interval", "fixed_interval", "calendar_interval")
+        ):
+            return True
+        terms = agg.get("terms")
+        if isinstance(terms, dict):
+            order = terms.get("order")
+            orders = order if isinstance(order, list) else [order]
+            if any(isinstance(item, dict) and ("_term" in item or "_key" in item) for item in orders):
+                return True
+    return False
+
+
+def adapt_es_query_body(body: dict, es_version: str | None) -> dict:
+    """使用实际连接版本转换聚合语法，避免多集群查询共用可变请求。"""
+    body = deepcopy(body)
+    for agg in _iter_es_aggregations(body):
+        histogram = agg.get("date_histogram")
+        if isinstance(histogram, dict):
+            if "interval" in histogram and is_es_version_gte(es_version, ES_NEW_SYNTAX_MIN_VERSION):
+                histogram.update(build_date_histogram_interval_params(histogram.pop("interval"), es_version))
+            elif not is_es_version_gte(es_version, ES_NEW_SYNTAX_MIN_VERSION):
+                for key in ("fixed_interval", "calendar_interval"):
+                    if key in histogram:
+                        histogram["interval"] = histogram.pop(key)
+        terms = agg.get("terms")
+        if isinstance(terms, dict):
+            order = terms.get("order")
+            orders = order if isinstance(order, list) else [order]
+            old_key, new_key = ("_term", "_key") if is_es_version_gte(es_version, (6, 0)) else ("_key", "_term")
+            for item in orders:
+                if isinstance(item, dict) and old_key in item:
+                    item[new_key] = item.pop(old_key)
     return body
 
 

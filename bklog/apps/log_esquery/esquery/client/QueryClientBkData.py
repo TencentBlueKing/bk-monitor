@@ -21,6 +21,8 @@ the project delivered to anyone in the future.
 """
 
 import json
+import re
+from copy import deepcopy
 from typing import Any
 
 from django.conf import settings
@@ -33,7 +35,13 @@ from apps.log_esquery.constants import BKDATA_NOT_HAVE_INDEX
 from apps.log_esquery.esquery.client.QueryClientTemplate import QueryClientTemplate
 from apps.log_esquery.exceptions import EsClientSearchException
 from apps.log_esquery.type_constants import type_mapping_dict
+from apps.log_esquery.utils.es_client import adapt_es_query_body, needs_es_query_body_adaptation, parse_es_version
+from apps.utils.cache import cache_five_minute
+from apps.utils.local import get_request_tenant_id
+from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
+
+BKDATA_ES_VERSION_QUERY_TIMEOUT = 3
 
 
 class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
@@ -47,6 +55,7 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
         try:
             tracer = trace.get_tracer(__name__)
             with tracer.start_as_current_span("bkdata_es_query") as span:
+                body = self.adapt_query_body(index, body)
                 # bkdata情景下,当且仅当用户主动传了 track_total_hits: true 时，才允许往 body 中注入该参数
                 if track_total_hits:
                     body.update({"track_total_hits": True})
@@ -75,6 +84,53 @@ class QueryClientBkData(QueryClientTemplate):  # pylint: disable=invalid-name
                 EsClientSearchException.MESSAGE.format(error=e),
                 code=getattr(e, "code", EsClientSearchException.ERROR_CODE),
             )
+
+    def adapt_query_body(self, index: str, body: dict, default_es_version: str | None = None) -> dict:
+        if not needs_es_query_body_adaptation(body):
+            return deepcopy(body)
+        version = self.get_es_version(index) or default_es_version
+        if version is None:
+            return deepcopy(body)
+        return adapt_es_query_body(body, version)
+
+    def get_es_version(self, index: str) -> str | None:
+        # 有限支持：整份 DSL 按首个结果表的集群版本适配，不拆分跨版本集群查询。
+        result_table_id = index.split(",", 1)[0].strip().removesuffix("_*")
+        result_table_id = re.sub(r"_\d{4}(?:\d{2}){0,3}\*$", "", result_table_id)
+        if not result_table_id or "*" in result_table_id or "?" in result_table_id:
+            return None
+        try:
+            info = self._get_cached_es_version(result_table_id=result_table_id, bk_tenant_id=get_request_tenant_id())
+            return info["version"]
+        except Exception:  # pylint: disable=broad-except
+            logger.warning("[bkdata] read ES version cache failed, result_table_id=%s", result_table_id, exc_info=True)
+            return None
+
+    @staticmethod
+    @cache_five_minute("bkdata_es_version_{bk_tenant_id}_{result_table_id}", need_md5=True)
+    def _get_cached_es_version(result_table_id: str, bk_tenant_id: str) -> dict:
+        version = None
+        try:
+            storages = BkDataMetaApi.result_tables.storages(
+                {"result_table_id": result_table_id},
+                bk_tenant_id=bk_tenant_id,
+                timeout=BKDATA_ES_VERSION_QUERY_TIMEOUT,
+            )
+            cluster_name = (storages.get("es", {}).get("storage_cluster") or {}).get("cluster_name")
+            if cluster_name:
+                response = BkDataStorekitApi.storekit_es_route(
+                    {"cluster_name": cluster_name, "uri": "/"},
+                    bk_tenant_id=bk_tenant_id,
+                    timeout=BKDATA_ES_VERSION_QUERY_TIMEOUT,
+                )
+                info = json.loads(response) if isinstance(response, str) else response
+                candidate = info.get("version", {}).get("number")
+                if isinstance(candidate, str) and parse_es_version(candidate) is not None:
+                    version = candidate
+        except Exception:  # pylint: disable=broad-except
+            logger.warning("[bkdata] query ES version failed, result_table_id=%s", result_table_id, exc_info=True)
+        # 缓存探测失败结果，避免异常期间每次聚合查询都重复探测。
+        return {"version": version}
 
     def mapping(self, index: str, add_settings_details: bool = False) -> dict:
         index_list: list = index.split(",")

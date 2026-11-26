@@ -265,8 +265,6 @@ class CustomESDataSourceTemplate:
         return self.get_client().mapping(index=self.index)
 
     def query(self, body: dict[str, Any]):
-        if self.scenario_id == Scenario.BKDATA:
-            body = ESBodyAdapter(body=body).adapt()
         return self._query(body=body)
 
     def _query(self, body: dict[str, Any]):
@@ -321,6 +319,8 @@ class BkDataCustomESDataSource(CustomESDataSourceTemplate):
         return BkDataQueryApi.query(params, request_cookies=False)["list"]
 
     def _query(self, body: dict[str, Any]):
+        # 版本探测失败时保留 Grafana 原有的旧版本语法适配。
+        body = self.get_client().adapt_query_body(self.index, body, default_es_version="5.0")
         return self.query_bkdata(body=body)
 
     def _mapping(self):

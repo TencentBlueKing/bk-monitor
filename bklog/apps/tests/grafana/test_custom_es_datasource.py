@@ -74,6 +74,7 @@ class TestESBodyAdapterAndCustomDataSource(TestCase):
             patch("apps.grafana.data_source.LogIndexSet") as mock_model,
             patch("apps.grafana.data_source.update_bkdata_auth_info"),
             patch("apps.grafana.data_source.BkDataQueryApi.query", return_value={"list": []}) as mock_bkdata_query,
+            patch("apps.grafana.data_source.QueryClientBkData.get_es_version", return_value=None),
         ):
             mock_model.objects.filter.return_value.first.return_value = fake_bkdata_index_set
 
@@ -82,3 +83,48 @@ class TestESBodyAdapterAndCustomDataSource(TestCase):
             sent_sql = json.loads(mock_bkdata_query.call_args.args[0]["sql"])
             self.assertEqual(sent_sql["body"]["aggs"]["hist"]["date_histogram"]["interval"], "5m")
             self.assertNotIn("fixed_interval", sent_sql["body"]["aggs"]["hist"]["date_histogram"])
+
+    def test_bkdata_query_uses_version_adapter_and_preserves_grafana_authentication(self):
+        body = {
+            "aggs": {
+                "hist": {"date_histogram": {"field": "ts", "fixed_interval": "1d"}},
+                "group": {"terms": {"field": "host", "order": {"_key": "asc"}}},
+            }
+        }
+        original = copy.deepcopy(body)
+        index_set = MagicMock(
+            index_set_id=12,
+            storage_cluster_id=-1,
+            scenario_id=Scenario.BKDATA,
+            indexes=[{"result_table_id": "2_first"}, {"result_table_id": "2_second"}],
+        )
+        for version in ("5.6.16", "8.19.19", "9.4.3", None):
+            with (
+                self.subTest(version=version),
+                patch("apps.grafana.data_source.LogIndexSet") as model,
+                patch("apps.grafana.data_source.update_bkdata_auth_info") as update_auth,
+                patch("apps.grafana.data_source.BkDataQueryApi.query", return_value={"list": {}}) as query,
+                patch("apps.grafana.data_source.QueryClientBkData.get_es_version", return_value=version) as get_version,
+            ):
+                model.objects.filter.return_value.first.return_value = index_set
+                datasource = BkDataCustomESDataSource(index_set_id=12)
+                datasource.query(body)
+                get_version.assert_called_once_with("2_first_*,2_second_*")
+                sql = json.loads(query.call_args.args[0]["sql"])
+                self.assertEqual(sql["index"], "2_first_*,2_second_*")
+                histogram_key = "fixed_interval" if version in ("8.19.19", "9.4.3") else "interval"
+                order_key = "_key" if version in ("8.19.19", "9.4.3") else "_term"
+                self.assertEqual(sql["body"]["aggs"]["hist"]["date_histogram"], {"field": "ts", histogram_key: "1d"})
+                self.assertEqual(sql["body"]["aggs"]["group"]["terms"]["order"], {order_key: "asc"})
+                self.assertEqual(body, original)
+                self.assertTrue(query.call_args.args[0]["no_request"])
+                self.assertFalse(query.call_args.kwargs["request_cookies"])
+                update_auth.assert_called_once()
+
+                query.reset_mock()
+                get_version.reset_mock()
+                datasource.mapping()
+                get_version.assert_not_called()
+                self.assertEqual(
+                    json.loads(query.call_args.args[0]["sql"]), {"index": "2_first_*,2_second_*", "mapping": True}
+                )
