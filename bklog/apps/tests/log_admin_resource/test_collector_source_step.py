@@ -10,6 +10,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from shutil import copyfile, which
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from apps.log_admin_resource.scripts import collector_source_step as probe
@@ -699,6 +700,24 @@ class SourceStepTest(unittest.TestCase):
         self.assertEqual(row["read_consistency"], "changed_during_read")
         self.assertEqual((row["size_before_read"], row["size_bytes"]), (old_size, old_size + 3))
         self.assertEqual(bytes.fromhex("".join(row["raw_hex_chunks"])), b"new")
+
+    def test_matching_open_reader_without_python2_o_accmode(self):
+        info = self.file.stat()
+        flags = {"3": "0100000", "4": "01", "5": "02", "6": "010000000"}
+        runtime = SimpleNamespace(
+            path=os.path,
+            O_WRONLY=os.O_WRONLY,
+            O_RDWR=os.O_RDWR,
+            readlink=lambda _: "/bin/bkunifylogbeat",
+            listdir=lambda _: list(flags),
+            stat=lambda _: info,
+        )
+
+        def fdinfo(path):
+            return io.StringIO("pos: 4\nflags: " + flags[os.path.basename(path)] + "\n")
+
+        with patch.object(probe, "os", runtime), patch.object(probe, "open", side_effect=fdinfo, create=True):
+            self.assertEqual(probe.reader_positions(1, info), [4])
 
     def test_shared_readers_do_not_identify_one_position(self):
         with patch.object(probe, "reader_positions", return_value=[2, 7]):
