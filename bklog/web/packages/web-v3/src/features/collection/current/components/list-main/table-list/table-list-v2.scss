@@ -1,5 +1,4 @@
-@use '@/shared/ui/loading/status-spinner' as *;
-@use '@/shared/ui/loading/status-spinner' as *;
+@use '@/shared/ui/loading/shimmer' as *;
 
 @use '../../business-comp/step2/index-set-option' as *;
 .v2-log-collection-table {
@@ -497,20 +496,14 @@
 
         &.running,
         &.unknown {
-          &::after {
-            width: 0;
-            height: 0;
-          }
+          display: inline-flex;
+          align-items: center;
+          gap: var(--bklog-space-4);
+          padding-left: 0;
 
+          &::after,
           &::before {
-            display: inline-block;
-            width: 15px;
-            height: 15px;
-            @include status-spinner();
-            margin-right: 4px;
-            margin-top: -7.5px;
-            vertical-align: middle;
-            top: 50%;
+            content: none;
           }
         }
       }
@@ -700,18 +693,33 @@
     border: 1px solid transparent;
 
     &.is-updating {
-      padding-inline-end: var(--bklog-space-24);
       cursor: default;
-    }
 
-    .index-set-update-spinner {
-      @include status-spinner;
+      // Keep TagMore's measurement and tooltip DOM mounted; only fade visible tags.
+      > .tag-item,
+      > .tag-more-indicator,
+      > .tag-more-empty,
+      > .tag-more-trigger-frame {
+        opacity: 0;
+      }
 
-      position: absolute;
-      inset-block-start: calc(50% - var(--bklog-space-8));
-      inset-inline-end: var(--bklog-space-4);
-      width: var(--bklog-space-16);
-      height: var(--bklog-space-16);
+      &::before,
+      &::after {
+        @include loading-shimmer;
+        content: '';
+        position: absolute;
+        inset-block: 0;
+        inset-inline-start: var(--bklog-space-4);
+        width: 40%;
+        height: var(--bklog-tag-size-large);
+        margin-block: auto;
+        pointer-events: none;
+      }
+
+      &::after {
+        inset-inline-start: calc(40% + 2 * var(--bklog-space-4));
+        width: 28%;
+      }
     }
 
     .tag-more-trigger-frame {

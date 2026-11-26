@@ -27,6 +27,7 @@
 import { Button as TButton } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
 import { asDictionary } from '@/shared/utils/typed-record';
+import LoadingIcon from '@/shared/ui/loading/status-icon';
 
 import { defineComponent, ref, computed, watch } from 'vue';
 
@@ -661,7 +662,7 @@ export default defineComponent({
                 }}
               >
                 {['success', 'failed'].includes(item.id) && <span class={`item-circle ${item.id}`} />}
-                {item.id === 'running' && <i class='running' />}
+                {item.id === 'running' && <LoadingIcon class='running' variant='segments' size={14} />}
                 {containerStatusNameMap.value[item.id]}（{item.listNum}）
               </span>
             ))}
@@ -704,7 +705,7 @@ export default defineComponent({
                       default: ({ row }: { row: IContainerConfigItem }) => (
                         <div class='container-status-cell'>
                           {row.status === 'running' ? (
-                            <i class='running' />
+                            <LoadingIcon class='running' variant='segments' size={14} />
                           ) : (
                             <span class={`item-circle ${row.status}`} />
                           )}
