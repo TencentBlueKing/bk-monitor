@@ -353,14 +353,16 @@ import { useRetrieveStore } from '@/app/state/domains/retrieve-store';
       z-index: var(--bklog-z-sticky, 6);
       display: flex;
       flex-wrap: wrap;
+      align-items: center;
       justify-content: space-between;
       row-gap: var(--bklog-space-4);
-      padding: 0 6px 0 0;
+      padding: var(--bklog-space-12) var(--bklog-space-8) var(--bklog-space-12) 0;
       background: var(--td-bg-color-container);
       // border-bottom: 1px solid #dfe0e5;
 
       &.trace-log-panel {
         padding-top: 6px;
+        padding-bottom: 6px;
       }
     }
 

@@ -7,7 +7,7 @@
   width: 100%;
   min-width: 100%;
   min-height: 400px;
-  margin-top: 6px;
+  margin-top: 0;
   overflow: hidden;
   overscroll-behavior-x: contain;
   border-top: var(--bklog-border-width) solid var(--td-component-stroke);
@@ -294,6 +294,7 @@
       line-height: 32px;
       visibility: visible;
       background-color: var(--td-bg-color-secondarycontainer);
+      border-top: var(--bklog-border-width) solid var(--td-component-stroke);
 
       .bklog-list-row {
         z-index: var(--bklog-z-base);
@@ -511,6 +512,8 @@
   }
 
   &.show-header {
+    border-top: none;
+
     .bklog-row-container {
       &.row-header {
         display: block;
