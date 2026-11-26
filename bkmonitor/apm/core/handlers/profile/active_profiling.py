@@ -926,10 +926,12 @@ class ActiveProfilingExecutionQueryHandler:
             "creator": execution.creator,
             "scheduled_at": host.scheduled_at,
         }
-        # 只有失败的行带失败类型，前端悬浮在状态上时按类型给出展示文案；旧版采集端不上报，为空串
+        # 只有失败的行带失败类型和原始执行信息：前端悬浮在状态上时按类型给出展示文案，查看详情时展示原始信息；
+        # 旧版采集端不上报失败类型，为空串
         if host.status == "failed":
             row["error_type"] = host.error_type
-        # 只有取消的行带执行信息，与执行详情一致显示取消人
+            row["message"] = host.message
+        # 取消的行带执行信息，与执行详情一致显示取消人
         elif host.status == "cancelled":
             row["message"] = build_cancelled_message(host.cancelled_by)
         return row
