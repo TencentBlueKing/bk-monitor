@@ -39,9 +39,10 @@ export default defineComponent({
   name: 'ClusterStartFail',
   props: {
     clusterStepData: {
-      type: Object as PropType<ClusteringConfigStatus>,
-      required: true,
+      type: Object as PropType<ClusteringConfigStatus | null>,
+      default: null,
     },
+    statusError: String,
   },
   setup(props, { expose }) {
     const { t } = useLocale();
@@ -77,6 +78,7 @@ export default defineComponent({
     }[];
 
     const errorMessage = computed(() => {
+      if (props.statusError) return props.statusError;
       for (const step of stepInfoList) {
         const stepData = props.clusterStepData?.[step.key];
         if (stepData?.status === 'FAILED') {
@@ -87,7 +89,7 @@ export default defineComponent({
     });
 
     const getStatus = (step: StepStatus) => {
-      return props.clusterStepData?.[step]?.status || 'SUCCESS';
+      return props.clusterStepData?.[step]?.status || 'PENDING';
     };
 
     const getNumDisplay = (step: StepStatus) => {

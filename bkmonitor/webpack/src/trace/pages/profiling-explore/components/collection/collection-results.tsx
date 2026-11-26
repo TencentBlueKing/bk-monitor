@@ -215,7 +215,7 @@ export default defineComponent({
     const filterSummary = computed(() => {
       const conditions: string[] = [];
       const append = (label: string, values: string[]) => {
-        if (values.length) conditions.push(`${label}：${values.join(',')}`);
+        if (values.length) conditions.push(t('{label}：{value}', { label, value: values.join(',') }));
       };
       const value = props.state.filters;
       // 按任务 ID 筛选时优先展示执行详情回填的任务名，取不到才退化为 ID

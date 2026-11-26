@@ -4,7 +4,7 @@ from django.conf import settings
 from rest_framework import serializers
 
 from bkmonitor.utils.cache import CacheType
-from bkmonitor.utils.user import get_admin_username
+from bkmonitor.utils.user import get_backend_username
 from core.drf_resource import APIResource
 from core.errors.api import BKAPIError
 
@@ -26,7 +26,7 @@ class NodeManV3Resource(APIResource):
         return self.__doc__
 
     def full_request_data(self, validated_request_data):
-        self.bk_username = get_admin_username(bk_tenant_id=self._get_tenant_id())
+        self.bk_username = get_backend_username(bk_tenant_id=self._get_tenant_id())
         return validated_request_data
 
     def render_response_data(self, validated_request_data, response_data):

@@ -3,6 +3,7 @@ from typing import Any, final
 from bk_monitor_base.infras import third_party_api as api
 from bk_monitor_base.infras.constant import DEFAULT_TENANT_ID
 from bk_monitor_base.infras.third_party_api.errors import BkApiError
+from bk_monitor_base.infras.third_party_api.user.api import single_tenant_backend_username
 from bk_monitor_base.metadata import config, models
 from bk_monitor_base.metadata.config import settings
 
@@ -51,7 +52,7 @@ class KafkaGseSyncer:
         kafka_auth = cls._get_kafka_sasl_auth(mq_cluster)
         params = {
             "condition": {"stream_to_id": mq_cluster.gse_stream_to_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
-            "operation": {"operator_name": settings.blueking.common_username},
+            "operation": {"operator_name": single_tenant_backend_username(settings.blueking.common_username)},
             "specification": {
                 "stream_to": {
                     "name": name,
@@ -76,7 +77,7 @@ class KafkaGseSyncer:
         result = api.gse.add_stream_to(
             bk_tenant_id=DEFAULT_TENANT_ID,
             metadata={"plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
-            operation={"operator_name": settings.blueking.common_username},
+            operation={"operator_name": single_tenant_backend_username(settings.blueking.common_username)},
             stream_to={
                 "name": name,
                 "report_mode": cls.DEFAULT_STREAM_TO_REPORT_MODEL,
@@ -98,7 +99,7 @@ class KafkaGseSyncer:
                     "stream_to_id": config.ZK_GSE_DATA_CLUSTER_ID,
                     "plat_name": config.DEFAULT_GSE_API_PLAT_NAME,
                 },
-                "operation": {"operator_name": settings.blueking.common_username},
+                "operation": {"operator_name": single_tenant_backend_username(settings.blueking.common_username)},
             }
             result = api.gse.query_stream_to(bk_tenant_id=DEFAULT_TENANT_ID, **params)
             return bool(result)

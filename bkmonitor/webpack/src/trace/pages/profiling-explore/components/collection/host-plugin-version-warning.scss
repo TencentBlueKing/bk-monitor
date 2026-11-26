@@ -1,0 +1,49 @@
+// 采集器版本校验不通过提示（host-plugin-version-warning.tsx）
+// 提示内容渲染在弹窗中并挂到 body，样式不能挂在侧栏根类下
+.collection-plugin-version-warning {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 14px;
+  line-height: 22px;
+  color: #4d4f56;
+
+  // 弹窗内容默认左对齐，这里与弹窗标题保持一致
+  text-align: center;
+
+  .collection-plugin-version-plugin {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    .collection-plugin-version-link {
+      color: #3a84ff;
+      cursor: pointer;
+    }
+
+    // 不通过的主机全部展示，超出高度时滚动，保证任意数量都能看全
+    .collection-plugin-version-hosts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      justify-content: center;
+      max-height: 104px;
+      padding: 2px 0;
+      overflow-y: auto;
+
+      .collection-plugin-version-host {
+        padding: 0 6px;
+        font-size: 12px;
+        line-height: 20px;
+        color: #4d4f56;
+        word-break: break-all;
+        background: #f0f1f5;
+        border-radius: 2px;
+      }
+    }
+  }
+
+  .collection-plugin-version-question {
+    color: #63656e;
+  }
+}

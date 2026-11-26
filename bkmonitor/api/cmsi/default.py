@@ -42,7 +42,7 @@ class CMSIBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         """
         if self.gateway_type == "apigw":
             return True
-        return settings.ENABLE_MULTI_TENANT_MODE or settings.CMSI_API_BASE_URL
+        return settings.ESB_DISABLED or settings.ENABLE_MULTI_TENANT_MODE or settings.CMSI_API_BASE_URL
 
     def switch_apigw(self):
         """
@@ -414,8 +414,8 @@ class SendMail(CheckCMSIResource):
 
         self.message_detail = {}
 
-        # 如果直接指定邮箱地址，则直接发送
-        if validated_request_data.get("receiver"):
+        # CE7 网关接受完整的账号列表，一次发送同时包含内外部收件人的邮件。
+        if settings.ESB_DISABLED or validated_request_data.get("receiver"):
             return super().perform_request(validated_request_data)
 
         # 区分内外部用户

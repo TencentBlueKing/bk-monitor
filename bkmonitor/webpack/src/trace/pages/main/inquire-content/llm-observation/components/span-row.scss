@@ -25,6 +25,24 @@ $tree-step: 16px;
     background: #f0f5ff;
     box-shadow: inset 2px 0 0 $primary-color;
   }
+
+  /* 搜索命中行：黄底，对齐瀑布图 is-matching-filter（#fff3e1） */
+  .llm-span-item.is-search-matching & {
+    background: #fff3e1;
+  }
+
+  /* 当前切换到的命中行：黄色边框，对齐瀑布图搜索命中 is-focus-matching（#ffb848） */
+  .llm-span-item.is-search-active & {
+    position: relative;
+    z-index: 1;
+    background: #fff3e1;
+    box-shadow: inset 0 0 0 1px #ffb848;
+  }
+
+  .llm-span-item.is-search-matching &:hover,
+  .llm-span-item.is-search-active &:hover {
+    background: #f1ebe3;
+  }
 }
 
 .llm-span-col {
@@ -78,7 +96,7 @@ $tree-step: 16px;
   }
 
   &.is-duration {
-    width: 104px;
+    width: 116px;
   }
 
   &.is-token {

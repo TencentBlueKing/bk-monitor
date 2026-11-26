@@ -17,7 +17,17 @@ from rest_framework import serializers as slz
 
 ADVANCED_OPTIONS = OrderedDict(
     [
+        (
+            "ADMIN_UNIFY_QUERY_TARGETS",
+            slz.DictField(label="Admin 原生统一查询实例", default=settings.ADMIN_UNIFY_QUERY_TARGETS),
+        ),
         ("UNIFY_QUERY_ROUTING_RULES", slz.ListField(label="统一查询路由规则", default=[])),
+        (
+            "ENABLE_BMW_ROUTE_REFRESH",
+            slz.BooleanField(
+                label="通过 bk-monitor-worker 定向刷新 metadata 查询路由", default=settings.ENABLE_BMW_ROUTE_REFRESH
+            ),
+        ),
         (
             "ALARM_BACKEND_CLUSTER_ROUTING_RULES",
             slz.ListField(
@@ -248,6 +258,23 @@ ADVANCED_OPTIONS = OrderedDict(
             slz.BooleanField(label="APM应用操作BkdataFlow的尾部采样 Flow 时是否需要创建临时中转节点", default=False),
         ),
         ("APM_APP_BKDATA_TAIL_SAMPLING_PROJECT_ID", slz.IntegerField(label="APM尾部采样项目id", default=0)),
+        # 用 getattr 取默认值：精简 settings（如离线单测）下导入本模块时不因缺少配置而失败。
+        # 尾部采样是否走 V4 的开关 ENABLE_APM_TRACE_TAIL_SAMPLING_V4 是环境变量，不在全局配置中。
+        (
+            "APM_TRACE_TAIL_SAMPLING_V4_RESOURCES",
+            slz.DictField(
+                label="APM Trace V4 尾部采样 BKBase 资源"
+                "（kafka_channel：前置 KafkaChannel，tenant/namespace/name；stream_cluster：Flink 计算集群）",
+                default=getattr(
+                    settings,
+                    "APM_TRACE_TAIL_SAMPLING_V4_RESOURCES",
+                    {
+                        "kafka_channel": "default/bkbase/bkmonitor-bkbase-inner",
+                        "stream_cluster": "StreamCluster/bkmonitor/stream-bkmonitor-cluster",
+                    },
+                ),
+            ),
+        ),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_PROJECT_ID", slz.IntegerField(label="APM虚拟指标项目id", default=0)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE_EXPIRE", slz.IntegerField(label="APM虚拟指标存储过期时间", default=30)),
         ("APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE", slz.CharField(label="APM虚拟指标存储集群", default="")),

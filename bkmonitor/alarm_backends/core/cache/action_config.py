@@ -8,11 +8,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import datetime
+from datetime import datetime, timedelta, timezone
 
-import pytz
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import LockNotOwnedError, TimeoutError as RedisTimeoutError, WatchError
+from redis.lock import Lock
 
 from alarm_backends.core.cache.base import CacheManager
+from alarm_backends.core.lock.service_lock import renewing_redis_lock
 from bkmonitor.action.serializers import ActionConfigDetailSlz, ActionPluginSlz
 from bkmonitor.models import ActionConfig, ActionPlugin
 from bkmonitor.utils import extended_json
@@ -28,6 +31,8 @@ class ActionConfigCacheManager(CacheManager):
     CACHE_KEY_TEMPLATE = CacheManager.CACHE_KEY_PREFIX + ".action_config.{cache_type}_{cache_id}"
 
     PLUGIN_CACHE_KEY = CacheManager.CACHE_KEY_PREFIX + ".action_plugin_{cache_id}"
+    LAST_REFRESH_KEY = CacheManager.CACHE_KEY_PREFIX + ".action_config.last_refresh"
+    FULL_REFRESH_LOCK = CacheManager.CACHE_KEY_PREFIX + ".action_config.full_refresh_lock"
 
     # 负缓存哨兵标记: 取值非空但 is_enabled=False, 表示已通过 DB 确认该套餐确实不存在/已删除
     NEGATIVE_CACHE_FLAG = "__negative__"
@@ -116,8 +121,68 @@ class ActionConfigCacheManager(CacheManager):
         )
 
     @classmethod
-    def refresh(cls, minutes=None):
-        pipeline = cls.cache.pipeline()
+    def refresh(cls, minutes=None) -> bool:
+        if minutes:
+            try:
+                return cls._refresh_recent(minutes)
+            except WatchError as exc:
+                if isinstance(exc.__context__, (RedisConnectionError, RedisTimeoutError)):
+                    raise
+                cls.logger.info("action config incremental refresh superseded by another refresh")
+                return False
+
+        # 全量优先。已在读库的增量通过 WATCH 放弃旧快照，新到的增量留到下一轮补齐。
+        lock = cls.cache.lock(cls.FULL_REFRESH_LOCK, timeout=60, thread_local=False, lock_class=_FullRefreshLock)
+        with renewing_redis_lock(lock, lock.timeout) as check_lease:
+            if check_lease is None:
+                cls.logger.info("action config full refresh already running")
+                return False
+            while True:
+                check_lease()
+                with cls.cache.pipeline() as pipeline:
+                    pipeline.watch(cls.LAST_REFRESH_KEY)
+                    pipeline.multi()
+                    cls._queue_refresh(pipeline)
+                    if not lock.owned():
+                        raise LockNotOwnedError("action config full refresh lost its lock")
+                    try:
+                        pipeline.execute()
+                        break
+                    except WatchError as exc:
+                        if isinstance(exc.__context__, (RedisConnectionError, RedisTimeoutError)):
+                            raise
+                        if not lock.owned():
+                            raise LockNotOwnedError("action config full refresh lost its lock") from exc
+                        # 并发发布改变了水位，下一轮重新读取配置并验证所有权。
+        return True
+
+    @classmethod
+    def _refresh_recent(cls, minutes: int) -> bool:
+        with cls.cache.pipeline() as pipeline:
+            while True:
+                pipeline.watch(cls.LAST_REFRESH_KEY, cls.FULL_REFRESH_LOCK)
+                last_refresh, full_refresh = pipeline.mget(cls.LAST_REFRESH_KEY, cls.FULL_REFRESH_LOCK)
+                if full_refresh:
+                    cls.logger.info("action config incremental refresh deferred during full refresh")
+                    return False
+                started_at = datetime.now(tz=timezone.utc)
+                window_start = started_at - timedelta(minutes=minutes)
+                if last_refresh is not None:
+                    break
+                # 固定首次查询下界。即使首次读库失败，后续重试也能找回本轮变更。
+                pipeline.multi()
+                pipeline.set(cls.LAST_REFRESH_KEY, int(window_start.timestamp()))
+                pipeline.execute()
+
+            since = min(window_start, datetime.fromtimestamp(int(last_refresh), tz=timezone.utc))
+            pipeline.multi()
+            cls._queue_refresh(pipeline, since=since)
+            pipeline.set(cls.LAST_REFRESH_KEY, max(int(last_refresh), int(started_at.timestamp())))
+            pipeline.execute()
+        return True
+
+    @classmethod
+    def _queue_refresh(cls, pipeline, since=None):
         action_plugins = ActionPluginSlz(instance=ActionPlugin.objects.all(), many=True).data
         for action_plugin in action_plugins:
             # 插件信息缓存
@@ -132,11 +197,9 @@ class ActionConfigCacheManager(CacheManager):
 
         deleted_configs = []
         updated_configs = []
-        if minutes:
+        if since is not None:
             # 如果有带时间，通过原生manager查找出来
-            all_configs = ActionConfig.origin_objects.filter(
-                update_time__gte=datetime.datetime.now(tz=pytz.UTC) - datetime.timedelta(minutes=minutes)
-            )
+            all_configs = ActionConfig.origin_objects.filter(update_time__gte=since)
             for config in all_configs:
                 if config.is_deleted:
                     # 如果被删除的，加入到删除列表中
@@ -160,7 +223,30 @@ class ActionConfigCacheManager(CacheManager):
             pipeline.delete(
                 cls.CACHE_KEY_TEMPLATE.format(cache_type=cls.CacheType.CONFIG_ID, cache_id=deleted_config_id)
             )
-        pipeline.execute()
+
+
+class _FullRefreshLock(Lock):
+    def do_acquire(self, token) -> bool:
+        """取得租约时一并触碰水位，使上一任所有者尚未执行的发布事务失效。"""
+        cursor_key = ActionConfigCacheManager.LAST_REFRESH_KEY
+        with self.redis.pipeline() as pipeline:
+            while True:
+                try:
+                    pipeline.watch(self.name, cursor_key)
+                    owner, cursor = pipeline.mget(self.name, cursor_key)
+                    if owner is not None:
+                        return False
+                    if cursor is None:
+                        cursor = int((datetime.now(tz=timezone.utc) - timedelta(minutes=5)).timestamp())
+                    pipeline.multi()
+                    pipeline.set(self.name, token, px=int(self.timeout * 1000))
+                    pipeline.set(cursor_key, cursor)
+                    pipeline.execute()
+                    return True
+                except WatchError as exc:
+                    if isinstance(exc.__context__, (RedisConnectionError, RedisTimeoutError)):
+                        raise
+                    # 并发增量可能刚推进水位；重读后再尝试，不覆盖它的进度。
 
 
 def refresh_total():
@@ -172,6 +258,6 @@ def refresh_total():
 
 def refresh_latest_5_minutes():
     """
-    刷新全部
+    刷新最近五分钟和中断期间的变更
     """
     ActionConfigCacheManager.refresh(minutes=5)

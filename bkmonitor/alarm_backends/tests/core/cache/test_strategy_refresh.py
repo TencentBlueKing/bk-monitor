@@ -139,6 +139,30 @@ def test_first_failure_keeps_fixed_replay_window(state):
     assert second_lower_bound == first_lower_bound
 
 
+def test_first_deferred_tick_replays_sdk_change_on_next_tick(state, monkeypatch):
+    state.cache.delete(Manager.LAST_UPDATED_CACHE_KEY)
+    configs = module.ActionConfigCacheManager
+    monkeypatch.setattr(configs, "cache", state.cache)
+    monkeypatch.setattr(configs, "_queue_refresh", Mock())
+    state.cache.set(configs.FULL_REFRESH_LOCK, "full")
+    state.histories[0].create_time = datetime.fromtimestamp(730)
+    state.current["items"][0]["query_configs"][0]["intelligent_detect"] = {"use_sdk": True}
+    state.history_filter.side_effect = lambda create_time__gt: Histories(
+        row for row in state.histories if row.create_time > create_time__gt
+    )
+
+    module.smart_refresh()
+    state.history_filter.assert_not_called()
+    module.sync_aiops_strategy_signal.assert_not_called()
+
+    state.clock[0] += 60
+    state.cache.delete(configs.FULL_REFRESH_LOCK)
+    module.smart_refresh()
+    state.history_filter.assert_called_once_with(create_time__gt=datetime.fromtimestamp(700))
+    module.sync_aiops_strategy_signal.assert_called_once_with("modify", 1, 730)
+    assert int(state.cache.get(Manager.LAST_UPDATED_CACHE_KEY)) == 1060
+
+
 def test_read_failure_does_not_delete_details_or_groups(state):
     put_group(state, "old", [1])
     key = Manager.CACHE_KEY_TEMPLATE.format(strategy_id=1)

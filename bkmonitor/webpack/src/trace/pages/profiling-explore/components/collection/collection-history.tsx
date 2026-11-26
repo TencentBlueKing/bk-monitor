@@ -287,7 +287,7 @@ export default defineComponent({
     const filterSummary = computed(() => {
       const conditions: string[] = [];
       const append = (label: string, values: string[]) => {
-        if (values.length) conditions.push(`${label}：${values.join(',')}`);
+        if (values.length) conditions.push(t('{label}：{value}', { label, value: values.join(',') }));
       };
       const columnTitle = (field: string, fallback: string) =>
         taskColumns.value.find(column => column.field === field)?.name || t(fallback);

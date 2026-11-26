@@ -26,11 +26,17 @@ from core.errors.alarm_backends import CronLeaseLost, LockError
 logger = logging.getLogger(__name__)
 
 
-@contextmanager
 def renewing_share_lock(identify, ttl=600):
     """Use the share_lock key and yield an ownership check, or None when another task owns it."""
     key = f"{get_cluster().name}_celery_lock_{identify}"
     lock = Cache("service-lock").lock(key, timeout=ttl, thread_local=False)
+    return renewing_redis_lock(lock, ttl)
+
+
+@contextmanager
+def renewing_redis_lock(lock, ttl):
+    """Keep a nonblocking redis-py lock alive until the caller finishes."""
+    key = lock.name
     deadline = time.monotonic() + ttl
     if not lock.acquire(blocking=False):
         yield None
@@ -57,7 +63,7 @@ def renewing_share_lock(identify, ttl=600):
             stop.set()
             raise CronLeaseLost(f"Cron lock {key} could not be renewed")
 
-    worker = threading.Thread(target=renew, name=f"renew-{identify}", daemon=True)
+    worker = threading.Thread(target=renew, name=f"renew-{key}", daemon=True)
     try:
         worker.start()
         yield check_lease

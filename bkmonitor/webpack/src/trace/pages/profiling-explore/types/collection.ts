@@ -97,6 +97,8 @@ export interface CollectionPayload {
   process_selector?: ProcessSelector;
   resource_guard_config: ResourceGuardConfig;
   schedule: CollectionSchedule;
+  // 立即执行关联的计划 ID；新建、编辑计划时不传
+  source_task_id?: number;
   target_config: CollectionTarget;
 }
 
@@ -158,6 +160,23 @@ export interface CollectorConfig {
 export interface HostPid {
   bk_host_id: number;
   pid: number;
+}
+
+/** 版本校验不通过的主机分组：一个插件及其版本不满足的主机，供告警提示展示 */
+export interface InvalidHostGroup {
+  /** 该插件下版本不满足的主机 IP */
+  hosts: string[];
+  /** 插件名 */
+  name: string;
+  /** 该插件的最低版本要求 */
+  version: string;
+}
+
+/** 插件版本校验结果，invalid_host 按插件名分组，元素为 [ip, 云区域 ID]，与采集配置的校验接口一致 */
+export interface PluginVersionCheckResult {
+  invalid_host: Record<string, Array<[string, number]>>;
+  plugin_version: Record<string, string>;
+  result: boolean;
 }
 
 export type PreviewSelector =

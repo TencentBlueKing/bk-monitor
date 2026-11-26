@@ -10,14 +10,34 @@ specific language governing permissions and limitations under the License.
 
 from django.utils.translation import gettext_lazy as _
 
-from semconv.rum.constants import FrustrationType
+from constants.otel_query import FieldTypeEnum
+from semconv.rum.constants import ActionEndReason, FrustrationType
 from semconv.rum.field import FieldSpec
 
 
 ACTION_ID = FieldSpec(field_name="action.id", field_alias=_("操作 ID"))
+ACTION_NAME = FieldSpec(field_name="action.name", field_alias=_("操作名称"))
+ACTION_IDS = FieldSpec(field_name="action.ids", field_alias=_("关联操作 ID"))
 ACTION_TYPE = FieldSpec(field_name="action.type", field_alias=_("操作类型"))
+ACTION_END_REASON = FieldSpec(
+    field_name="action.end_reason", field_alias=_("操作观察结束原因"), option_values=ActionEndReason
+)
 ACTION_TARGET_NAME = FieldSpec(field_name="action.target.name", field_alias=_("操作元素"))
 ACTION_TARGET_TAG = FieldSpec(field_name="action.target.tag", field_alias=_("操作元素标签"))
+ACTION_TARGET_SELECTOR = FieldSpec(field_name="action.target.selector", field_alias=_("操作元素选择器"))
+ACTION_TARGET_PATH = FieldSpec(field_name="action.target.path", field_alias=_("操作元素路径"))
+ACTION_TARGET_WIDTH = FieldSpec(
+    field_name="action.target.width", field_alias=_("操作元素宽度（CSS 像素）"), field_type=FieldTypeEnum.DOUBLE.value
+)
+ACTION_TARGET_HEIGHT = FieldSpec(
+    field_name="action.target.height", field_alias=_("操作元素高度（CSS 像素）"), field_type=FieldTypeEnum.DOUBLE.value
+)
+ACTION_POSITION_X = FieldSpec(
+    field_name="action.position.x", field_alias=_("点击横坐标（CSS 像素）"), field_type=FieldTypeEnum.DOUBLE.value
+)
+ACTION_POSITION_Y = FieldSpec(
+    field_name="action.position.y", field_alias=_("点击纵坐标（CSS 像素）"), field_type=FieldTypeEnum.DOUBLE.value
+)
 ACTION_FRUSTRATION_TYPE = FieldSpec(
     field_name="action.frustration.type", field_alias=_("异常点击类型"), option_values=FrustrationType
 )

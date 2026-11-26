@@ -20,6 +20,7 @@ from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.collect_plugin import _serialize_version_detail, _select_current_version
 from kernel_api.rpc.functions.admin.common import (
+    ResourceNotFound,
     PAGE_LIST_TENANT_SCHEMA,
     build_response,
     filter_by_bk_tenant_id,
@@ -455,7 +456,7 @@ def _get_collect_config(bk_tenant_id: str, config_id: int, bk_biz_id: int | None
         queryset = queryset.filter(bk_biz_id=bk_biz_id)
     config = queryset.first()
     if config is None:
-        raise CustomException(message=f"未找到采集配置: id={config_id}")
+        raise ResourceNotFound(message=f"未找到采集配置: id={config_id}")
     return config
 
 
@@ -481,7 +482,7 @@ def _get_deployment_version(
 
     deployment_config = queryset.order_by("-id").first()
     if deployment_config is None:
-        raise CustomException(message=f"未找到采集配置 {config.id} 的部署版本")
+        raise ResourceNotFound(message=f"未找到采集配置 {config.id} 的部署版本")
     return deployment_config
 
 

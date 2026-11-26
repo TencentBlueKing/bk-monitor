@@ -49,6 +49,20 @@ class ClusteringType:
     COUNT = "count"
 
 
+CLUSTERING_SIGNATURE_FIELD = "signature"
+
+
+def is_signature_clustering_strategy(query_config: dict[str, Any] | None) -> bool:
+    """日志聚类小型化策略直接以 signature 为维度，不再携带 __dist 签名字段。"""
+    if not query_config or query_config.get("data_source_label") != DataSourceLabel.BK_LOG_SEARCH:
+        return False
+    agg_dimension: list[str] = query_config.get("agg_dimension") or []
+    fields: list[str] = [condition.get("key", "") for condition in query_config.get("agg_condition") or []]
+    return CLUSTERING_SIGNATURE_FIELD in agg_dimension and not any(
+        str(field).startswith("__dist") for field in fields + agg_dimension
+    )
+
+
 def get_alert_query_config_or_none(alert: AlertDocument) -> dict[str, Any] | None:
     """获取告警策略的查询配置。
 
@@ -135,8 +149,14 @@ def get_log_clustering_filter_dict(
 ) -> dict[str, list[str]]:
     """提取日志聚类告警额外过滤条件。
 
-    返回格式为 ``{sensitivity: signatures}``，用于补充日志检索的过滤条件。
+    返回格式为 ``{sensitivity: signatures}``，用于补充日志检索的过滤条件；小型化策略固定为 ``{"signature": signatures}``。
     """
+    if clustering_type in (ClusteringType.COUNT, ClusteringType.NEW_CLASS) and is_signature_clustering_strategy(
+        get_alert_query_config_or_none(alert)
+    ):
+        signature = (alert.origin_alarm or {}).get("data", {}).get("dimensions", {}).get(CLUSTERING_SIGNATURE_FIELD)
+        return {CLUSTERING_SIGNATURE_FIELD: [signature]} if signature else {}
+
     if clustering_type == ClusteringType.COUNT:
         try:
             dimensions: dict[str, Any] = alert.origin_alarm["data"]["dimensions"]

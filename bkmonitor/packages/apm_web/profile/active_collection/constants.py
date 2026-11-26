@@ -150,7 +150,9 @@ HOST_QUERY_COLUMNS = [
     {"field": "status", "name": "状态", "type": "status"},
 ]
 
+# id 是执行表的行 id，一次执行一个，同名执行靠它区分；预计算落后时执行表还没建行的执行为空
 EXECUTION_LIST_TASK_COLUMNS = [
+    {"field": "id", "name": "ID", "type": "number"},
     {"field": "task_name", "name": "任务名称", "type": "text"},
     {"field": "schedule_type", "name": "执行方式", "type": "text"},
     {"field": "collection_method", "name": "采集方式", "type": "text"},

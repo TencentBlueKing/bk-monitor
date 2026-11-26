@@ -17,6 +17,7 @@ from bk_dataview.permissions import GrafanaPermission
 from bk_dataview.utils import generate_uid
 from bkmonitor.models import StrategyModel
 from bkmonitor.utils.tenant import set_local_tenant_id
+from bkmonitor.utils.user import single_tenant_backend_username
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.errors.api import BKAPIError
@@ -1359,7 +1360,7 @@ def update_migrate_data_id_routes(
         try:
             exist_gse_router_config = api.gse.query_route(
                 condition={"plat_name": config.DEFAULT_GSE_API_PLAT_NAME, "channel_id": data_id},
-                operation={"operator_name": settings.COMMON_USERNAME},
+                operation={"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
             )
         except BKAPIError as e:
             print(f"data_id({data_id}) migrate failed, query gse router failed, error:({e})")
@@ -1455,7 +1456,10 @@ def delete_migrate_data_id_routes(bk_data_ids: list[int], dry_run: bool = False)
 
         delete_params = {
             "condition": {"channel_id": data_id, "plat_name": "tgdp"},
-            "operation": {"operator_name": settings.COMMON_USERNAME, "method": "specification"},
+            "operation": {
+                "operator_name": single_tenant_backend_username(settings.COMMON_USERNAME),
+                "method": "specification",
+            },
             "specification": {"route": [migrate_route_name]},
         }
         try:
@@ -1501,7 +1505,7 @@ def add_new_migrate_data_id_routes(data_id_infos: dict[int, dict[str, Any]]):
         try:
             exist_gse_router_config = api.gse.query_route(
                 condition={"plat_name": config.DEFAULT_GSE_API_PLAT_NAME, "channel_id": data_id},
-                operation={"operator_name": settings.COMMON_USERNAME},
+                operation={"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
             )
         except BKAPIError as e:
             print(f"data_id({data_id}) migrate failed, query gse router failed, error:({e})")
@@ -1681,7 +1685,7 @@ def add_profiling_migrate_data_id_route(
     try:
         api.gse.update_route(
             condition={"channel_id": data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
-            operation={"operator_name": settings.COMMON_USERNAME},
+            operation={"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
             specification={"route": new_route_config},
         )
     except BKAPIError as error:
@@ -1766,7 +1770,7 @@ def replace_profiling_data_id_route(
     try:
         api.gse.update_route(
             condition={"channel_id": data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
-            operation={"operator_name": settings.COMMON_USERNAME},
+            operation={"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
             specification={"route": new_route_config},
         )
     except BKAPIError as error:
@@ -1775,7 +1779,10 @@ def replace_profiling_data_id_route(
     if deleted_route_names:
         delete_params = {
             "condition": {"channel_id": data_id, "plat_name": "tgdp"},
-            "operation": {"operator_name": settings.COMMON_USERNAME, "method": "specification"},
+            "operation": {
+                "operator_name": single_tenant_backend_username(settings.COMMON_USERNAME),
+                "method": "specification",
+            },
             "specification": {"route": deleted_route_names},
         }
         try:
@@ -1819,7 +1826,7 @@ def _query_gse_route_group(data_id: int) -> dict[str, Any]:
     try:
         route_info_list = api.gse.query_route(
             condition={"plat_name": config.DEFAULT_GSE_API_PLAT_NAME, "channel_id": data_id},
-            operation={"operator_name": settings.COMMON_USERNAME},
+            operation={"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
         )
     except BKAPIError as error:
         raise ValueError(f"data_id({data_id}) query gse router failed, error:({error})") from error

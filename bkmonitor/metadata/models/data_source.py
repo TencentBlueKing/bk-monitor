@@ -25,6 +25,7 @@ from django.utils.translation import gettext as _
 
 from bkmonitor.utils import consul
 from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
+from bkmonitor.utils.user import single_tenant_backend_username
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DATA_LINK_V3_VERSION_NAME, DATA_LINK_V4_VERSION_NAME
 from core.drf_resource import api
@@ -1100,7 +1101,7 @@ class DataSource(models.Model):
         logger.warning(f"try to add register built_in channel_id({self.bk_data_id}) to gse")
         params = {
             "metadata": {"channel_id": self.bk_data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
-            "operation": {"operator_name": settings.COMMON_USERNAME},
+            "operation": {"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
             "route": [self.gse_route_config],
         }
         result = api.gse.add_route(**params)
@@ -1114,7 +1115,7 @@ class DataSource(models.Model):
         try:
             result = api.gse.query_route(
                 condition={"plat_name": config.DEFAULT_GSE_API_PLAT_NAME, "channel_id": self.bk_data_id},
-                operation={"operator_name": settings.COMMON_USERNAME},
+                operation={"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
             )
             return True
         except BKAPIError as e:
@@ -1124,7 +1125,7 @@ class DataSource(models.Model):
 
         params = {
             "metadata": {"channel_id": self.bk_data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
-            "operation": {"operator_name": settings.COMMON_USERNAME},
+            "operation": {"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
             "route": [self.gse_route_config],
         }
         result = api.gse.add_route(**params)
@@ -1137,7 +1138,7 @@ class DataSource(models.Model):
 
         params = {
             "condition": {"plat_name": config.DEFAULT_GSE_API_PLAT_NAME, "channel_id": self.bk_data_id},
-            "operation": {"operator_name": settings.COMMON_USERNAME},
+            "operation": {"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
         }
         try:
             result = api.gse.query_route(**params)

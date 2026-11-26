@@ -106,6 +106,10 @@ class ProjectSerializer(serializers.ModelSerializer):
         fields = ["project_id", "project_name", "bk_biz_id", "bk_app_code", "time_zone", "description"]
 
 
+class ProjectListSerializer(serializers.Serializer):
+    has_permission = serializers.BooleanField(label=_("仅获取有权限的项目"), default=False)
+
+
 class ResultTableListSerializer(serializers.Serializer):
     scenario_id = serializers.CharField(label=_("接入场景"))
     bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,12 +18,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import logging
 import time
 
 from apps.log_databus.constants import META_DATA_CRON_REFRESH_TASK_NAME_LIST
 from apps.log_databus.handlers.check_collector.checker.base_checker import Checker
 from apps.log_search.constants import TimeEnum
+from apps.utils.local import single_tenant_backend_username
 from bk_monitor.api.client import Client
 from config.domains import MONITOR_APIGATEWAY_ROOT
 from django.conf import settings
@@ -45,7 +46,7 @@ class MetaDataChecker(Checker):
             bk_app_secret=app_secret,
             monitor_host=monitor_host,
             report_host=f"{settings.BKMONITOR_CUSTOM_PROXY_IP}/",
-            bk_username="admin",
+            bk_username=single_tenant_backend_username("admin"),
         )
 
     def _run(self):

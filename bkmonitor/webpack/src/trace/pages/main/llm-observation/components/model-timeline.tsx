@@ -1,4 +1,4 @@
-import { type PropType, computed, defineComponent, inject, provide, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, inject, nextTick, onBeforeUnmount, provide, shallowRef, watch } from 'vue';
 
 import { Radio } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
@@ -8,6 +8,7 @@ import { useProgressiveRender } from '../hooks/use-progressive-render';
 import { applyToolCallStatus, matchTimelineToolCalls } from '../utils/match-tool-call';
 import { parseModelTimeline } from '../utils/parse-model-timeline';
 import { isActiveHitOnBlock, LLM_OBSERVATION_SEARCH_KEY, LLM_SEARCH_SECTION } from '../utils/search';
+import { type LlmTokenMatrixNode, pickMatrixTokenValue } from '../utils/token-matrix';
 import CollapseSection from './collapse-section';
 import DetailSlider, { type LlmDetailSliderContent } from './detail-slider';
 import HighlightText from './highlight-text';
@@ -15,7 +16,7 @@ import JsonCodeBlock from './json-code-block';
 import TimelineMessageRow from './timeline-message-row';
 import ToolDescBar from './tool-desc-bar';
 
-import type { LlmSearchHit } from '../utils/search';
+import type { LlmSearchHit, LlmSearchSectionId } from '../utils/search';
 import type { LlmTimelineFilter, LlmTimelineMessage, LlmToolDefinition } from '../utils/typings';
 
 import './model-timeline.scss';
@@ -34,6 +35,21 @@ export default defineComponent({
       type: Object as PropType<Record<string, unknown>>,
       default: () => ({}),
     },
+    /** 分区 Token 统计来源：token_matrix 的 input / output 两棵树 */
+    tokenMatrixNodes: {
+      type: Array as PropType<LlmTokenMatrixNode[]>,
+      default: () => [],
+    },
+    /** 矩阵工具行点击请求：token 每次递增触发定位同名工具调用行 */
+    locateTool: {
+      type: Object as PropType<null | { name: string; token: number }>,
+      default: null,
+    },
+    /** 矩阵色块点击请求：token 每次递增触发展开并滚动到对应折叠分区 */
+    locateSection: {
+      type: Object as PropType<null | { sectionId: LlmSearchSectionId; token: number }>,
+      default: null,
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -47,8 +63,25 @@ export default defineComponent({
     const inputExpanded = shallowRef(false);
     const selectedToolName = shallowRef('');
     const detail = shallowRef<LlmDetailSliderContent | null>(null);
-  
+    /** 矩阵工具行定位：命中工具调用行的 part id，短暂高亮后清除 */
+    const locatedPartId = shallowRef('');
+    let locateTimer = 0;
+    /** 色块点击定位的分区 id 与令牌：透传给 CollapseSection 强制展开 */
+    const locatedSectionId = shallowRef<LlmSearchSectionId | ''>('');
+    const locatedSectionToken = shallowRef(0);
+    const rootRef = shallowRef<HTMLElement>();
+    const setRootRef = (el: unknown) => {
+      rootRef.value = el instanceof HTMLElement ? el : undefined;
+    };
+
     const parsedTimeline = computed(() => parseModelTimeline(props.attributes));
+    // 各折叠分区的 Token 消耗：取自 token_matrix，缺失时返回 undefined 不展示
+    const sectionTokens = computed(() => ({
+      system: pickMatrixTokenValue(props.tokenMatrixNodes, ['input', 'system']),
+      tools: pickMatrixTokenValue(props.tokenMatrixNodes, ['input', 'definitions']),
+      input: pickMatrixTokenValue(props.tokenMatrixNodes, ['input', 'context']),
+      output: pickMatrixTokenValue(props.tokenMatrixNodes, ['output']),
+    }));
     const toolCallMap = computed(() => {
       const parts = [...parsedTimeline.value.inputMessages, ...parsedTimeline.value.outputMessages].flatMap(item =>
         item.parts.filter(part => part.role === 'tool')
@@ -159,6 +192,103 @@ export default defineComponent({
       outputRender.start();
     };
 
+    /** 在消息集合里找首个同名工具调用 part */
+    const findToolPart = (messages: LlmTimelineMessage[], name: string) => {
+      for (const message of messages) {
+        const part = message.parts.find(item => item.role === 'tool' && (item.toolName || '').trim() === name);
+        if (part) return { message, part };
+      }
+      return null;
+    };
+
+    /** 矩阵工具行点击：切回「全部」、展开输入区 / 抬高分片条数后滚动并高亮同名工具调用行 */
+    const locateToolCall = async (name: string) => {
+      if (!name) return;
+      // 目标行可能被 last-input / output / error 筛掉，先切回「全部」再定位
+      if (filter.value !== 'all') {
+        filter.value = 'all';
+        inputRender.reset();
+        outputRender.reset();
+        inputRender.start();
+        outputRender.start();
+      }
+      // 分区被手动折叠时子节点不在 DOM 里，先复位到默认展开态再定位
+      sectionResetToken.value += 1;
+
+      const inputMatch = findToolPart(timeline.value.inputMessages, name);
+      const outputMatch = findToolPart(timeline.value.outputMessages, name);
+      const match = inputMatch || outputMatch;
+      if (!match) return;
+
+      if (inputMatch) {
+        // 中间消息默认被「只留首尾」折叠，展开后目标行才进入渲染集合
+        if (match.message.index !== 1 && match.message.index !== lastInputIndex.value) {
+          inputExpanded.value = true;
+        }
+        if (inputNeedsPaging.value) {
+          const index = filteredInputMessages.value.findIndex(item => item.id === match.message.id);
+          inputRender.start(index + 1);
+        }
+      } else {
+        const index = filteredOutputMessages.value.findIndex(item => item.id === match.message.id);
+        outputRender.start(index + 1);
+      }
+
+      const partId = match.part.id;
+      locatedPartId.value = partId;
+      window.clearTimeout(locateTimer);
+      locateTimer = window.setTimeout(() => {
+        if (locatedPartId.value === partId) locatedPartId.value = '';
+      }, 2400);
+
+      await nextTick();
+      requestAnimationFrame(() => {
+        document.getElementById(`llm-tool-part-${partId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    };
+
+    watch(
+      () => props.locateTool?.token,
+      () => {
+        if (props.locateTool?.name) locateToolCall(props.locateTool.name);
+      }
+    );
+
+    /** 矩阵色块点击：切回「全部」后展开并滚动到对应折叠分区 */
+    const locateSectionCall = (sectionId: LlmSearchSectionId) => {
+      if (!sectionId) return;
+      // 系统 Prompts / 可用工具只在「全部」下渲染，其它分区也可能被筛掉，先切回「全部」
+      if (filter.value !== 'all') {
+        filter.value = 'all';
+        inputRender.reset();
+        outputRender.reset();
+        inputRender.start();
+        outputRender.start();
+      }
+      // 对该分区强制展开（含被手动折叠的情况），确保定位目标一定可见
+      locatedSectionId.value = sectionId;
+      locatedSectionToken.value += 1;
+
+      nextTick(() => {
+        requestAnimationFrame(() => {
+          rootRef.value
+            ?.querySelector(`[data-llm-section="${sectionId}"]`)
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+    };
+
+    watch(
+      () => props.locateSection?.token,
+      () => {
+        if (props.locateSection?.sectionId) locateSectionCall(props.locateSection.sectionId);
+      }
+    );
+
+    onBeforeUnmount(() => {
+      window.clearTimeout(locateTimer);
+    });
+
     watch(
       () => [search?.activeIndex.value, search?.activeHit.value] as const,
       ([, hit]) => {
@@ -197,6 +327,8 @@ export default defineComponent({
     const handleFilterChange = (value: LlmTimelineFilter) => {
       const changed = filter.value !== value;
       filter.value = value;
+      // 手动切换页签后清除上一次色块定位，避免分区重挂载时被旧的定位令牌再次撑开
+      locatedSectionId.value = '';
       // 页签变化后各分区回到默认展开态：非「全部」筛选下的分区会强制定位展开，故此处仅复位
       if (changed) sectionResetToken.value += 1;
       if (value === 'last-input') inputExpanded.value = false;
@@ -229,6 +361,7 @@ export default defineComponent({
             key={part.id}
             connectBottom={partIndex < message.parts.length - 1}
             connectTop={partIndex > 0}
+            highlighted={locatedPartId.value === part.id}
             part={part}
             onViewAlone={item => {
               detail.value = item;
@@ -272,7 +405,10 @@ export default defineComponent({
     );
 
     return () => (
-      <div class='llm-model-timeline'>
+      <div
+        ref={setRootRef}
+        class='llm-model-timeline'
+      >
         <div
           aria-hidden='true'
           class='llm-model-timeline-sticky-mask'
@@ -305,9 +441,12 @@ export default defineComponent({
               <CollapseSection
                 count={timeline.value.systemPrompts.length}
                 defaultExpand={false}
+                expandSectionId={locatedSectionId.value}
+                expandToken={locatedSectionToken.value}
                 icon='icon-neizhi'
                 sectionId={LLM_SEARCH_SECTION.inputSystem}
                 title={t('系统 Prompts')}
+                tokens={sectionTokens.value.system}
               >
                 {timeline.value.systemPrompts.map((item, index) => (
                   <TimelineMessageRow
@@ -332,9 +471,12 @@ export default defineComponent({
               <CollapseSection
                 count={timeline.value.availableTools.length}
                 defaultExpand={false}
+                expandSectionId={locatedSectionId.value}
+                expandToken={locatedSectionToken.value}
                 icon='icon-Tool'
                 sectionId={LLM_SEARCH_SECTION.inputTools}
                 title={t('可用工具')}
+                tokens={sectionTokens.value.tools}
               >
                 {renderAvailableTools(timeline.value.availableTools)}
               </CollapseSection>
@@ -342,10 +484,13 @@ export default defineComponent({
             {showInput.value ? (
               <CollapseSection
                 count={timeline.value.inputMessages.length}
+                expandSectionId={locatedSectionId.value}
+                expandToken={locatedSectionToken.value}
                 icon='icon-mc-ai-input'
                 resetToken={sectionResetToken.value}
                 sectionId={LLM_SEARCH_SECTION.timelineInput}
                 title={t('输入')}
+                tokens={sectionTokens.value.input}
               >
                 {{
                   extra:
@@ -367,10 +512,13 @@ export default defineComponent({
             {showOutput.value ? (
               <CollapseSection
                 count={timeline.value.outputMessages.length}
+                expandSectionId={locatedSectionId.value}
+                expandToken={locatedSectionToken.value}
                 icon='icon-mc-ai-output'
                 resetToken={sectionResetToken.value}
                 sectionId={LLM_SEARCH_SECTION.timelineOutput}
                 title={t('输出')}
+                tokens={sectionTokens.value.output}
               >
                 {renderOutput()}
               </CollapseSection>

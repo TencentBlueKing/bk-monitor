@@ -328,6 +328,8 @@ export default {
   '缓存 Tokens 总数': 'Total Cached Tokens',
   '请求数（提问数）': 'Requests (Questions)',
   模型调用次数: 'Model Invocations',
+  模型调用: 'Model Invocations',
+  工具调用: 'Tool Calls',
   '输入输出 Token 趋势': 'Input / Output Token Trend',
   '输入 Tokens': 'Input Tokens',
   '输出 Tokens': 'Output Tokens',
@@ -413,4 +415,7 @@ export default {
   '{0}月{1}日 {2}': '{0}/{1} {2}',
   '会话结束 · 总时长 {0}': 'Session End · Total Duration {0}',
   会话事件时间轴: 'Session Event Timeline',
+
+  // AIDev 嵌入 APM 权限等待页
+  暂未检测到访问权限: 'Access permission not detected yet',
 };

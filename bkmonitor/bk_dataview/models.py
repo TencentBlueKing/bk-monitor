@@ -165,6 +165,21 @@ class Dashboard(models.Model):
         ]
 
 
+class DashboardVersion(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    dashboard_id = models.BigIntegerField()
+    version = models.IntegerField()
+    created = models.DateTimeField()
+    created_by = models.BigIntegerField()
+    message = models.TextField(blank=True, null=True)
+    data = models.TextField()
+
+    class Meta:
+        managed = False
+        app_label = APP_LABEL
+        db_table = "dashboard_version"
+
+
 class Folder(models.Model):
     id = models.BigAutoField(primary_key=True)
     uid = models.CharField(max_length=40)

@@ -526,6 +526,10 @@ export default {
     'Refer to the following table for data access, if you have any questions, please contact {link}',
   '参考下表接入数据，如有疑问请联系 {link} {doc}':
     'Refer to the following table for data access, if you have any questions, please contact {link} {doc}',
+  '参考下表接入数据，如有疑问请联系管理员':
+    'Refer to the following table for data access, if you have any questions, please contact the administrator',
+  '参考下表接入数据，如有疑问请联系管理员 {doc}':
+    'Refer to the following table for data access, if you have any questions, please contact the administrator {doc}',
   被调无需选择: 'Callee does not need to be selected',
   '请选择下方应用进入 Trace 详情': 'Please select an application below to view Trace details',
   '命中{0}个应用': '{0} application(s) matched',
@@ -632,4 +636,15 @@ export default {
   统计分析: 'Statistics analysis',
   'Token 统计分析': 'Token statistics analysis',
   复位省略: 'Reset ellipsis',
+  '总 Token': 'Total Tokens',
+  缓存读数: 'Cache reads',
+  耗时统计分析: 'Duration statistics analysis',
+  缓存命中率: 'Cache hit rate',
+
+  // 采集器版本校验
+  正在校验采集器版本: 'Verifying collector version',
+  '以下 {n} 台主机的 {plugin}': 'The following {n} hosts: {plugin}',
+  '{name} 版本低于 {version}': '{name} version is lower than {version}',
+  '可能出现采集失败或无数据上报，是否继续采集？':
+    'Collection may fail or no data may be reported. Continue collecting?',
 };

@@ -94,6 +94,18 @@ const details = {
   method: 'get',
 };
 
+// 采集项-查询可授权的 namespace 列表及当前 Data ID 的授权状态
+const authorizedNamespaces = {
+  url: '/databus/collectors/:collector_config_id/authorized_namespaces/',
+  method: 'get',
+};
+
+// 采集项-授权到指定 namespace；请求体仅传 name，Data ID 由后端根据采集项解析
+const authorizeNamespace = {
+  url: '/databus/collectors/:collector_config_id/authorized_namespaces/',
+  method: 'post',
+};
+
 // 采集列表-列表
 const getCollectList = {
   url: '/databus/collectors/',
@@ -365,6 +377,8 @@ export {
   getEtlPreview,
   getCheckTime,
   details,
+  authorizedNamespaces,
+  authorizeNamespace,
   getCollectList,
   getAllCollectors,
   getCollectorPlugins,

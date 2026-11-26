@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -10,3 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 # 这里的task是放到后台运行的，所以模块名改为了task，而不是celery的默认tasks
+
+TOPO_DISCOVER_CRON = "apm.task.tasks.topo_discover_cron"
+TOPO_DISCOVER_TASK_NAME = "alarm_backends.service.scheduler.tasks.cron." + TOPO_DISCOVER_CRON.replace(".", "_")
+DISCOVERY_SCHEDULED_AT = "discovery_scheduled_at"

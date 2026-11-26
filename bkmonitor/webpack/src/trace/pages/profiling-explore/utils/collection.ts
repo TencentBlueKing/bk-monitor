@@ -41,6 +41,8 @@ import type {
   CollectionTaskColumn,
   CollectionTaskTableColumn,
   HostPid,
+  InvalidHostGroup,
+  PluginVersionCheckResult,
   PreviewSelector,
   ProcessRow,
   ProcessSelector,
@@ -345,6 +347,25 @@ export const collectionTarget = (hosts: CollectionHost[]) => ({
   nodes: hosts.map(host => ({ bk_host_id: host.host_id })),
 });
 
+/**
+ * @description 按插件汇总版本校验不通过的主机，IP 去重后完整保留，供提示逐台展示
+ * @param result 插件版本校验结果
+ * @returns 各插件及其版本不满足的主机
+ */
+export function summarizeInvalidHosts(result: PluginVersionCheckResult): InvalidHostGroup[] {
+  const groups: InvalidHostGroup[] = [];
+  for (const [name, hosts] of Object.entries(result.invalid_host || {})) {
+    // 后端按插件分组返回不满足最低版本的主机，[ip, 云区域 ID]
+    const ips = new Set<string>();
+    for (const [ip] of hosts || []) {
+      if (ip) ips.add(ip);
+    }
+    if (!ips.size) continue;
+    groups.push({ name, version: result.plugin_version?.[name] || '--', hosts: [...ips] });
+  }
+  return groups;
+}
+
 /** 表单项改动后，哪些字段的旧错误提示应随之清除 */
 export const ERROR_FIELDS_BY_DRAFT_KEY: Partial<Record<keyof CollectionDraft, CollectionFieldKey[]>> = {
   collectionType: ['method', 'duration_sec'],
@@ -600,6 +621,7 @@ export function immediateCollectionPayload(task: CollectionTask, bizId: number, 
     collector_config,
     resource_guard_config,
     schedule: { type: 'immediate', execute_at: now, timezone: task.schedule.timezone },
+    source_task_id: task.task_id,
   };
 }
 

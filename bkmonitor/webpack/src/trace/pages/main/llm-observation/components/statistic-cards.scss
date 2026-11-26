@@ -1,0 +1,399 @@
+@import '../../../../theme/theme';
+@import '../../../../theme/mixin';
+
+.llm-statistic-cards {
+  flex-shrink: 0;
+  overflow: hidden;
+  background: #f2f6fc;
+  border: 1px solid #c1cde5;
+  border-radius: 4px;
+}
+
+.llm-statistic-cards-header {
+  box-sizing: border-box;
+  gap: 0;
+  height: 48px;
+  min-width: 0;
+  padding: 0 16px;
+  cursor: pointer;
+  user-select: none;
+  background: #f7f9fc;
+
+  @include flex-align(center);
+
+  .llm-statistic-cards.is-expanded & {
+    border-bottom: 1px solid #c1cde5;
+  }
+}
+
+.llm-statistic-cards-arrow {
+  flex-shrink: 0;
+  font-size: $font-size-medium;
+  color: #4d4f56;
+  transform: rotate(0deg);
+  transition: transform 0.2s ease;
+
+  &.is-expanded {
+    transform: rotate(90deg);
+  }
+}
+
+.llm-statistic-cards-divider {
+  flex-shrink: 0;
+  width: 1px;
+  height: 36px;
+  background: #e4e9f2;
+
+  &.is-lead {
+    margin: 0 16px;
+  }
+}
+
+.llm-statistic-cards-metrics {
+  flex: 1;
+  gap: 0;
+  min-width: 0;
+
+  @include flex-align(center);
+}
+
+.llm-statistic-cards-metric-wrap {
+  flex: 1 0 0;
+  gap: 16px;
+  min-width: 0;
+
+  @include flex-align(center);
+}
+
+.llm-statistic-cards-metric {
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+  padding: 0;
+
+  @include flex-column;
+
+  &-label {
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: #8f9fbd;
+    white-space: nowrap;
+  }
+
+  &-value {
+    font-family: arial, sans-serif;
+    font-size: $font-size-base;
+    font-weight: 700;
+    line-height: 20px;
+    color: #4d4f56;
+
+    @include ellipsis;
+  }
+}
+
+.llm-statistic-cards-body {
+  background: #fff;
+}
+
+.llm-token-matrix {
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 16px;
+
+  @include flex-align(stretch);
+}
+
+/* 分栏：先按 token 比例分栏（行内 flex 权重），占比过低时以该列全文案宽度为下限 */
+.llm-token-matrix-side {
+  flex: 1 0 0;
+  min-width: max-content;
+  height: 100%;
+
+  &:first-child {
+    border-right: 1px solid #dde3f0;
+  }
+}
+
+.llm-token-matrix-pane {
+  gap: 4px;
+  min-width: 0;
+  height: 100%;
+  padding: 4px;
+
+  @include flex-column;
+}
+
+.llm-token-matrix-pane-body,
+.llm-token-matrix-pane-rest {
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+  min-height: 0;
+
+  @include flex-column;
+}
+
+.llm-token-matrix-title {
+  flex-shrink: 0;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 16px;
+  white-space: nowrap;
+
+  @include flex-align(center);
+
+  &-name {
+    flex-shrink: 0;
+    font-weight: 400;
+    color: #313238;
+  }
+
+  &-value,
+  &-pct {
+    white-space: nowrap;
+  }
+
+  &-value {
+    font-family: arial, sans-serif;
+    font-weight: 400;
+    color: #313238;
+  }
+
+  &-pct {
+    font-family: arial, sans-serif;
+    font-weight: 400;
+    color: #3463b3;
+  }
+}
+
+.llm-token-matrix-row {
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+
+  @include flex-align(stretch);
+
+  &.is-top {
+    flex-shrink: 0;
+    height: calc(96px * var(--llm-matrix-scale, 1));
+  }
+
+  &.is-fill {
+    flex: 1;
+    min-height: 0;
+  }
+}
+
+.llm-token-matrix-container {
+  gap: 4px;
+  min-width: max-content;
+  min-height: 0;
+  padding: 4px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #dde3f0;
+  border-radius: 4px;
+
+  @include flex-column;
+}
+
+.llm-token-matrix-block,
+.llm-token-matrix-tools {
+  gap: 0;
+  min-width: max-content;
+  min-height: 0;
+  padding: 4px;
+  overflow: hidden;
+  border-radius: 4px;
+
+  @include flex-column;
+}
+
+.llm-token-matrix-block,
+#apm .llm-token-matrix .llm-token-matrix-block {
+  // 下限取名称、数值中较长的一行，宽则同行，窄则数值换行
+  min-width: min-content;
+}
+
+/* Span 详情开启点击定位时才变色、出手型；Trace 详情保持默认光标 */
+.llm-token-matrix.is-interactive {
+  .llm-token-matrix-block,
+  .llm-token-matrix-tools {
+    cursor: pointer;
+    transition: filter 0.2s ease;
+
+    &:hover {
+      filter: saturate(1.25) brightness(0.97);
+
+      .llm-token-matrix-block-name {
+        text-decoration: underline;
+      }
+    }
+  }
+}
+
+.llm-token-matrix-block-head {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 4px;
+  align-items: center;
+  flex-shrink: 0;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.llm-token-matrix-block-name,
+.llm-token-matrix-block-meta {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.llm-token-matrix-block-name {
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 16px;
+  color: #4e5e7a;
+}
+
+.llm-token-matrix-block-meta {
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 16px;
+
+  @include flex-align(center);
+}
+
+.llm-token-matrix-block-value {
+  color: #4e5e7a;
+}
+
+.llm-token-matrix-block-pct,
+.llm-token-matrix-tool-pct {
+  color: #3463b3;
+}
+
+.llm-token-matrix-tool-list {
+  flex: 1;
+  gap: 4px;
+  align-self: flex-start;
+  width: max-content;
+  max-width: 100%;
+  min-height: 0;
+  margin-top: 4px;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+
+  @include flex-column;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 2px;
+  }
+
+  &:hover {
+    scrollbar-color: #c1cde5 transparent;
+
+    &::-webkit-scrollbar-thumb {
+      background: #c1cde5;
+    }
+  }
+}
+
+.llm-token-matrix-tool {
+  gap: 8px;
+  width: 100%;
+  min-width: max-content;
+  padding: 2px 4px;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 16px;
+  color: #4e5e7a;
+  background: rgb(255 255 255 / 80%);
+  border-radius: 4px;
+
+  @include flex-align(center);
+
+  &-name {
+    white-space: nowrap;
+  }
+
+  &-meta {
+    flex-shrink: 0;
+    text-align: right;
+  }
+
+  &.is-clickable {
+    cursor: pointer;
+
+    .llm-token-matrix-tool-name {
+      text-decoration: underline;
+      text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);
+    }
+
+    &:hover {
+      color: #3974ff;
+    }
+  }
+}
+
+.llm-statistic-cards-empty {
+  height: 100%;
+  font-size: $font-size-base;
+  color: #8f9fbd;
+
+  @include flex-center;
+}
+
+/* 矩阵加载骨架：结构与真实块一致，仅以占位条替代文本 */
+.llm-token-matrix-block.is-skeleton {
+  background: #f0f4fa;
+}
+
+.llm-token-matrix-title-skeleton,
+.llm-token-matrix-block-skeleton {
+  border-radius: 2px;
+}
+
+.llm-token-matrix-title-skeleton {
+  flex-shrink: 0;
+  height: 12px;
+
+  &.is-name {
+    width: 120px;
+  }
+
+  &.is-value {
+    width: 56px;
+  }
+
+  &.is-pct {
+    width: 40px;
+  }
+}
+
+.llm-token-matrix-block-skeleton {
+  height: 10px;
+
+  &.is-name {
+    width: 56%;
+  }
+
+  &.is-meta {
+    width: 36%;
+    margin-top: 6px;
+  }
+}

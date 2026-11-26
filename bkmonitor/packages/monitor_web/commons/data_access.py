@@ -379,9 +379,6 @@ class PluginDataAccessor:
                 "data_label": self.data_label,
             }
             for table_id in contrast_result[operation]:
-                external_storage = {"kafka": {"expired_time": 1800000}}
-                if settings.IS_ACCESS_BK_DATA:
-                    external_storage["bkdata"] = {}
                 param.update(
                     {
                         "bk_biz_id": self.bk_biz_id,
@@ -392,7 +389,6 @@ class PluginDataAccessor:
                             for field in table_infos[table_id].fields
                             if field["field_name"] not in ORIGIN_PLUGIN_EXCLUDE_DIMENSION
                         ],
-                        "external_storage": external_storage,
                     }
                 )
                 if operation == "create":
@@ -417,9 +413,6 @@ class PluginDataAccessor:
 
         params_list = []
         for table in result_table_list:
-            external_storage = {"kafka": {"expired_time": 1800000}}
-            if settings.IS_ACCESS_BK_DATA:
-                external_storage["bkdata"] = {}
             param = {
                 "bk_tenant_id": self.bk_tenant_id,
                 "bk_data_id": self.data_id,
@@ -431,7 +424,6 @@ class PluginDataAccessor:
                 "bk_biz_id": self.bk_biz_id,
                 "table_id": table["table_id"],
                 "table_name_zh": table["table_name_zh"],
-                "external_storage": external_storage,
             }
             params_list.append(param)
 

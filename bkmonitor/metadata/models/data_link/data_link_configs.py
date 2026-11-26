@@ -57,6 +57,7 @@ class DataLinkResourceConfigBase(models.Model):
         (DataLinkKind.SINK.value, "清洗配置"),
         (DataLinkKind.CONDITIONALSINK.value, "过滤条件"),
         (DataLinkKind.BASEREPORTSINK.value, "基础采集清洗配置"),
+        (DataLinkKind.LOGCLUSTERINGSINK.value, "日志聚类Sink"),
     )
 
     kind = models.CharField(verbose_name="配置类型", max_length=64, choices=CONFIG_KIND_CHOICES)
@@ -435,7 +436,7 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
     def compose_config(
         self,
         storage_cluster_name: str,
-        write_alias_format: str,
+        write_alias_format: str | None,
         unique_field_list: list[str],
         json_field_list: list[str] | None = None,
         rt_name: str | None = None,
@@ -478,12 +479,14 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
                         "name": "{{storage_cluster_name}}"
                     },
                     "doc_type": "{{doc_type}}",
+                    {% if write_alias_format %}
                     "write_alias": {
                         "TimeBased": {
                             "format": "{{write_alias_format}}",
                             "timezone": {{timezone}}
                         }
                     },
+                    {% endif %}
                     "unique_field_list": {{unique_field_list}},
                     "json_field_list": {{json_field_list}},
                     "maintainers": {{maintainers}}
@@ -515,6 +518,11 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
             render_params=render_params,
             err_msg_prefix="compose es storage binding config",
         )
+
+    @property
+    def reference(self) -> dict[str, str]:
+        """Databus.spec.sinks 中引用本资源的条目"""
+        return {"kind": self.kind, "name": self.name, "namespace": self.namespace}
 
 
 class VMStorageBindingConfig(DataLinkResourceConfigBase):
@@ -932,7 +940,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
             err_msg_prefix="compose data_id config",
         )
 
-    def compose_base_event_config(self):
+    def compose_base_event_config(self, binding_kind: str = DataLinkKind.ESSTORAGEBINDING.value):
         """
         基础事件清洗总线配置（固定逻辑）
         原先的1000 基础事件
@@ -956,7 +964,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
                     "consumerGroup": {{consumer_group}},
                     {% endif %}
                     "sinks": [{
-                        "kind": "ElasticSearchBinding",
+                        "kind": "{{binding_kind}}",
                         "name": "{{name}}",
                         {% if tenant %}
                         "tenant": "{{ tenant }}",
@@ -981,6 +989,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
         render_params = {
             "name": self.name,
+            "binding_kind": binding_kind,
             "namespace": self.namespace,
             "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
             "maintainers": json.dumps(maintainer),
@@ -1151,6 +1160,21 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
         verbose_name: ClassVar[str] = "Doris存储绑定配置"
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
+
+    def compose_event_storage_config(self, storage, storage_cluster_name: str, rt_name: str):
+        storage_config = storage.doris_storage_config or {}
+        return self.compose_config(
+            storage_cluster_name=storage_cluster_name,
+            storage_keys=storage_config.get("storage_keys", []),
+            json_fields=storage_config.get("json_fields", []),
+            original_json_fields=storage_config.get("original_json_fields", []),
+            field_config_group=storage_config.get("field_config_group", {}),
+            tokenizers=storage_config.get("tokenizers"),
+            flush_timeout=storage_config.get("flush_timeout"),
+            expires=f"{storage.expire_days}d",
+            table_type=storage.table_type,
+            rt_name=rt_name,
+        )
 
     def compose_config(
         self,
@@ -1382,6 +1406,117 @@ class SurrealDBBindingConfig(DataLinkResourceConfigBase):
             missing = [k for k in ("name", "from", "to") if k not in relation]
             if missing:
                 raise ValueError(f"relations[{idx}] 缺少必填字段: {', '.join(missing)}")
+
+
+class LogClusteringSinkConfig(DataLinkResourceConfigBase):
+    """
+    日志聚类包装 Sink 配置
+
+    对应 bkbase 资源 kind=LogClusteringSink：Databus.spec.sinks 引用本资源，spec.raw_sink 指向原日志存储绑定，
+    spec.clustering 携带 Kafka/Pattern 存储资源引用与 BKFara 任务绑定。
+    raw_sink 不落库，组装时由调用方按本链路当前的存储绑定传入。
+
+    每个日志链路最多一个聚类 Sink，由唯一约束保证。
+    attached 表示日志链路生成 Databus 时是否引用本资源。关闭聚类恢复 raw_sink 后置为 False，
+    资源身份与绑定保留，重开时沿用；确认 Databus 已实际解绑前不能删除。
+    """
+
+    kind = DataLinkKind.LOGCLUSTERINGSINK.value
+    name = models.CharField(verbose_name="聚类Sink名称", max_length=64, db_index=True)
+    table_id = models.CharField(verbose_name="结果表ID", max_length=255, default="", blank=True)
+    binding = models.JSONField(verbose_name="聚类绑定配置", default=dict)
+    kafka_resource = models.JSONField(verbose_name="聚类Kafka资源引用", default=dict)
+    pattern_store = models.JSONField(verbose_name="Pattern结果表与存储绑定", default=dict)
+    result = models.JSONField(verbose_name="聚类结果写入配置", default=dict)
+    runtime_cluster = models.JSONField(verbose_name="聚类运行集群", default=dict)
+    recovery_resource = models.JSONField(verbose_name="结果关联存储资源", default=dict)
+    attached = models.BooleanField(verbose_name="是否被Databus引用", default=False)
+
+    class Meta:
+        verbose_name = "日志聚类Sink配置"
+        verbose_name_plural = verbose_name
+        unique_together = (("bk_tenant_id", "namespace", "name"), ("bk_tenant_id", "namespace", "data_link_name"))
+
+    def compose_config(self, raw_sink: dict[str, Any]) -> dict[str, Any]:
+        """
+        组装 LogClusteringSink 配置，资源引用与 binding 按已保存的内容输出
+
+        Args:
+            raw_sink: 本链路原日志存储绑定的引用，作为 spec.raw_sink
+        """
+        required = {
+            "raw_sink": raw_sink,
+            "binding": self.binding,
+            "kafka_resource": self.kafka_resource,
+            "pattern_store": self.pattern_store,
+            "runtime_cluster": self.runtime_cluster,
+        }
+        missing = [field for field, value in required.items() if not value]
+        if missing:
+            raise ValueError(f"compose log clustering sink config: {', '.join(missing)} is empty, name->[{self.name}]")
+
+        tpl = """
+        {
+            "kind": "LogClusteringSink",
+            "metadata": {
+                "name": "{{name}}",
+                {% if tenant %}
+                "tenant": "{{ tenant }}",
+                {% endif %}
+                "namespace": "{{namespace}}",
+                "labels": {
+                    "bk_biz_id": "{{bk_biz_id}}"
+                }
+            },
+            "spec": {
+                "raw_sink": {{raw_sink}},
+                "clustering": {
+                    "kafka_resource": {{kafka_resource}},
+                    "pattern_store": {{pattern_store}},
+                    "runtime_cluster": {{runtime_cluster}},
+                    {% if recovery_resource %}
+                    "recovery_resource": {{recovery_resource}},
+                    {% endif %}
+                    "result": {{result}},
+                    "binding": {{binding}}
+                }
+            }
+        }
+        """
+        render_params = {
+            "name": self.name,
+            "namespace": self.namespace,
+            "bk_biz_id": self.datalink_biz_ids.label_biz_id,
+            "raw_sink": json.dumps(raw_sink),
+            "kafka_resource": json.dumps(self.kafka_resource),
+            "pattern_store": json.dumps(self._bkbase_refs(self.pattern_store)),
+            "result": json.dumps(self._bkbase_refs(self.result or {"mode": "update_original"})),
+            "runtime_cluster": json.dumps(self.runtime_cluster),
+            "recovery_resource": json.dumps(self.recovery_resource) if self.recovery_resource else None,
+            "binding": json.dumps(self.binding),
+        }
+
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            render_params["tenant"] = self.bk_tenant_id
+
+        return utils.compose_config(
+            tpl=tpl,
+            render_params=render_params,
+            err_msg_prefix="compose log clustering sink config",
+        )
+
+    @staticmethod
+    def _bkbase_refs(store: dict[str, Any]) -> dict[str, Any]:
+        """调用方登记的 table_id、cluster_id 只在 metadata 内使用，不下发给 BKBase。"""
+        return {key: value for key, value in store.items() if key not in ("table_id", "cluster_id")}
+
+    @property
+    def reference(self) -> dict[str, str]:
+        """Databus.spec.sinks 中引用本资源的条目"""
+        reference = {"kind": self.kind, "name": self.name, "namespace": self.namespace}
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            reference["tenant"] = self.bk_tenant_id
+        return reference
 
 
 class ClusterConfig(models.Model):
@@ -1879,4 +2014,5 @@ COMPONENT_CLASS_MAP: dict[str, type[DataLinkResourceConfigBase]] = {
     DataLinkKind.DATABUS.value: DataBusConfig,
     DataLinkKind.CONDITIONALSINK.value: ConditionalSinkConfig,
     DataLinkKind.BASEREPORTSINK.value: BasereportSinkConfig,
+    DataLinkKind.LOGCLUSTERINGSINK.value: LogClusteringSinkConfig,
 }

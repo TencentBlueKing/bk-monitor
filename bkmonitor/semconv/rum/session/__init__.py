@@ -42,7 +42,6 @@ class SessionSpec(FieldSpec):
     ATTRIBUTES_SESSION_ID = replace(
         common.raw_field("attributes.session.id"), extra_config={"composite": composite.SESSION}
     )
-    ATTRIBUTES_SESSION_HAS_REPLAY = common.raw_field("attributes.session.has_replay")
     TRACE_COUNT = common.TRACE_COUNT
     ERROR_COUNT = common.ERROR_COUNT
     ACTION_COUNT = common.ACTION_COUNT

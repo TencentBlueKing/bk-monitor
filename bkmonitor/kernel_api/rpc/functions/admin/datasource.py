@@ -13,6 +13,7 @@ from typing import Any
 from django.conf import settings
 from django.db.models import Count, Exists, OuterRef, Q
 
+from bkmonitor.utils.user import single_tenant_backend_username
 from core.drf_resource import api
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
@@ -254,7 +255,9 @@ def _query_gse_stream_to_configs(
                 "stream_to_id": stream_to_id,
                 "plat_name": config.DEFAULT_GSE_API_PLAT_NAME,
             },
-            "operation": {"operator_name": getattr(settings, "COMMON_USERNAME", "system")},
+            "operation": {
+                "operator_name": single_tenant_backend_username(getattr(settings, "COMMON_USERNAME", "system"))
+            },
         }
         try:
             stream_to_list = api.gse.query_stream_to(**params)
@@ -619,7 +622,7 @@ def get_datasource_gse_route(params: dict[str, Any]) -> dict[str, Any]:
 
     route_params = {
         "condition": {"plat_name": config.DEFAULT_GSE_API_PLAT_NAME, "channel_id": datasource.bk_data_id},
-        "operation": {"operator_name": getattr(settings, "COMMON_USERNAME", "system")},
+        "operation": {"operator_name": single_tenant_backend_username(getattr(settings, "COMMON_USERNAME", "system"))},
     }
     try:
         route_info_list = api.gse.query_route(**route_params)

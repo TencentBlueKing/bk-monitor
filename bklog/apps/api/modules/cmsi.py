@@ -116,7 +116,7 @@ class _CmsiApi:
         )
         self.send_voice_msg = DataAPI(
             method="POST",
-            url=self._build_url("send_voice_msg/", "send_voice_msg/"),
+            url=self._build_url("send_voice/" if settings.ESB_DISABLED else "send_voice_msg/", "send_voice_msg/"),
             module=self.MODULE,
             description="公共语音通知",
             before_request=before_send_cmsi_voice_msg,

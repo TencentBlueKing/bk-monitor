@@ -54,6 +54,7 @@ from metadata.models.data_link.data_link_configs import (
     DataBusConfig,
     DorisStorageBindingConfig,
     ESStorageBindingConfig,
+    LogClusteringSinkConfig,
     ResultTableConfig,
     SurrealDBBindingConfig,
     VMStorageBindingConfig,
@@ -497,10 +498,17 @@ class DataLink(models.Model):
             SurrealDBBindingConfig,
             DataBusConfig,
         ],
-        BASE_EVENT_V1: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
+        BASE_EVENT_V1: [ResultTableConfig, ESStorageBindingConfig, DorisStorageBindingConfig, DataBusConfig],
         SYSTEM_PROC_PERF: [ResultTableConfig, VMStorageBindingConfig, BasereportSinkConfig, DataBusConfig],
         SYSTEM_PROC_PORT: [ResultTableConfig, VMStorageBindingConfig, BasereportSinkConfig, DataBusConfig],
-        BK_LOG: [ResultTableConfig, ESStorageBindingConfig, DorisStorageBindingConfig, DataBusConfig],
+        # 删除链路时逆序处理：Databus 先于引用它的聚类 Sink，聚类 Sink 先于其 raw_sink 指向的存储绑定
+        BK_LOG: [
+            ResultTableConfig,
+            ESStorageBindingConfig,
+            DorisStorageBindingConfig,
+            LogClusteringSinkConfig,
+            DataBusConfig,
+        ],
         BK_STANDARD_V2_EVENT: [ResultTableConfig, ESStorageBindingConfig, DorisStorageBindingConfig, DataBusConfig],
         CUSTOM_FORMAT_VM: [ResultTableConfig, ChannelBindingConfig, VMStorageBindingConfig, DataBusConfig],
         CUSTOM_FORMAT_ES: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
@@ -547,10 +555,14 @@ class DataLink(models.Model):
         (BCS_FEDERAL_SUBSET_TIME_SERIES, ResultTableConfig): "keep",
         (BCS_FEDERAL_SUBSET_TIME_SERIES, VMStorageBindingConfig): "keep",
         (BK_LOG, ResultTableConfig): "keep",
+        (BASE_EVENT_V1, ESStorageBindingConfig): "keep",
+        (BASE_EVENT_V1, DorisStorageBindingConfig): "keep",
         (BK_STANDARD_V2_EVENT, ESStorageBindingConfig): "keep",
         (BK_STANDARD_V2_EVENT, DorisStorageBindingConfig): "keep",
         (BK_LOG, ESStorageBindingConfig): "keep",
         (BK_LOG, DorisStorageBindingConfig): "keep",
+        # 关闭聚类后包装 Sink 仍需保留到确认实际解绑，由聚类流程显式清理，不随 compose 结果自动删除。
+        (BK_LOG, LogClusteringSinkConfig): "keep",
         (GRAPH_RELATION_TIME_SERIES, ResultTableConfig): "delete",
         (GRAPH_RELATION_TIME_SERIES, VMStorageBindingConfig): "delete",
         (GRAPH_RELATION_TIME_SERIES, SurrealDBBindingConfig): "delete",
@@ -993,18 +1005,8 @@ class DataLink(models.Model):
 
             rt_config = table_ins.compose_config(fields=fields)
             if is_doris:
-                storage_config = storage.doris_storage_config or {}
-                binding_config = binding_ins.compose_config(
-                    storage_cluster_name=storage.storage_cluster.cluster_name,
-                    storage_keys=storage_config.get("storage_keys", []),
-                    json_fields=storage_config.get("json_fields", []),
-                    original_json_fields=storage_config.get("original_json_fields", []),
-                    field_config_group=storage_config.get("field_config_group", {}),
-                    tokenizers=storage_config.get("tokenizers"),
-                    flush_timeout=storage_config.get("flush_timeout"),
-                    expires=f"{storage.expire_days}d",
-                    table_type=storage.table_type,
-                    rt_name=table_ins.name,
+                binding_config = binding_ins.compose_event_storage_config(
+                    storage, storage.storage_cluster.cluster_name, table_ins.name
                 )
             else:
                 unique_field_list = ResultTableOption.objects.get(
@@ -1418,7 +1420,12 @@ class DataLink(models.Model):
             ).value
             datalink_option = LogV4DataLinkOption(**json.loads(option))
 
-            fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
+            es_config = datalink_option.es_storage_config if es_storage else None
+            fields = generate_result_table_field_list(
+                table_id=table_id,
+                bk_tenant_id=self.bk_tenant_id,
+                unique_field_list=es_config.unique_field_list if es_config else (),
+            )
             clean_rules = [clean_rule.model_dump() for clean_rule in datalink_option.clean_rules]
 
             # 日志 Doris 链路的组件名称由元数据阶段产出（DorisStorage.bkbase_table_id），
@@ -1456,6 +1463,7 @@ class DataLink(models.Model):
                     "bk_biz_id": bk_biz_id,
                     "data_link_name": self.data_link_name,
                     "table_id": table_id,
+                    "data_type": "log",
                 },
             )
 
@@ -1464,8 +1472,7 @@ class DataLink(models.Model):
             bingding_configs: list[dict[str, Any]] = []
 
             # 创建ES存储绑定配置
-            if es_storage and datalink_option.es_storage_config:
-                storage_option = datalink_option.es_storage_config
+            if es_config:
                 existing_binding = (
                     existing_context.claim(ESStorageBindingConfig, lambda c: True)
                     if existing_context is not None
@@ -1494,18 +1501,12 @@ class DataLink(models.Model):
                     binding.compose_config(
                         storage_cluster_name=es_storage.storage_cluster.cluster_name,
                         write_alias_format=write_alias,
-                        unique_field_list=storage_option.unique_field_list,
-                        json_field_list=storage_option.json_field_list,
+                        unique_field_list=es_config.unique_field_list,
+                        json_field_list=es_config.json_field_list,
                         rt_name=result_table.name,
                     )
                 )
-                databus_sinks.append(
-                    {
-                        "kind": DataLinkKind.ESSTORAGEBINDING.value,
-                        "name": binding.name,
-                        "namespace": self.namespace,
-                    }
-                )
+                databus_sinks.append(binding.reference)
 
             # 创建 Doris 存储绑定配置
             if doris_storage and datalink_option.doris_storage_config:
@@ -1578,6 +1579,21 @@ class DataLink(models.Model):
             if not bingding_configs:
                 raise ValueError("至少需要一个存储绑定配置")
 
+            # 已接入日志聚类时，Databus 改为引用聚类 Sink，原存储绑定作为其 raw_sink；未接入时不处理聚类资源。
+            clustering_sink = self._claim_attached_log_clustering_sink(databus_sinks, existing_context)
+            if clustering_sink is not None:
+                from metadata.models.data_link.log_clustering import prepare_clustering_stores
+
+                bingding_configs.extend(prepare_clustering_stores(clustering_sink))
+                # 默认回写新增的系统字段须进入本轮源表声明。
+                fields = generate_result_table_field_list(
+                    table_id=table_id,
+                    bk_tenant_id=self.bk_tenant_id,
+                    unique_field_list=es_config.unique_field_list if es_config else (),
+                )
+                bingding_configs.append(clustering_sink.compose_config(raw_sink=databus_sinks[0]))
+                databus_sinks = [clustering_sink.reference]
+
             # 创建数据总线配置
             existing_databus = (
                 existing_context.claim(DataBusConfig, lambda c: True) if existing_context is not None else None
@@ -1602,16 +1618,47 @@ class DataLink(models.Model):
             )
             databus.apply_consumer_group(consumer_group)
 
+            databus_config = databus.compose_log_config(sinks=databus_sinks, rules=clean_rules)
+
             # 组装配置
             config_list.extend(
                 [
                     result_table.compose_config(fields=fields),
                     *bingding_configs,
-                    databus.compose_log_config(sinks=databus_sinks, rules=clean_rules),
+                    databus_config,
                 ]
             )
 
         return config_list
+
+    def _claim_attached_log_clustering_sink(
+        self,
+        databus_sinks: list[dict[str, Any]],
+        existing_context: ExistingComponentContext | None,
+    ) -> LogClusteringSinkConfig | None:
+        """获取当前日志链路已接入 Databus 的聚类 Sink，其 raw_sink 即本次生成的唯一 ES 存储绑定。
+
+        Args:
+            databus_sinks: 本次 compose 生成的原始存储绑定引用。
+            existing_context: 既有组件复用上下文，传入时认领聚类 Sink，避免其被视为 leftover。
+        """
+        clustering_sink = LogClusteringSinkConfig.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
+            namespace=self.namespace,
+            data_link_name=self.data_link_name,
+            attached=True,
+        ).first()
+        if clustering_sink is None:
+            return None
+        if len(databus_sinks) != 1 or databus_sinks[0]["kind"] != DataLinkKind.ESSTORAGEBINDING.value:
+            raise ValueError(
+                f"log clustering sink({clustering_sink.name}) requires exactly one "
+                f"{DataLinkKind.ESSTORAGEBINDING.value} sink, got {databus_sinks}"
+            )
+
+        if existing_context is not None:
+            existing_context.claim(LogClusteringSinkConfig, lambda c: c.pk == clustering_sink.pk)
+        return clustering_sink
 
     def compose_system_proc_configs(
         self,
@@ -2043,92 +2090,50 @@ class DataLink(models.Model):
         bk_biz_id: int,
         timezone: int = 0,
         consumer_group: str | None = None,
+        storage_type: str = ClusterInfo.TYPE_ES,
     ) -> list[dict[str, Any]]:
-        """
-        生成基础事件链路配置(固定逻辑)
-        @param data_source: 数据源
-        @param table_id: 监控平台结果表ID
-        @param storage_cluster_name: 存储集群名称(ES)
-        @param bk_biz_id: 业务id
-        @param timezone: 时区 默认0时区
-        """
+        """用系统事件预置清洗，将数据写入选定的单个 Binding。"""
         from metadata.models import ResultTableOption
 
         component_name = f"base_{bk_biz_id}_agent_event"
-
-        logger.info(
-            "compose_base_event_configs: data_link_name->[%s],bk_biz_id->[%s],bk_data_id->[%s],es_cluster_name->[%s],table_id->[%s]"
-            "start to compose configs",
-            self.data_link_name,
-            bk_biz_id,
-            data_source.bk_data_id,
-            storage_cluster_name,
-            table_id,
+        identity = dict(
+            name=component_name,
+            namespace=self.namespace,
+            bk_tenant_id=self.bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            data_link_name=self.data_link_name,
         )
-
-        config_list = []
-
         with transaction.atomic(using=DATABASE_CONNECTION_NAME):
-            es_table_ins, _ = ResultTableConfig.objects.update_or_create(
-                name=component_name,
-                namespace=self.namespace,
-                bk_tenant_id=self.bk_tenant_id,
-                bk_biz_id=bk_biz_id,
-                data_link_name=self.data_link_name,
-                defaults={"table_id": table_id},
-            )
+            rt, _ = ResultTableConfig.objects.update_or_create(**identity, defaults={"table_id": table_id})
+            binding_defaults = {"table_id": table_id, "bkbase_result_table_name": component_name}
+            if storage_type == ClusterInfo.TYPE_DORIS:
+                storage = DorisStorage.objects.get(bk_tenant_id=self.bk_tenant_id, table_id=table_id)
+                binding, _ = DorisStorageBindingConfig.objects.update_or_create(
+                    **identity, defaults={**binding_defaults, "doris_cluster_name": storage_cluster_name}
+                )
+                binding_config = binding.compose_event_storage_config(storage, storage_cluster_name, component_name)
+            else:
+                binding, _ = ESStorageBindingConfig.objects.update_or_create(
+                    **identity,
+                    defaults={**binding_defaults, "es_cluster_name": storage_cluster_name, "timezone": timezone},
+                )
+                unique_fields = ResultTableOption.objects.get(
+                    bk_tenant_id=self.bk_tenant_id, table_id=table_id, name="es_unique_field_list"
+                ).get_value()
+                binding_config = binding.compose_config(
+                    storage_cluster_name=storage_cluster_name,
+                    write_alias_format=f"write_%Y%m%d_{table_id.replace('.', '_')}",
+                    unique_field_list=unique_fields,
+                )
 
-            es_storage_ins, _ = ESStorageBindingConfig.objects.update_or_create(
-                name=component_name,
-                namespace=self.namespace,
-                bk_tenant_id=self.bk_tenant_id,
-                bk_biz_id=bk_biz_id,
-                data_link_name=self.data_link_name,
-                defaults={
-                    "table_id": table_id,
-                    "bkbase_result_table_name": component_name,
-                    "es_cluster_name": storage_cluster_name,
-                    "timezone": timezone,
-                },
-            )
-
-            fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
-            index_name = table_id.replace(".", "_")
-            write_alias = f"write_%Y%m%d_{index_name}"
-            unique_field_list = json.loads(
-                ResultTableOption.objects.get(table_id=table_id, name="es_unique_field_list").value
-            )
-
-            databus_ins, _ = DataBusConfig.objects.update_or_create(
-                name=component_name,
-                namespace=self.namespace,
-                bk_tenant_id=self.bk_tenant_id,
-                bk_biz_id=bk_biz_id,
-                data_link_name=self.data_link_name,
+            databus, _ = DataBusConfig.objects.update_or_create(
+                **identity,
                 data_id_name=component_name,
-                defaults={
-                    "bk_data_id": data_source.bk_data_id,
-                    "sink_names": [f"{DataLinkKind.ESSTORAGEBINDING.value}:{component_name}"],
-                },
+                defaults={"bk_data_id": data_source.bk_data_id, "sink_names": [f"{binding.kind}:{component_name}"]},
             )
-            databus_ins.apply_consumer_group(consumer_group)
-
-            es_rt_config = es_table_ins.compose_config(fields=fields)
-            es_binding_config = es_storage_ins.compose_config(
-                storage_cluster_name=storage_cluster_name,
-                write_alias_format=write_alias,
-                unique_field_list=unique_field_list,
-            )
-            databus_config = databus_ins.compose_base_event_config()
-
-            config_list.extend([es_rt_config, es_binding_config, databus_config])
-            logger.info(
-                "compose_base_event_configs: data_link_name->[%s] composed configs successfully,config_list->[%s]",
-                self.data_link_name,
-                config_list,
-            )
-
-        return config_list
+            databus.apply_consumer_group(consumer_group)
+            fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
+            return [rt.compose_config(fields=fields), binding_config, databus.compose_base_event_config(binding.kind)]
 
     @transaction.atomic(using=DATABASE_CONNECTION_NAME)
     def compose_bcs_federal_proxy_time_series_configs(
@@ -2996,7 +3001,18 @@ class DataLink(models.Model):
         return labels
 
     def _get_databus_prefer_cluster(self) -> dict[str, str] | None:
-        """读取单表链路的优先集群；只需配置 name，其余字段默认沿用链路上下文。"""
+        """聚类链路使用已绑定的专用集群，否则读取原单表优先集群。"""
+        clustering_sink = LogClusteringSinkConfig.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
+            namespace=self.namespace,
+            data_link_name=self.data_link_name,
+            attached=True,
+        ).first()
+        if clustering_sink is not None:
+            if not clustering_sink.runtime_cluster:
+                raise ValueError(f"log clustering sink({clustering_sink.name}) missing runtime_cluster")
+            return dict(clustering_sink.runtime_cluster)
+
         from metadata.models import ResultTableOption
 
         table_ids = {table_id for table_id in self.table_ids if table_id}
@@ -3101,6 +3117,9 @@ class DataLink(models.Model):
                     ClusterInfo.TYPE_VM if graph_relation_option.should_write_vm else ClusterInfo.TYPE_SURREALDB
                 )
 
+        if self.data_link_strategy == self.BASE_EVENT_V1:
+            kwargs["storage_type"] = storage_type
+
         try:
             # 随机命名链路的主名称与 DataId 名独立，source 由 sync_metadata 按真实 DataBus 回填。
             monitor_table_id: str | None = (
@@ -3119,7 +3138,8 @@ class DataLink(models.Model):
                 },
             )
             should_update_bkbase_rt_storage_type = (
-                self.data_link_strategy in {self.GRAPH_RELATION_TIME_SERIES, self.BK_STANDARD_V2_EVENT}
+                self.data_link_strategy
+                in {self.GRAPH_RELATION_TIME_SERIES, self.BK_STANDARD_V2_EVENT, self.BASE_EVENT_V1}
                 and bkbase_rt_record.storage_type != storage_type
             )
         except Exception as e:  # pylint: disable=broad-except
@@ -3298,6 +3318,10 @@ class DataLink(models.Model):
 
         # 合并spec
         cls._fill_missing_dict(merged_config["spec"], existing_config["spec"])
+
+        # 聚类开关由 enable/disable 单独修改，重新生成配置时沿用远端的 clustering 顶层字段。
+        if merged_config.get("kind") == DataLinkKind.LOGCLUSTERINGSINK.value:
+            cls._fill_missing_dict(merged_config["spec"]["clustering"], existing_config["spec"].get("clustering", {}))
 
         return merged_config
 

@@ -450,6 +450,9 @@ class BaseActionProcessor:
         创建ITSM工单
         """
 
+        if settings.ESB_DISABLED:
+            self.set_finished(ActionStatus.FAILURE, message=_("异常防御审批依赖 ITSM V3，ESB 已关闭"))
+            return
         content_template = AlarmNoticeTemplate.get_template("notice/fta_action/itsm_ticket_content.jinja")
         approve_content = Jinja2Renderer.render(content_template, self.context)
         ticket_data = {
@@ -490,6 +493,9 @@ class BaseActionProcessor:
             logger.info("current status %s is forbidden to run", self.action.status)
             return
 
+        if settings.ESB_DISABLED:
+            self.set_finished(ActionStatus.FAILURE, message=_("异常防御审批依赖 ITSM V3，ESB 已关闭"))
+            return
         sn = kwargs.get("sn") or self.action.outputs.get("approve_info", {}).get("sn")
         try:
             approve_result = TicketApproveResultResource().request(**{"sn": [sn]})[0]
@@ -910,6 +916,9 @@ class BaseActionProcessor:
         审批超时任务回调
         """
         if self.action.status != ActionStatus.WAITING:
+            return
+        if settings.ESB_DISABLED:
+            self.set_finished(ActionStatus.FAILURE, message=_("异常防御审批依赖 ITSM V3，ESB 已关闭"))
             return
         sn = kwargs.get("sn") or self.action.outputs.get("approve_info", {}).get("sn")
         try:

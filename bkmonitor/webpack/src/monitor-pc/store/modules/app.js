@@ -29,8 +29,8 @@ import {
   docCookies,
   getBizRouteHref,
   LANGUAGE_COOKIE_KEY,
-  LOCAL_BIZ_STORE_KEY,
   parseBizId,
+  rememberRecentBizId,
 } from 'monitor-common/utils';
 
 export const SET_TITLE = 'SET_TITLE';
@@ -113,7 +113,7 @@ const mutations = {
     const bizItem = state.bizIdMap.get(parsed);
     window.space_uid = bizItem?.space_uid;
     state.bizId = parsed;
-    !bizItem?.is_demo && localStorage.setItem(LOCAL_BIZ_STORE_KEY, `${state.bizId}`);
+    rememberRecentBizId(parsed, !bizItem || Boolean(bizItem.is_demo));
   },
   [SET_APP_STATE](state, data) {
     for (const [key, value] of Object.entries(data)) {
@@ -177,7 +177,7 @@ const mutations = {
     window.bk_biz_id = +bizId;
     const bizItem = state.bizIdMap.get(+bizId);
     window.space_uid = bizItem?.space_uid;
-    !bizItem?.is_demo && localStorage.setItem(LOCAL_BIZ_STORE_KEY, `${bizId}`);
+    rememberRecentBizId(bizId, !bizItem || Boolean(bizItem.is_demo));
     this.commit('app/SET_BIZ_ID', +bizId);
     const { navId } = ctx.$route.meta;
     const handleReload = () => {

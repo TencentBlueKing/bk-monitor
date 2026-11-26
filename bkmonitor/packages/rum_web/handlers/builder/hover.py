@@ -14,6 +14,9 @@ from typing import Any
 from django.utils.functional import Promise
 from django.utils.translation import gettext_lazy as _
 
+from semconv.rum import hover as vital_hover
+from semconv.rum.field import HoverConfig
+
 
 Hover = dict[str, Any]
 Text = str | Promise
@@ -32,12 +35,15 @@ LOADING_TIME_SOURCE: Source = (
     _("Datadog · Loading Time"),
     "https://docs.datadoghq.com/real_user_monitoring/browser/monitoring_page_performance/",
 )
+VITAL_HOVERS: dict[str, HoverConfig] = {
+    "ttfb": vital_hover.TTFB,
+    "fcp": vital_hover.FCP,
+    "lcp": vital_hover.LCP,
+    "inp": vital_hover.INP,
+    "cls": vital_hover.CLS,
+}
 VITAL_SOURCES: dict[str, Source] = {
-    "ttfb": (_("web.dev · Time to First Byte"), "https://web.dev/articles/ttfb"),
-    "fcp": (_("web.dev · First Contentful Paint"), "https://web.dev/articles/fcp"),
-    "lcp": (_("web.dev · Largest Contentful Paint"), "https://web.dev/articles/lcp"),
-    "inp": (_("web.dev · Interaction to Next Paint"), "https://web.dev/articles/inp"),
-    "cls": (_("web.dev · Cumulative Layout Shift"), "https://web.dev/articles/cls"),
+    metric: (hover["source"]["label"], hover["source"]["url"]) for metric, hover in VITAL_HOVERS.items()
 }
 
 
@@ -112,11 +118,13 @@ RESOURCE_PHASE_HOVERS: dict[str, Hover] = {
         source=RESOURCE_TIMING_SOURCE,
     ),
     "tls": _hover(
-        _("TLS 握手"),
+        _("TLS 建连"),
         _("HTTPS 连接在传输内容前确认服务器身份并建立加密通道；非 HTTPS 或复用连接时可能没有该阶段。"),
         user_experience=_("浏览器正在确认连接安全并协商加密方式。"),
         source=RESOURCE_TIMING_SOURCE,
     ),
+    # 网络请求场景中，更准确的描述是「建立连接后等待响应首字节」。
+    # 为简化展示，各场景统一使用下方文案。
     "first_byte": _hover(
         _("等待首字节"),
         _("浏览器发出请求后等待响应首字节，期间包含请求传输、服务端处理和网络往返。"),
@@ -124,7 +132,7 @@ RESOURCE_PHASE_HOVERS: dict[str, Hover] = {
         source=RESOURCE_TIMING_SOURCE,
     ),
     "download": _hover(
-        _("内容下载"),
+        _("内容传输"),
         _("浏览器从收到响应首字节开始，持续接收资源内容，直到响应结束。"),
         user_experience=_("浏览器正在接收资源内容。"),
         source=RESOURCE_TIMING_SOURCE,
@@ -176,6 +184,40 @@ VIEW_PHASE_HOVERS: dict[str, Hover] = {
     ),
 }
 
+VIEW_NAVIGATION_PHASE_HOVERS: dict[str, Hover] = {
+    **{key: RESOURCE_PHASE_HOVERS[key] for key in ("redirect", "dns", "connect", "tls", "download")},
+    "prepare": _hover(
+        _("发起前等待"),
+        _("从导航开始或重定向结束，到浏览器开始获取主文档的时间。"),
+        user_experience=_("浏览器正在准备获取页面内容。"),
+        source=NAVIGATION_TIMING_SOURCE,
+    ),
+    "first_byte": _hover(
+        _("等待首字节"),
+        _("从连接完成或开始获取主文档，到浏览器收到响应首字节的时间。"),
+        user_experience=_("浏览器正在发送请求并等待页面开始返回内容。"),
+        source=NAVIGATION_TIMING_SOURCE,
+    ),
+    "dom_parsing": _hover(
+        _("DOM 解析"),
+        _("收到主文档后，浏览器完成剩余 HTML 解析、DOM 构建和相关同步脚本执行。"),
+        user_experience=_("页面结构正在生成，内容开始陆续出现。"),
+        source=NAVIGATION_TIMING_SOURCE,
+    ),
+    "resource_load": _hover(
+        _("资源加载"),
+        _("从 HTML 解析完成到 load 事件开始，包含延迟执行的脚本、DOMContentLoaded 处理和子资源加载。"),
+        user_experience=_("页面结构已就绪，脚本和其他资源继续加载、执行。"),
+        source=NAVIGATION_TIMING_SOURCE,
+    ),
+    "page_stable": _hover(
+        _("页面趋于稳定"),
+        _("从 load 事件开始，到事件处理结束与自动 Loading Time 中较晚的时间。"),
+        user_experience=_("页面内容加载完成，逐渐稳定下来。"),
+        source=LOADING_TIME_SOURCE,
+    ),
+}
+
 MILESTONE_HOVERS: dict[str, Hover] = {
     "dom_complete": _hover(
         _("DOM Complete"),
@@ -194,39 +236,6 @@ MILESTONE_HOVERS: dict[str, Hover] = {
         _("RUM 观察到页面在一段时间内没有新的网络请求、资源加载或 DOM 变化。"),
         user_experience=_("页面不再继续跳动或补充内容，用户感觉页面已经安定。"),
         source=LOADING_TIME_SOURCE,
-    ),
-}
-
-VITAL_HOVERS: dict[str, Hover] = {
-    "ttfb": _hover(
-        _("TTFB（首字节响应）"),
-        _("从用户开始打开页面，到浏览器收到服务器返回的第一小段数据。"),
-        user_experience=_("页面多久开始得到服务器回应；过慢时会感觉页面一直没有反应。"),
-        source=VITAL_SOURCES["ttfb"],
-    ),
-    "fcp": _hover(
-        _("FCP（首次内容绘制）"),
-        _("从打开页面到第一次显示文字、图片等内容的时间。"),
-        user_experience=_("页面不再是纯白，用户第一次看到有意义的内容。"),
-        source=VITAL_SOURCES["fcp"],
-    ),
-    "lcp": _hover(
-        _("LCP（最大内容绘制）"),
-        _("从打开页面到视窗内最大的图片、文本块或视频画面渲染完成的时间。"),
-        user_experience=_("页面主要内容已经出现，用户能够判断页面内容。"),
-        source=VITAL_SOURCES["lcp"],
-    ),
-    "inp": _hover(
-        _("INP（交互到下一次绘制）"),
-        _("记录用户点击、触摸或键盘操作后，到浏览器完成下一帧画面的整体延迟。"),
-        user_experience=_("用户操作后，页面多久给出视觉反馈；数值越低，操作越跟手。"),
-        source=VITAL_SOURCES["inp"],
-    ),
-    "cls": _hover(
-        _("CLS（累积布局偏移）"),
-        _("记录页面元素在没有用户操作时发生的意外位移；CLS 没有时间单位，数值越小越稳定。"),
-        user_experience=_("文字、按钮和图片是否突然跳动；数值过高容易导致看错内容或点错按钮。"),
-        source=VITAL_SOURCES["cls"],
     ),
 }
 

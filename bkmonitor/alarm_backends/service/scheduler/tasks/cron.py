@@ -14,14 +14,22 @@ import logging
 import time
 
 from celery.schedules import crontab
+from celery.signals import before_task_publish
 from django.conf import settings
 from django.utils.module_loading import import_string
 
 from alarm_backends.core.cluster import get_cluster
 from alarm_backends.service.scheduler.app import periodic_task
+from apm.task import DISCOVERY_SCHEDULED_AT, TOPO_DISCOVER_CRON, TOPO_DISCOVER_TASK_NAME
 from core.prometheus import metrics
 
 logger = logging.getLogger("cron")
+
+
+@before_task_publish.connect(sender=TOPO_DISCOVER_TASK_NAME)
+def stamp_discovery_schedule(headers, **kwargs):
+    # Keep the original tick across broker retries and worker redelivery. Older workers ignore the header.
+    headers.setdefault(DISCOVERY_SCHEDULED_AT, time.time())
 
 
 def task_duration(task_name, queue_name=None):
@@ -36,6 +44,8 @@ def task_duration(task_name, queue_name=None):
             except Exception as e:
                 logger.exception(f"![Cron Task]({task_name}) error: {e}")
                 exception = e
+                if task_name == TOPO_DISCOVER_CRON:
+                    raise
             finally:
                 time_cost = time.time() - start
                 logger.info(f"$[Cron Task]({task_name}) cost: {time_cost}")

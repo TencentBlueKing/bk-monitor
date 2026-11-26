@@ -42,6 +42,7 @@ from apps.feature_toggle.plugins.constants import NEW_CLASS_ALERT_NEW_SERIES
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
     DEFAULT_NEW_CLS_HOURS,
+    DEFAULT_SIGNATURE_FORMAT_UDF,
     NOT_NEED_EDIT_NODES,
     PatternEnum,
     SIGNATURE_FIELD,
@@ -276,7 +277,14 @@ class DataFlowHandler(BaseAiopsHandler):
         )
         for idx, val in enumerate(filter_rule.get("value")):
             op = filter_rule.get("op", "=")
-            if op == "!=":
+            escape_clause = ""
+            if op in ("starts_with", "not_starts_with", "ends_with", "not_ends_with"):
+                # 自定义 LIKE 转义符，用户输入的 %、_ 和 ! 均按字面值匹配。
+                val = str(val).replace("!", "!!").replace("%", "!%").replace("_", "!_")
+                val = f"{val}%" if op.endswith("starts_with") else f"%{val}"
+                op = "NOT LIKE" if op.startswith("not_") else "LIKE"
+                escape_clause = " ESCAPE '!'"
+            elif op == "!=":
                 op = "<>"
             elif op == "contains":
                 op = "LIKE"
@@ -290,7 +298,7 @@ class DataFlowHandler(BaseAiopsHandler):
                     result.append("and")
                 else:
                     result.append("or")
-            literal = cls._quote_sql_literal(val)
+            literal = cls._quote_sql_literal(val) + escape_clause
             # 嵌套 JSON 字段 + 负向条件 (<> / NOT LIKE) 必须 null-safe:
             # JSON_VALUE 在 key 缺失时返回 NULL, NULL <> 'xxx' 在 Flink SQL 下不为 TRUE,
             # 会把本该参与聚类的日志(没填该 key 的)误过滤掉.
@@ -1496,6 +1504,7 @@ class DataFlowHandler(BaseAiopsHandler):
             ),
             bk_biz_id=bk_biz_id,
             is_flink_env=self.conf.get("is_flink_env", False),
+            signature_format_udf=self.conf.get("signature_format_udf", DEFAULT_SIGNATURE_FORMAT_UDF),
         )
         # 采集项侧，创建聚类配置时设置 es_storage
         if clustering_config.collector_config_id:
@@ -2029,6 +2038,7 @@ class DataFlowHandler(BaseAiopsHandler):
             ),
             storage_type=storage_type,
             bk_biz_id=bk_biz_id,
+            signature_format_udf=self.conf.get("signature_format_udf", DEFAULT_SIGNATURE_FORMAT_UDF),
         )
 
         return log_count_aggregation_flow

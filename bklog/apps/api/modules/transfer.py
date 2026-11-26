@@ -150,6 +150,20 @@ class _TransferApi:
     MODULE = _("Metadata元数据")
 
     def __init__(self):
+        self.list_data_source_namespaces = DataAPI(
+            method="GET",
+            url=f"{MONITOR_APIGATEWAY_ROOT_NEW}app/metadata/list_data_source_namespaces/",
+            module=self.MODULE,
+            description=_("查询数据源已登记的命名空间"),
+            use_implicit_user_auth=False,
+        )
+        self.apply_data_source = DataAPI(
+            method="POST",
+            url=f"{MONITOR_APIGATEWAY_ROOT_NEW}app/metadata/apply_data_source/",
+            module=self.MODULE,
+            description=_("下发数据源到目标命名空间"),
+            use_implicit_user_auth=False,
+        )
         self.create_data_id = DataAPI(
             method="POST",
             url=self._build_url("create_data_id/", "metadata_create_data_id/"),
@@ -509,6 +523,30 @@ class _TransferApi:
             description=_("批量创建或更新metadata路由"),
             before_request=add_esb_info_before_request,
             bk_tenant_id=space_type_id_to_tenant_getter(),
+        )
+        self.set_log_clustering_config = DataAPI(
+            method="POST",
+            url=self._build_url("set_log_clustering_config/", "metadata_set_log_clustering_config/"),
+            module=self.MODULE,
+            description=_("保存并下发日志聚类配置"),
+            before_request=add_esb_info_before_request,
+            bk_tenant_id=result_table_to_tenant_getter("table_id"),
+        )
+        self.operate_log_clustering = DataAPI(
+            method="POST",
+            url=self._build_url("operate_log_clustering/", "metadata_operate_log_clustering/"),
+            module=self.MODULE,
+            description=_("执行日志聚类控制动作"),
+            before_request=add_esb_info_before_request,
+            bk_tenant_id=result_table_to_tenant_getter("table_id"),
+        )
+        self.get_log_clustering_status = DataAPI(
+            method="GET",
+            url=self._build_url("get_log_clustering_status/", "metadata_get_log_clustering_status/"),
+            module=self.MODULE,
+            description=_("查询日志聚类配置与运行状态"),
+            before_request=add_esb_info_before_request,
+            bk_tenant_id=result_table_to_tenant_getter("table_id"),
         )
         self.list_kafka_tail = DataAPI(
             method="GET",

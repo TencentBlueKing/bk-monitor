@@ -147,7 +147,11 @@ export default class AlarmGroup extends tsc<IGroupList> {
       checked: true,
       width: 120,
       props: {},
-      formatter: row => (row.update_user ? <bk-user-display-name user-id={row.update_user} /> : '--'),
+      formatter: row => {
+        // 后端无用户上下文时审计字段会写入哨兵值 unknown，归一为空按无值展示
+        const username = row.update_user === 'unknown' ? '' : row.update_user;
+        return username ? <bk-user-display-name user-id={username} /> : '--';
+      },
     },
     {
       label: i18n.t('最近更新时间'),
@@ -240,7 +244,9 @@ export default class AlarmGroup extends tsc<IGroupList> {
     this.tableColumnsList.forEach(column => {
       const { prop } = column;
 
-      fnMap[prop] && (column.formatter = fnMap[prop]);
+      if (fnMap[prop]) {
+        column.formatter = fnMap[prop];
+      }
     });
     this.settingFields = this.tableColumnsList.map(item => ({
       label: item.label,

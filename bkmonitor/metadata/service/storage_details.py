@@ -13,6 +13,8 @@ from typing import Any
 
 import kafka
 from django.conf import settings
+
+from bkmonitor.utils.user import single_tenant_backend_username
 from django.db.models import Q
 
 from core.drf_resource import api
@@ -89,7 +91,7 @@ class ResultTableAndDataSource:
         """查询GSE路由信息"""
         params = {
             "condition": {"plat_name": config.DEFAULT_GSE_API_PLAT_NAME, "channel_id": bk_data_id},
-            "operation": {"operator_name": settings.COMMON_USERNAME},
+            "operation": {"operator_name": single_tenant_backend_username(settings.COMMON_USERNAME)},
         }
         try:
             result = api.gse.query_route(**params)

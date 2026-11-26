@@ -1,4 +1,4 @@
-import { type PropType, computed, defineComponent, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
 
 import { type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
 import { Button, Exception, Radio, Switcher } from 'bkui-vue';
@@ -12,6 +12,7 @@ import {
   buildDurationGroupStats,
   buildDurationSpanStats,
   findSpanRowView,
+  hasKindSpans,
 } from '../utils/duration-stats';
 
 import type { LlmFlowSpan, LlmSpanKind } from '../utils/typings';
@@ -54,6 +55,11 @@ export default defineComponent({
     maxHeight: {
       type: Number,
       default: undefined,
+    },
+    /** 隐藏无数据的 Tab（hover 桶柱面板开启，行内面板保持全量展示） */
+    hideEmptyTab: {
+      type: Boolean,
+      default: false,
     },
   },
   emits: {
@@ -155,6 +161,17 @@ export default defineComponent({
       if (!props.flowLoaded) return false;
       return aggregated.value ? groupItems.value.length > 0 : spanItems.value.length > 0;
     });
+    /** 数据是否已就绪（已加载且非加载中），未就绪不过滤 Tab，避免误隐藏 */
+    const kindDataLoaded = computed(() => props.flowLoaded && !props.flowLoading);
+    /**
+     * 参与渲染的 Tab 列表：hideEmptyTab 且数据已就绪时剔除无数据的类型；
+     * 若全部为空则回退展示全量 Tab，保留现有空态，避免头部无 Tab 可切换。
+     */
+    const visibleTabs = computed(() => {
+      if (!props.hideEmptyTab || !kindDataLoaded.value) return KIND_TABS;
+      const tabs = KIND_TABS.filter(tab => hasKindSpans(props.flow, tab.id));
+      return tabs.length ? tabs : KIND_TABS;
+    });
     const tableMaxHeight = computed(() =>
       props.maxHeight ? Math.max(160, props.maxHeight - PANEL_CHROME_HEIGHT) : DEFAULT_TABLE_MAX_HEIGHT
     );
@@ -166,6 +183,17 @@ export default defineComponent({
     const handleViewDetail = (spanId: string) => {
       if (findSpanRowView(props.flow, spanId)) emit('view-detail', spanId);
     };
+
+    // 当前类型无数据时（含挂载即命中、flow 变化后失效）自动切到首个可见 Tab
+    watch(
+      visibleTabs,
+      tabs => {
+        if (tabs.length && !tabs.some(tab => tab.id === kind.value)) {
+          kind.value = tabs[0].id;
+        }
+      },
+      { immediate: true }
+    );
 
     const renderToolbar = () => {
       // 当前 Tab 无数据时隐藏工具条
@@ -318,7 +346,7 @@ export default defineComponent({
         <div class='llm-duration-stats-header'>
           <div class='llm-duration-stats-title'>{t('耗时统计分析')}</div>
           <div class='llm-duration-stats-tabs'>
-            {KIND_TABS.map(tab => (
+            {visibleTabs.value.map(tab => (
               <button
                 key={tab.id}
                 class={['llm-duration-stats-tab', { 'is-active': kind.value === tab.id }]}

@@ -232,6 +232,7 @@ export type CollectOperateType =
   | 'field'
   | 'search'
   | 'clean'
+  | 'data_processing'
   | 'storage'
   | 'clone'
   | 'masking'
