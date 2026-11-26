@@ -200,7 +200,7 @@ export default defineComponent({
                         v-tippy={this.t('将当前可见火焰图保存为 PNG 图片')}
                         onClick={() => this.flame?.exportPng()}
                       >
-                        {this.t('导出当前视图 PNG')}
+                        png
                       </Dropdown.DropdownItem>
                     )}
                     {this.mode === 'callgraph' && (
@@ -208,7 +208,7 @@ export default defineComponent({
                         v-tippy={this.t('将完整调用图保存为 PNG 图片')}
                         onClick={() => this.callGraphRef?.exportPng()}
                       >
-                        {this.t('导出完整调用图 PNG')}
+                        png
                       </Dropdown.DropdownItem>
                     )}
                   </Dropdown.DropdownMenu>

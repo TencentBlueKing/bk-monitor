@@ -90,6 +90,8 @@ export default defineComponent({
   emits: { close: () => true, saved: (_immediate: boolean) => true },
   setup(props, { emit }) {
     const { t, locale } = useI18n();
+    // 关闭时先切 isShow，让组件库按正常流程还原共享遮罩栈；hidden 后再通知父级卸载
+    const visible = shallowRef(true);
     /** 侧栏 z-index，实例创建时取一次，保证始终低于主机选择弹窗 */
     const sidesliderZIndex = getNextZIndex();
     const form = useCollectionForm(props.meta, props.bizId, props.timezone, props.task, props.prefill, immediate =>
@@ -179,6 +181,7 @@ export default defineComponent({
     return {
       t,
       locale,
+      visible,
       form,
       crontab,
       formBody,
@@ -240,12 +243,18 @@ export default defineComponent({
         class='collection-task-form'
         beforeClose={() => !f.loading.value}
         escClose={!f.loading.value}
-        isShow={true}
+        isShow={this.visible}
         quickClose={false}
         title={this.t(this.task ? '编辑采集' : 'trace-新建采集')}
         transfer={false}
         zIndex={this.sidesliderZIndex}
-        onClosed={this.close}
+        onClosed={() => {
+          this.visible = false;
+        }}
+        onHidden={() => {
+          // 仅主动关闭时通知父级卸载，避免被外部直接卸载时重复触发
+          if (!this.visible) this.close();
+        }}
       >
         {{
           default: () => (
