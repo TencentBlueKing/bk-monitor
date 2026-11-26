@@ -432,7 +432,7 @@ export default defineComponent({
       {
         colKey: 'operations',
         title: this.t('操作'),
-        width: 180,
+        width: 150,
         fixed: 'right',
         resizable: false,
         cell: 'operations',
