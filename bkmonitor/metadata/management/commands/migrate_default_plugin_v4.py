@@ -50,6 +50,9 @@ class Command(BaseCommand):
         )
         parser.add_argument("--namespace", default="bkmonitor")
         parser.add_argument("--vm-cluster-name", help="不传时沿用 __default__ 已接入的 VM 集群")
+        parser.add_argument(
+            "--databus-cluster-name", help="Databus 集群名，写入 default 表的 databus_prefer_cluster option"
+        )
         parser.add_argument("--operator", default="system")
         parser.add_argument(
             "--no-wait", action="store_true", help="execute 不等待组件 Ok，申请完成后直接设置 V4 option 并清理 Transfer"
@@ -69,6 +72,12 @@ class Command(BaseCommand):
         self.tenant = options["bk_tenant_id"]
         self.namespace = options["namespace"]
         self.operator = options["operator"]
+        self.link_options = {models.ResultTableOption.OPTION_CMDB_LEVEL_CONFIG: ["bk_set_id", "bk_module_id"]}
+        self.databus_cluster_name = options.get("databus_cluster_name")
+        if self.databus_cluster_name:
+            self.link_options[models.ResultTableOption.OPTION_DATABUS_PREFER_CLUSTER] = {
+                "name": self.databus_cluster_name
+            }
         if options["wait_timeout"] <= 0 or options["poll_interval"] <= 0:
             raise CommandError("--wait-timeout 和 --poll-interval 必须大于 0；不等待请使用 --no-wait")
 
@@ -297,11 +306,13 @@ class Command(BaseCommand):
             "namespace": self.namespace,
             "data_link_strategy": STRATEGIES.get(self.source.etl_config),
             "vm_cluster_name": self.cluster.cluster_name if self.cluster else None,
+            "result_table_options": self.link_options,
             "topic": self.topic,
             "consumer_group": compose_transfer_consumer_group(self.source) if self.topic else None,
             "transfer_consul_path": self.source.consul_config_path,
             "steps": [
-                "查询已有 V4 组件；已有组件记录时不重新注册 Data ID 或 apply 链路",
+                "查询已有 V4 组件；已有组件不重新注册 Data ID，仅指定 Databus 集群时重新 apply",
+                "申请链路时写入 CMDB 集群和模块配置",
                 "仅首次且无组件记录时注册 Data ID 并申请 V4 链路，沿用原 Kafka Topic、Transfer 消费组和 VM 集群",
                 "默认等待组件 Ok；--no-wait 跳过等待及远端状态检查，直接收尾",
                 "设置 enable_plugin_v4_data_link=true，保留原有查询路由及 data_label",
@@ -309,15 +320,28 @@ class Command(BaseCommand):
             ],
         }
 
+    def save_link_options(self):
+        for name, value in self.link_options.items():
+            models.ResultTableOption.objects.update_or_create(
+                bk_tenant_id=self.tenant,
+                table_id=self.table_id,
+                name=name,
+                defaults={"value": json.dumps(value), "value_type": type(value).__name__, "creator": self.operator},
+            )
+
     def execute_migration(self, *, no_wait=False, wait_timeout=300, poll_interval=10):
         components = self.component_records()
         newly_applied = not any(component.name for component in components)
-        if not newly_applied:
-            # 重新 apply 会把已就绪组件重置为 Pending；续跑只读状态，不能再次申请。
+        if not newly_applied and not self.databus_cluster_name:
+            # 普通续跑不重复 apply，避免将已就绪组件重置为 Pending。
             self.stdout.write("已有 V4 组件记录，复用已有资源，不重新注册或 apply……")
         else:
-            self.stdout.write("首次注册 Data ID 并申请 V4 链路……")
-            self.source.register_to_bkbase(bk_biz_id=self.datalink_biz_id, namespace=self.namespace)
+            if newly_applied:
+                self.stdout.write("首次注册 Data ID 并申请 V4 链路……")
+                self.source.register_to_bkbase(bk_biz_id=self.datalink_biz_id, namespace=self.namespace)
+            else:
+                self.stdout.write("已更新链路 option，复用已有资源重新 apply……")
+            self.save_link_options()
             create_bkbase_data_link(
                 bk_biz_id=self.datalink_biz_id,
                 data_source=self.source,
@@ -327,6 +351,7 @@ class Command(BaseCommand):
                 namespace=self.namespace,
                 consumer_group=compose_transfer_consumer_group(self.source),
             )
+            newly_applied = True
             components = self.component_records()
         missing = [component.kind for component in components if not component.name]
         if not components or missing:
