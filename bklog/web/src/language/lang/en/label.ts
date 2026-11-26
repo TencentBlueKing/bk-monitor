@@ -1076,9 +1076,4 @@ export default {
   '目录 / 文件名': 'Directory / File name',
   搜索子目录: 'Search subdirectories',
   已选预览: 'Selected files preview',
-  数据加工: 'Data processing',
-  数据平台空间: 'Data platform namespace',
-  已授权: 'Authorized',
-  授权中: 'Authorizing',
-  前往: 'Go',
 };
