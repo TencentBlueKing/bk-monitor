@@ -32,9 +32,7 @@ import { ServicesInstance } from '@/platform/services';
 import { defineComponent, onBeforeUnmount, onMounted, ref, computed } from 'vue';
 
 
-import { DialogPlugin } from 'tdesign-vue-next';
-import { allocateOverlayZIndex } from '@/shared/global/overlay/use-overlay-z-index';
-import 'tdesign-vue-next/es/dialog/style/index.css';
+import { bkInfoBox } from '@/platform/compat/tdesign/info-box';
 import { debounce } from 'lodash-es';
 
 
@@ -269,19 +267,10 @@ export default defineComponent({
 
     // 删除 Grok
     const handleDelete = (row: IGrokItem) => {
-      const dialog = DialogPlugin.confirm({
-        zIndex: allocateOverlayZIndex('DIALOG'),
-        width: 400,
-        theme: 'warning',
-        header: false,
-        body: t('当前Grok名称为{n}，确认要删除？', { n: row.name }),
-        confirmBtn: t('确定'),
-        cancelBtn: t('取消'),
-        onConfirm: async () => {
-          await requestDeleteGrok(row);
-          dialog.hide();
-        },
-        onClose: () => dialog.hide(),
+      bkInfoBox({
+        type: 'warning',
+        subTitle: t('当前Grok名称为{n}，确认要删除？', { n: row.name }),
+        confirmFn: () => requestDeleteGrok(row),
       });
     };
 
