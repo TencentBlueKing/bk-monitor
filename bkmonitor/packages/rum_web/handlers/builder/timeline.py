@@ -18,10 +18,11 @@ from semconv.rum.constants import RumSpanType
 
 from rum_web.handlers.builder.span import build as build_span
 from rum_web.handlers.builder.span.session import session_time_range
-from rum_web.handlers.builder.utils import get_safe_number
+from rum_web.handlers.builder.utils import get_action_ids, get_safe_number
 
 
 MAX_DURATION_US = 4 * 60 * 60 * 1_000_000
+ACTION_MEMBER_TYPES = (RumSpanType.RESOURCE.value, RumSpanType.ERROR.value, RumSpanType.LONG_TASK.value)
 
 
 def summary(
@@ -55,10 +56,10 @@ class ViewGroup:
     members: list[_Span] = field(default_factory=list)
 
 
-def _partition(spans: Sequence[dict[str, Any]]) -> tuple[list[_Span], dict[str, ViewGroup]]:
-    """保留会话辅助记录，按 View ID 分组，并过滤重复的 Span ID。"""
+def _partition(spans: Sequence[dict[str, Any]]) -> tuple[list[_Span], dict[tuple[str | None, str], ViewGroup]]:
+    """保留会话辅助记录，按 Session 和 View ID 分组，并过滤重复的 Span ID。"""
     sessions: list[_Span] = []
-    groups: dict[str, ViewGroup] = {}
+    groups: dict[tuple[str | None, str], ViewGroup] = {}
     seen: set[str] = set()
     for span in spans:
         span_id = span.get("span_id")
@@ -74,7 +75,10 @@ def _partition(spans: Sequence[dict[str, Any]]) -> tuple[list[_Span], dict[str, 
         view_id = item.flatten_data.get("attributes.view.id")
         if not view_id:
             continue
-        group = groups.setdefault(view_id, ViewGroup())
+        session_id = item.flatten_data.get("attributes.session.id")
+        if not isinstance(session_id, str) or not session_id:
+            session_id = None
+        group = groups.setdefault((session_id, view_id), ViewGroup())
         if span_type == RumSpanType.VIEW.value:
             group.snapshots.append(item)
         elif span_type == RumSpanType.VITAL.value:
@@ -88,8 +92,8 @@ def _node(span_id: str, children: Sequence[dict[str, Any]] = ()) -> dict[str, An
     return {"span_id": span_id, **({"children": list(children)} if children else {})}
 
 
-def _attach(members: Sequence[_Span]) -> list[dict[str, Any]]:
-    """按开始时间排序。非 Action 成员命中同一 View 的 Action 时挂到该 Action，其余节点直属 View。"""
+def _attach(members: Sequence[_Span], session_id: str | None) -> list[dict[str, Any]]:
+    """按开始时间挂载成员。新字段只关联同一 Session 和 View 内的 Action。"""
     nodes: dict[str, dict[str, Any]] = {}
     actions: dict[str, dict[str, Any]] = {}
     for item in members:
@@ -97,16 +101,25 @@ def _attach(members: Sequence[_Span]) -> list[dict[str, Any]]:
         nodes[span_id] = _node(span_id)
         if item.flatten_data.get("attributes.span_type") != RumSpanType.ACTION.value:
             continue
-        if action_id := item.flatten_data.get("attributes.action.id"):
+        action_id = item.flatten_data.get("attributes.action.id")
+        if isinstance(action_id, str) and action_id:
             actions.setdefault(action_id, nodes[span_id])
     children: list[dict[str, Any]] = []
     for item in sorted(members, key=lambda item: get_safe_number(item.flatten_data.get("start_time"))):
         node = nodes[item.origin_data["span_id"]]
-        action = actions.get(item.flatten_data.get("attributes.action.id"))
-        if item.flatten_data.get("attributes.span_type") != RumSpanType.ACTION.value and action is not None:
-            action.setdefault("children", []).append(node)
-        else:
+        flat = item.flatten_data
+        span_type = flat.get("attributes.span_type")
+        if span_type == RumSpanType.ACTION.value or (
+            "attributes.action.ids" in flat and (session_id is None or span_type not in ACTION_MEMBER_TYPES)
+        ):
             children.append(node)
+            continue
+
+        matched_ids = actions.keys() & get_action_ids(flat)
+        if not matched_ids:
+            children.append(node)
+        for action_id in matched_ids:
+            actions[action_id].setdefault("children", []).append(node)
     return children
 
 
@@ -131,11 +144,11 @@ def build(spans: Sequence[dict[str, Any]]) -> dict[str, Any]:
     sessions, groups = _partition(spans)
     tree: list[dict[str, Any]] = []
     records: list[dict[str, Any]] = []
-    for group in sorted(groups.values(), key=_started_at):
+    for (session_id, _), group in sorted(groups.items(), key=lambda item: _started_at(item[1])):
         if not group.snapshots:
             continue
         view = min(group.snapshots, key=_version)
-        tree.append(_node(view.origin_data["span_id"], _attach(group.members)))
+        tree.append(_node(view.origin_data["span_id"], _attach(group.members, session_id)))
         records.append(build_span(view.origin_data, [item.origin_data for item in (*group.snapshots, *group.vitals)]))
         records.extend(build_span(item.origin_data) for item in group.members)
     start_time, end_time = session_time_range([item.flatten_data for item in sessions])

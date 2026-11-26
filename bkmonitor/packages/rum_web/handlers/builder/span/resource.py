@@ -31,21 +31,55 @@ from rum_web.handlers.builder.span.timing.resource import (
 from rum_web.handlers.builder.utils import get_safe_number, safe_diff, waterfall
 
 
+def _decoded_body_size(flatten_data: dict[str, Any]) -> Any:
+    size = flatten_data.get("attributes.resource.size")
+    return size if size is not None else flatten_data.get("attributes.resource.decoded_body_size")
+
+
 class ResponseBodySizeItem:
     """解压后大小和正文压缩率共用同一个来源。"""
 
     def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
-        decoded_key = "attributes.resource.decoded_body_size"
-        decoded_size = flatten_data.get("attributes.resource.size")
-        if decoded_size is None:
-            decoded_size = flatten_data.get(decoded_key)
-
+        decoded_size = _decoded_body_size(flatten_data)
         encoded = get_safe_number(flatten_data.get("attributes.resource.encoded_body_size"), None)
         decoded = get_safe_number(decoded_size, None)
         return {
-            decoded_key: decoded_size,
+            "attributes.resource.decoded_body_size": decoded_size,
             "display.compression_ratio": None if encoded is None or not decoded else 1 - encoded / decoded,
         }
+
+
+class ResourceCacheHitItem:
+    def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
+        return {"display.resource.cache_hit": self._infer_cache_hit(flatten_data)}
+
+    @staticmethod
+    def _infer_cache_hit(flatten_data: dict[str, Any]) -> bool | None:
+        delivery_type = flatten_data.get("attributes.resource.delivery_type")
+        timing_prefixes = (CURRENT_TIMING_PREFIX, OLD_TIMING_PREFIX)
+        # Service Worker 静态路由也可能返回缓存，此时无法确认 HTTP 缓存命中。
+        for prefix in timing_prefixes:
+            if any(
+                get_safe_number(flatten_data.get(f"{prefix}{field}")) > 0
+                for field in ("worker_start", "worker_router_evaluation_start", "worker_cache_lookup_start")
+            ) or any(
+                flatten_data.get(f"{prefix}{field}")
+                for field in ("worker_matched_router_source", "worker_final_router_source")
+            ):
+                return None
+        if delivery_type == "cache":
+            return True
+
+        transfer_size = get_safe_number(flatten_data.get("attributes.resource.transfer_size"), None)
+        decoded_size = get_safe_number(_decoded_body_size(flatten_data))
+        if delivery_type or transfer_size != 0 or decoded_size <= 0:
+            return None
+        for prefix in timing_prefixes:
+            request_start = get_safe_number(flatten_data.get(f"{prefix}request_start"))
+            response_start = get_safe_number(flatten_data.get(f"{prefix}response_start"))
+            if request_start > 0 and response_start > 0:
+                return True
+        return None
 
 
 class ResourceSpanOverview(SpanOverview):
@@ -164,7 +198,7 @@ class ResourceOthersKeyInfoSection(KeyInfoSection):
         HTTP_RESULT,
         DURATION,
         TRANSFER,
-        group("delivery", "attributes.resource.delivery_type", "attributes.resource.cache.hit"),
+        group("delivery", "attributes.resource.delivery_type", ResourceCacheHitItem()),
         group("blocking", "attributes.resource.render_blocking_status"),
     )
 
@@ -175,8 +209,6 @@ class ResourceOthersResourceInfoSection(BaseSection):
     ITEMS = named(
         "attributes.resource.type",
         "attributes.url.template",
-        "attributes.server.address",
-        "attributes.http.request.method",
         "attributes.resource.protocol",
     )
 

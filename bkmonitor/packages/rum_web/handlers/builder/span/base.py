@@ -12,13 +12,12 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from bkmonitor.data_source.format import flatten_dict_data
 from django.utils.functional import Promise
 from django.utils.translation import gettext_lazy as _
 
 from rum_web.handlers.builder.base import BaseOverview, BaseSection, NamedKeyValueItem
 from rum_web.handlers.builder.hover import get_vital_hover
-from rum_web.handlers.builder.utils import build_rating_config
+from rum_web.handlers.builder.utils import build_rating_config, flatten_rum_data
 from semconv.rum.constants import RumSpanType
 
 
@@ -137,4 +136,4 @@ class SpanBuilder:
         related_spans: Sequence[dict[str, Any]] = (),
     ) -> dict[str, Any]:
         """默认返回主 Span 打平后的字典；子类可注入关联 Span 附加信息。"""
-        return flatten_dict_data(span)
+        return flatten_rum_data(span)

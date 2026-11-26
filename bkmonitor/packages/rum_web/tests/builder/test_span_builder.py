@@ -249,9 +249,80 @@ class TestResourceSpanBuilder:
     def test_others_loading_timing_has_resource_info(self):
         span = _resource_span("img")
         result = build(span, [])
-        assert _section(result, "resource_info") is not None
+        resource_info = _section(result, "resource_info")
+        assert resource_info is not None
+        fields = {item["field_name"] for item in resource_info["items"]}
+        assert fields.isdisjoint({"attributes.server.address", "attributes.http.request.method"})
+        assert _section(result, "key_info")["data"]["delivery"] == {
+            "attributes.resource.delivery_type": None,
+            "display.resource.cache_hit": None,
+        }
         # 新旧时序字段均未上报时，整段加载时序省略。
         assert _section(result, "loading_timing") is None
+
+    @pytest.mark.parametrize(
+        "fields, expected",
+        [
+            pytest.param({"resource.delivery_type": "cache"}, True, id="reported-cache"),
+            pytest.param(
+                {
+                    "resource.delivery_type": "",
+                    "resource.transfer_size": 0,
+                    "resource.size": 1000,
+                    "timing.worker_start": 0,
+                    "timing.request_start": 110,
+                    "timing.response_start": 120,
+                },
+                True,
+                id="inferred-from-timing",
+            ),
+            pytest.param(
+                {
+                    "resource.transfer_size": 0,
+                    "resource.decoded_body_size": 1000,
+                    "resource.timing.request_start": 110,
+                    "resource.timing.response_start": 120,
+                },
+                True,
+                id="inferred-from-old-timing",
+            ),
+            pytest.param(
+                {"resource.delivery_type": "cache", "timing.worker_start": 105},
+                None,
+                id="service-worker-overrides-reported-cache",
+            ),
+            pytest.param(
+                {
+                    "resource.transfer_size": 0,
+                    "resource.size": 1000,
+                    "timing.request_start": 110,
+                    "timing.response_start": 120,
+                    "resource.timing.worker_final_router_source": "cache",
+                },
+                None,
+                id="service-worker-overrides-inferred-cache",
+            ),
+            pytest.param(
+                {"resource.transfer_size": 0, "resource.size": 1000, "timing.request_start": 110},
+                None,
+                id="insufficient-timing",
+            ),
+            pytest.param(
+                {"resource.size": 1000, "timing.request_start": 110, "timing.response_start": 120},
+                None,
+                id="missing-transfer-size",
+            ),
+            pytest.param({"resource.cache.hit": True}, None, id="deprecated-field-only"),
+        ],
+    )
+    def test_others_delivery_cache_hit(self, fields, expected):
+        span = _resource_span("img")
+        span["attributes"].update(fields)
+
+        delivery = _section(build(span), "key_info")["data"]["delivery"]
+
+        assert delivery["attributes.resource.delivery_type"] == fields.get("resource.delivery_type")
+        assert delivery["display.resource.cache_hit"] is expected
 
 
 # E 类基线：重定向 + DNS + TCP + TLS，时间点相对 timeOrigin
@@ -613,23 +684,31 @@ class TestInteractionBuilders:
         }
         assert _items(result, "badges")["elapsed_time"] == 432000
 
-    def test_longtask_key_info(self):
+    @pytest.mark.parametrize(
+        "fields, expected_action_ids, expected_entry_type",
+        [
+            ({"long_task.entry_type": "long-task", "action.id": "act-1", "long_task.name": "self"}, None, "long-task"),
+            (
+                {"long_task.entry_type": "long-animation-frame", "action.ids": ["act-1", "act-2"]},
+                ["act-1", "act-2"],
+                "long-animation-frame",
+            ),
+            ({"action.id": "act-1", "action.ids": []}, [], None),
+            ({}, None, None),
+        ],
+    )
+    def test_longtask_key_info(self, fields, expected_action_ids, expected_entry_type):
         result = build(
             _span(
                 "long_task",
-                {
-                    "long_task.blocking_duration": 42.5,
-                    "action.id": "act-1",
-                    "long_task.entry_type": "longtask",
-                    "long_task.name": "self",
-                },
+                {"long_task.blocking_duration": 42.5, **fields},
                 elapsed_time=123500,
             )
         )
         assert _section(result, "key_info")["data"] == {
             "duration": {"elapsed_time": 123500, "attributes.long_task.blocking_duration": 42.5},
-            "action": {"attributes.action.id": "act-1"},
-            "attribution": {"attributes.long_task.entry_type": "longtask", "attributes.long_task.name": "self"},
+            "action": {"attributes.action.ids": expected_action_ids},
+            "attribution": {"attributes.long_task.entry_type": expected_entry_type},
         }
 
     @pytest.mark.parametrize(
@@ -782,7 +861,8 @@ class TestViewSpanBuilder:
         data = _section(build(_base_view_span(), related), "web_vitals")["data"]
         assert list(data) == ["ttfb", "fcp", "lcp", "inp", "cls"]
         assert data["lcp"]["attributes.vital.value"] == 2840
-        assert data["ttfb"]["attributes.vital.ttfb.waiting_duration"] == 1.2
+        assert data["ttfb"]["attributes.vital.value"] == 101.7
+        assert not any(field.startswith("attributes.vital.ttfb.") for field in data["ttfb"])
         assert data["cls"]["attributes.vital.value"] == 0.2
         assert data["ttfb"]["display.rating_config"][-1]["rating"] == "poor"
         for metric in ("ttfb", "fcp", "lcp", "inp", "cls"):
