@@ -127,8 +127,6 @@ class TestDorisVisibleMatrixApi(TestCase):
         for patcher in patchers:
             patcher.start()
             self.addCleanup(patcher.stop)
-        # IndexSetHandler.get_index_set_for_storage 走真实实现，返回真实 QuerySet；
-        # 测试库无索引集记录，is_use 为 False。
 
     def _query_records(self, records, bk_biz_id):
         """按给定原始记录发起真实 HTTP 请求，返回响应 data 中的集群 ID 集合。"""

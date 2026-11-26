@@ -228,8 +228,9 @@ class StorageHandler:
             except TypeError:
                 return False
 
-        # 当前租户可见：集群列表由 Metadata 按查询租户隔离，只有请求空间
-        # 与集群列表同租户时才命中；缺少任一租户上下文按未指定开放目标处理。
+        # 当前租户可见：传入的集群列表查询租户与请求空间租户一致时才命中；
+        # 这里的两个租户值由调用方解析后传入，本函数不再查询外部服务；
+        # 缺少任一租户上下文按未指定开放目标处理。
         if visible_type == VisibleEnum.CURRENT_TENANT.value:
             if not bk_tenant_id or not space_tenant_id:
                 return False
