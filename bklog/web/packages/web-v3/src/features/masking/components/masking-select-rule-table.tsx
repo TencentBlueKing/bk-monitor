@@ -35,17 +35,16 @@ import { asDictionary } from '@/shared/utils/typed-record';
 import { Component, Model, Emit, Prop, Watch, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Table, Input } from 'tdesign-vue-next';
+import { Table, Input, type PrimaryTableCol } from 'tdesign-vue-next';
 
 import * as authorityMap from '../../../shared/lib/authority-map';
-import fingerSelectColumn from '../../retrieval/classic/result-table-panel/log-clustering/components/finger-select-column.vue';
+import { deepClone } from '../../../shared/lib/util';
+import { AddIcon, SearchIcon } from 'tdesign-icons-vue-next';
 import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
 import EmptyStatus from '../../../shared/ui/empty-status/index.vue';
 import MaskingAddRule from './masking-add-rule';
 
 import './masking-select-rule-table.scss';
-
-const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
 
 interface IProps {
   value: boolean;
@@ -270,7 +269,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
         !this.isSyncSelect && this.defaultSelectRuleList.push(otherList[0].id);
       }
 
-      this.selectList = this.defaultSelectRuleList;
+      this.selectList = [...this.defaultSelectRuleList];
       // 判断当前是否是同步重新选择列表，将展示不同的顺序
       this.tableList = selectList.concat(otherList);
       if (this.isSyncSelect) {
@@ -278,7 +277,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
         this.tableList = this.tableList.filter(tItem => !this.defaultSelectRuleList.includes(tItem.id));
       }
       this.tableStrList = this.tableList.map(item => item.rule_name);
-      this.tableSearchList = structuredClone(this.tableList);
+      this.tableSearchList = deepClone(this.tableList);
       this.tableShowList = this.tableSearchList.slice(0, this.pagination.limit);
       this.changePagination({
         current: 1,
@@ -293,16 +292,9 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
     }
   }
 
-  renderHeaderCheckBox(h: (arg0: any,arg1: { props: { value: number; disabled: boolean; }; on: { change: (val: boolean) => void; }; }) => any) {
-    return h(fingerSelectColumn, {
-      props: {
-        value: this.checkValue,
-        disabled: this.isSyncSelect,
-      },
-      on: {
-        change: this.handleSelectAllItem,
-      },
-    });
+  renderHeaderCheckBox() {
+    return <Checkbox checked={this.checkValue === 2} indeterminate={this.checkValue === 1}
+      disabled={this.isSyncSelect} onChange={value => this.handleSelectAllItem(Boolean(value))} />;
   }
 
   getCheckBoxDisable(ruleID: number) {
@@ -322,7 +314,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
   }
 
   getItemChecked(ruleID: number) {
-    return this.selectList.includes(ruleID);
+    return this.isSyncSelect ? this.syncSelectRuleID === ruleID : this.selectList.includes(ruleID);
   }
 
   searchRule() {
@@ -338,7 +330,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
   handleSearchChange(val: string) {
     if (val === '' && !this.tableLoading) {
       this.emptyType = 'empty';
-      this.tableSearchList = structuredClone(this.tableList);
+      this.tableSearchList = deepClone(this.tableList);
       this.pageLimitChange(this.pagination.limit);
       this.changeCheckValue(this.selectList.length);
     }
@@ -488,6 +480,14 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
         />
       ),
     };
+    const columns: PrimaryTableCol[] = [
+      { colKey: 'selection', width: 50, title: () => this.renderHeaderCheckBox(), cell: (_h, { row }) => checkBoxSlot.default({ row }) },
+      { colKey: 'rule_name', title: this.$t('规则名称'), cell: (_h, { row }) => ruleNameSlot.default({ row }) },
+      { colKey: 'match_method', title: this.$t('匹配方式'), cell: (_h, { row }) => matchingMethodSlot.default({ row }) },
+      { colKey: 'match_content', title: this.$t('匹配内容'), cell: (_h, { row }) => matchingContentSlot.default({ row }) },
+      { colKey: 'masking_result', title: this.$t('脱敏算子'), cell: (_h, { row }) => maskingRulesSlot.default({ row }) },
+    ];
+
     return (
       <div class='masking-select-rule-table'>
         <div class='input-box'>
@@ -495,17 +495,16 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
             class='new-rule-btn'
             v-cursor={{ active: !this.isAllowed }}
             theme='primary'
-
+            icon={() => <AddIcon size='16px' />}
             onClick={() => this.handleAddNewRule()} variant={(true) ? 'outline' : 'base'}
           >
-            <i class='bk-icon icon-plus push' />
             {this.$t('新建规则')}
           </Button>
           <div class='right-box'>
             <Input
               class='search-input'
               v-model={this.searchStr}
-              rightIcon='bk-icon icon-search'
+              suffixIcon={() => <SearchIcon onClick={this.searchRule} />}
               onChange={this.handleSearchChange}
               onEnter={this.searchRule}
             />
@@ -533,52 +532,19 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
                 </div>
               ),
             }}
-            rowStyle={this.getShowRowStyle}
+            rowAttributes={({ row }) => ({ style: `background: ${this.getShowRowStyle({ row }).background}` })}
+            rowKey='id'
+            columns={columns}
             data={this.tableShowList}
-            headerBorder={false}
-            maxHeight={this.tableMaxHeight}
-            outerBorder={false}
-            pagination={this.pagination}
-            renderDirective='if'
+            maxHeight={Number.isFinite(this.tableMaxHeight) ? this.tableMaxHeight : undefined}
+            pagination={{ current: this.pagination.current, pageSize: this.pagination.limit, total: this.pagination.count,
+              pageSizeOptions: this.pagination.limitList, showPageSize: true }}
             size='small'
-            onPageChange={this.pageChange}
-            onPageLimitChange={this.pageLimitChange}
-          >
-            <TableColumn
-              nativeCellSlot={true}
-              width='50'
-              renderHeader={this.renderHeaderCheckBox}
-              v-slots={checkBoxSlot}
-            />
-
-            <TableColumn
-              nativeCellSlot={true}
-              key={'rule_name'}
-              label={this.$t('规则名称')}
-              v-slots={ruleNameSlot}
-            />
-
-            <TableColumn
-              nativeCellSlot={true}
-              key={'match_method'}
-              label={this.$t('匹配方式')}
-              v-slots={matchingMethodSlot}
-            />
-
-            <TableColumn
-              nativeCellSlot={true}
-              key={'match_content'}
-              label={this.$t('匹配内容')}
-              v-slots={matchingContentSlot}
-            />
-
-            <TableColumn
-              nativeCellSlot={true}
-              key={'masking_result'}
-              label={this.$t('脱敏算子')}
-              v-slots={maskingRulesSlot}
-            />
-          </Table>
+            onPageChange={({ current, pageSize }) => {
+              if (pageSize !== this.pagination.limit) this.pageLimitChange(pageSize);
+              else this.pageChange(current);
+            }}
+          />
         </ManagementListLoading>
 
         {this.isShowSubmitContent && (
@@ -602,7 +568,10 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
         )}
 
         <MaskingAddRule
-          v-model={this.isShowMaskingAddRule}
+          isEdit={false}
+          ruleID={0}
+          value={this.isShowMaskingAddRule}
+          onChange={(value: boolean) => (this.isShowMaskingAddRule = value)}
           addRuleFieldValue={this.addRuleFieldValue}
           isPublicRule={this.isPublicList}
           tableStrList={this.tableStrList}

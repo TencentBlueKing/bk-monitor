@@ -32,26 +32,29 @@ import { Switch as Switcher } from 'tdesign-vue-next';
 
 import { Button as Button } from 'tdesign-vue-next';
 import { ServicesInstance } from '@/platform/services';
-import type { CreateElement } from '@legacy-vue';
+import { AddIcon, SearchIcon } from 'tdesign-icons-vue-next';
 import { asDictionary } from '@/shared/utils/typed-record';
 
-import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Dialog, Input, Skeleton, Table, Popup as Popover, Drawer as Sideslider } from 'tdesign-vue-next';
+import { Dialog, Input, Skeleton, Table, Popup as Popover, Drawer as Sideslider, type PrimaryTableCol } from 'tdesign-vue-next';
 import VueDraggable from 'vuedraggable';
 
 
-import { getFlatObjValues, xssFilter } from '../../../shared/lib/util';
+import { deepClone, getFlatObjValues, xssFilter } from '../../../shared/lib/util';
 import { fieldTypeMap } from '../../../app/state/constant';
 import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
 import EmptyStatus from '../../../shared/ui/empty-status/index.vue';
 import MaskingFieldInput from './masking-field-input';
 import MaskingSelectRuleTable from './masking-select-rule-table';
 
+import { allocateOverlayZIndex, Z_INDEX_LAYERS } from '@/shared/global/overlay';
+
 import './masking-field.scss';
 
-const TableColumn = (_props: Record<string, unknown>, { slots }: { slots: { default?: () => unknown } }) => slots.default?.();
+// The shared clone walks nested reactive values without structuredClone's Proxy restriction.
+const cloneMaskingData = <T extends object>(value: T): T => deepClone(value);
 
 interface IProps {
   value: boolean;
@@ -137,6 +140,13 @@ export default class MaskingField extends tsc<IProps> {
 
   /** 是否显示规则侧边栏，默认为false */
   isShowRuleSideslider = false;
+
+  ruleDrawerZIndex: number = Z_INDEX_LAYERS.DRAWER;
+
+  @Watch('isShowRuleSideslider')
+  updateRuleDrawerLayer(visible: boolean) {
+    if (visible) this.ruleDrawerZIndex = allocateOverlayZIndex('DRAWER');
+  }
 
   /** 重新选择弹窗显示 */
   isShowResetRuleDialog = false;
@@ -355,7 +365,7 @@ export default class MaskingField extends tsc<IProps> {
         // 未保存过脱敏规则 用输入框的json数组生成脱敏列表
         await this.matchMaskingRule();
         this.tableList = this.initTableList(this.fieldTypeList, 'allClear');
-        this.tableShowList = structuredClone(this.tableList);
+        this.tableShowList = cloneMaskingData(this.tableList);
       }
     } finally {
       this.tableLoading = false;
@@ -379,7 +389,7 @@ export default class MaskingField extends tsc<IProps> {
   }
 
   async handleMoveEnd(fieldItem: IFieldItem, fieldItemRules: IRuleItem[]) {
-    this.tableValueChange(fieldItem, (fItem: IFieldItem) => (fItem.rules = structuredClone(fieldItemRules)));
+    this.tableValueChange(fieldItem, (fItem: IFieldItem) => (fItem.rules = cloneMaskingData(fieldItemRules)));
     await this.updatePreview(fieldItem); // 更新脱敏预览
   }
 
@@ -455,7 +465,7 @@ export default class MaskingField extends tsc<IProps> {
       const mergedFieldsList = this.getMergeTableValue(tableOriginFieldsList, newOriginTableList, ruleChange);
       // 更新表格 更新检索表格
       this.tableList = this.initTableList(mergedFieldsList, ruleChange);
-      this.tableShowList = structuredClone(this.tableList);
+      this.tableShowList = cloneMaskingData(this.tableList);
       // 更新所有预览
       this.updatePreview();
     } catch {
@@ -640,7 +650,7 @@ export default class MaskingField extends tsc<IProps> {
     }
 
     this.tableValueChange(newSyncField as IFieldItem, async (fItem: IFieldItem) => {
-      const currentRule = structuredClone(fItem.rules[newSyncIndex]);
+      const currentRule = cloneMaskingData(fItem.rules[newSyncIndex]);
 
       if (currentRule.state === 'delete') {
         // 删除状态 直接删除当前规则
@@ -754,7 +764,7 @@ export default class MaskingField extends tsc<IProps> {
         }
       }
     }
-    this.tableShowList = structuredClone(this.tableList);
+    this.tableShowList = cloneMaskingData(this.tableList);
     if (syncID === -1) {
       this.isAllSync = true;
     }
@@ -764,7 +774,7 @@ export default class MaskingField extends tsc<IProps> {
 
   /** 检索字段 */
   searchField() {
-    const tableShowList = structuredClone(this.tableList);
+    const tableShowList = cloneMaskingData(this.tableList);
     this.tableShowList = tableShowList
       .map(fItem => ({
         ...fItem,
@@ -779,63 +789,29 @@ export default class MaskingField extends tsc<IProps> {
   handleSearchChange(val: string) {
     if (val === '' && !this.tableLoading) {
       this.emptyType = 'empty';
-      this.tableShowList = structuredClone(this.tableList);
+      this.tableShowList = cloneMaskingData(this.tableList);
     }
   }
 
-  renderHeaderRule(h: CreateElement) {
-    return h(
-      'div',
-      {
-        class: 'sync-render-header',
-      },
-      [
-        h('span', this.$t('脱敏规则')),
-        h('span', {
-          class: 'bklog-icon bklog-brush',
-          directives: [
-            {
-              name: 'log-tooltip',
-              value: this.$t('清空所有规则'),
-            },
-          ],
-          on: {
-            click: this.handleClearRule,
-          },
-        }),
-        h('span', { class: ['bklog-icon bklog-double-arrow', { 'is-show-sync': this.isShowSyncBtn }] }),
-        h(
-          'span',
-          {
-            class: ['sync-btn', { 'is-show-sync': this.isShowSyncBtn }],
-            on: {
-              click: () => this.handleAllSync(),
-            },
-          },
-          this.$t('同步所有变更'),
-        ),
-      ],
+  renderHeaderRule() {
+    return (
+      <div class='sync-render-header'>
+        <span>{this.$t('脱敏规则')}</span>
+        <span class='bklog-icon bklog-brush' v-log-tooltip={this.$t('清空所有规则')} onClick={this.handleClearRule} />
+        <span class={['bklog-icon bklog-double-arrow', { 'is-show-sync': this.isShowSyncBtn }]} />
+        <span class={['sync-btn', { 'is-show-sync': this.isShowSyncBtn }]} onClick={() => this.handleAllSync()}>
+          {this.$t('同步所有变更')}
+        </span>
+      </div>
     );
   }
 
-  renderHeaderPreview(h: CreateElement) {
-    return h(
-      'div',
-      {
-        class: 'sync-render-header',
-      },
-      [
-        h('span', this.$t('脱敏预览')),
-        h('span', {
-          class: 'bklog-icon bklog-info-fill',
-          directives: [
-            {
-              name: 'log-tooltip',
-              value: this.$t('脱敏预览会根据您的采样日志输出对应脱敏结果，多条采样会输出多条脱敏结果。'),
-            },
-          ],
-        }),
-      ],
+  renderHeaderPreview() {
+    return (
+      <div class='sync-render-header'>
+        <span>{this.$t('脱敏预览')}</span>
+        <span class='bklog-icon bklog-info-fill' v-log-tooltip={this.$t('脱敏预览会根据您的采样日志输出对应脱敏结果，多条采样会输出多条脱敏结果。')} />
+      </div>
     );
   }
 
@@ -1472,10 +1448,14 @@ export default class MaskingField extends tsc<IProps> {
                 <div class='tag-box'>
                   <Button
 
-                    onClick={() => this.handleClickAddRuleIcon(item)} variant={(true) ? 'text' : ('base')}
+                    class='masking-add-rule'
+                    theme='primary'
+                    size='small'
+                    variant='text'
+                    icon={() => <AddIcon size='16px' />}
+                    onClick={() => this.handleClickAddRuleIcon(item)}
                   >
-                    <i class='bk-icon icon-plus push' />
-                    <span style='margin-left: 8px;'>{this.$t('添加规则')}</span>
+                    {this.$t('添加规则')}
                   </Button>
                 </div>
               )}
@@ -1631,6 +1611,14 @@ export default class MaskingField extends tsc<IProps> {
       ),
     };
 
+    const columns: PrimaryTableCol[] = [
+      { colKey: 'column_name', title: this.$t('字段信息'), cell: (_h, { row }) => fieldSlot.default({ row: row as FieldGroup }) },
+      { colKey: 'match_method', title: () => this.renderHeaderRule(), cell: (_h, { row }) => maskingRuleSlot.default({ row: row as FieldGroup }) },
+    ];
+    if (this.previewSwitch) {
+      columns.push({ colKey: 'match_content', title: () => this.renderHeaderPreview(), cell: (_h, { row }) => maskingPreviewSlot.default({ row: row as FieldGroup }) });
+    }
+
     return (
       <div class='masking-field'>
         {/* 采样日志输入框 */}
@@ -1650,9 +1638,9 @@ export default class MaskingField extends tsc<IProps> {
               <Input
                 class='search-input'
                 v-model={this.searchStr}
-                behavior='simplicity'
                 placeholder={this.$t('搜索字段')}
-                rightIcon='bk-icon icon-search'
+                size='small'
+                suffixIcon={() => <SearchIcon onClick={this.searchField} />}
                 clearable
                 onChange={this.handleSearchChange}
                 onEnter={this.searchField}
@@ -1683,39 +1671,18 @@ export default class MaskingField extends tsc<IProps> {
                   </div>
                 ),
               }}
-              extCls={`masking-field-table ${this.isShowFieldClass ? 'is-show-field-class' : ''}`}
+              class={`masking-field-table ${this.isShowFieldClass ? 'is-show-field-class' : ''}`}
               data={this.tableShowList}
               size='small'
-            >
-              <TableColumn
-                nativeCellSlot={true}
-                key={'column_name'}
-                label={this.$t('字段信息')}
-                v-slots={fieldSlot}
-              />
-
-              <TableColumn
-                nativeCellSlot={true}
-                key={'match_method'}
-                renderHeader={this.renderHeaderRule}
-                v-slots={maskingRuleSlot}
-              />
-
-              {this.previewSwitch && (
-                <TableColumn
-                  nativeCellSlot={true}
-                  key={'match_content'}
-                  renderHeader={this.renderHeaderPreview}
-                  v-slots={maskingPreviewSlot}
-                />
-              )}
-            </Table>
+              rowKey='field_class'
+              columns={columns}
+            />
           </ManagementListLoading>
         </div>
 
         <Sideslider
           v-slots={{
-            content: () => (
+            default: () => this.isShowRuleSideslider ? (
               <div style='padding: 20px 24px 66px;'>
                 <MaskingSelectRuleTable
                   submitBoxStyle={this.sidesliderSubmitBoxStyle}
@@ -1728,18 +1695,20 @@ export default class MaskingField extends tsc<IProps> {
                   onSubmit={(selectList: IRuleItem[]) => this.handleSelectRule(selectList)}
                 />
               </div>
-            ),
+            ) : null,
           }}
-          width={640}
-          extCls={`${this.isMarginRight && 'open-add-rule-sideslider'}`}
-          isShow={this.isShowRuleSideslider}
-          title={this.$t('选择脱敏规则')}
-          quickClose
-          transfer
-          {...{
-            'onUpdate:isShow': () => (this.isShowRuleSideslider = false),
-          }}
-        ></Sideslider>
+          size='640px'
+          drawerClassName={['bklog-compat-drawer', this.isMarginRight && 'open-add-rule-sideslider'].filter(Boolean).join(' ')}
+          closeBtn={true}
+          attach='body'
+          visible={this.isShowRuleSideslider}
+          zIndex={this.ruleDrawerZIndex}
+          header={this.$t('选择脱敏规则')}
+          footer={false}
+          closeOnOverlayClick
+          closeOnEscKeydown
+          onClose={() => (this.isShowRuleSideslider = false)}
+        />
 
         <Dialog
           width='640'

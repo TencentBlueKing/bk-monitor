@@ -84,11 +84,30 @@
         height: 22px;
       }
 
-      .t-input__inner {
+      .search-input .t-input {
         height: 22px;
+        min-height: 22px;
+        padding: 0 8px;
+        background: transparent;
+        border: 0;
+        border-bottom: 1px solid var(--bklog-border-control);
+        border-radius: 0;
+        box-shadow: none;
 
-        /* stylelint-disable-next-line declaration-no-important */
-        background: transparent !important;
+        &:focus-within {
+          border-bottom-color: var(--bklog-brand-primary);
+        }
+
+        .t-input__inner {
+          height: 20px;
+          font-size: 12px;
+          background: transparent;
+        }
+
+        .t-input__suffix-icon {
+          color: var(--bklog-text-disabled);
+          cursor: pointer;
+        }
       }
 
       .t-switch {
@@ -102,17 +121,35 @@
   }
 
   .masking-field-table {
+    .t-table__content > table > tbody > tr > td,
     td .cell {
       height: 100%;
       padding: 0;
     }
 
-    .is-last {
-      background: #ebecf0;
+    // Grouped rows contain their own field rows; bypass the shared single-row density padding.
+    :root & > .t-table__content .t-table__body > tr:not(.t-table__expanded-row, .t-table__row--full) > td:not([rowspan], [colspan]) {
+      padding-block: 0;
+    }
 
-      &:hover {
-        background: #ebecf0;
-      }
+    .t-table__content > table > thead > tr > th:last-child {
+      background: var(--bklog-surface-component-hover);
+    }
+
+    .t-table__content > table > tbody > tr > td:last-child {
+      background: var(--bklog-surface-hover);
+    }
+
+    &.is-show-field-class .t-table__content > table > thead > tr > th:first-child {
+      padding-left: 98px;
+    }
+
+    .masking-add-rule {
+      height: 30px;
+      padding: 0;
+      font-size: 12px;
+      color: var(--bklog-brand-primary);
+      border-radius: 0;
     }
 
     .field-info-box,
@@ -247,7 +284,7 @@
         width: 70%;
       }
 
-      > :not(:nth-last-child(2)) {
+      > :not(:last-child) {
         border-bottom: 1px solid #dcdee5;
       }
 

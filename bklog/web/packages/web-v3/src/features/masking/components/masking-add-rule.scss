@@ -272,14 +272,19 @@
 
 .masking-rule-drawer {
   .t-drawer__header {
+    box-sizing: border-box;
+    align-items: stretch;
+    height: 52px;
+    min-height: 52px;
     padding: 0;
   }
 
   .masking-rule-drawer-header {
     display: flex;
+    flex: 1;
     align-items: center;
     gap: 16px;
-    min-height: 52px;
+    min-height: 0;
     font-weight: normal;
     color: var(--bklog-text-primary, #313238);
   }
