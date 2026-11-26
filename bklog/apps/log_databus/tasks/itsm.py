@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,8 +18,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from blueapps.contrib.celery_tools.periodic import periodic_task
 from celery.schedules import crontab
+from django.conf import settings
 
 from apps.log_databus.handlers.itsm import ItsmHandler
 
@@ -30,4 +31,5 @@ def failed_ticket_clean():
     """
     处理回调失败的单据
     """
-    ItsmHandler().clean_failed_ticket_callback()
+    if not settings.ESB_DISABLED:
+        ItsmHandler().clean_failed_ticket_callback()

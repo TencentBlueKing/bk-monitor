@@ -7,6 +7,7 @@ import tempfile
 from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import enterModuleContext
 from unittest.mock import Mock, patch
 
 from django.test import SimpleTestCase, TestCase, override_settings
@@ -31,6 +32,11 @@ from apps.log_search.views.export_views import ExportJobViewSet
 from apps.tests.log_search.test_export_notification import make_job
 from apps.tests.log_search.test_sharded_export import FakeHandler, build_policy, create_job
 from apps.utils.notify import EmailNotify
+
+
+def setUpModule():
+    enterModuleContext(patch("apps.log_search.export.scheduler.app.send_task"))
+    enterModuleContext(patch("django_redis.cache.RedisCache.lock"))
 
 
 class ScrollIsolationTests(TestCase):
@@ -168,6 +174,49 @@ class TimeBoundaryTests(SimpleTestCase):
         for call in api.query_ts_reference.call_args_list + api.query_ts_raw.call_args_list:
             self.assertEqual(call.args[0]["query_list"][0]["conditions"], expected)
         self.assertEqual(body["query_list"][0], {"field_name": "time", "reference_name": "a"})
+
+    def test_union_statistics_and_histogram_merge_routes_under_single_reference(self):
+        fields = [{"name": "dtEventTimeStamp", "type": "long", "unit": "millisecond"}] * 3
+        body = {
+            "query_list": [
+                {"table_id": "bklog_index_set_4585", "field_name": "dtEventTimeStamp", "reference_name": "a"},
+                {"table_id": "bklog_index_set_4586", "field_name": "dtEventTimeStamp", "reference_name": "b"},
+                {"table_id": "bklog_index_set_4587", "field_name": "dtEventTimeStamp", "reference_name": "c"},
+            ],
+            "metric_merge": "a + b + c",
+            "order_by": ["-dtEventTimeStamp"],
+        }
+        job = SimpleNamespace(
+            search_type=ExportSearchType.INDEX_SET, search_params={"export_time_fields": fields}, base_dict=body
+        )
+        with patch("apps.log_search.export.planner.UnifyQueryHandler", return_value=Mock()):
+            handler = build_handler(job)
+        handler.project_export_rows.return_value = []
+
+        with patch("apps.log_search.export.planner.UnifyQueryApi") as api:
+            api.query_ts_reference.side_effect = [
+                {"series": [{"values": [[1795596040933, 304]]}]},
+                {"series": [{"values": [[1795596000000, 304]]}]},
+            ]
+            api.query_ts_raw.return_value = {"list": []}
+
+            total = count_rows(handler, 1795596040933, 1795596940934)
+            buckets = histogram(handler, 1795596040933, 1795596940934, 900_000)
+            sample_rows(handler, 1795596040933, 1795596940934, 10)
+
+        self.assertEqual(total, 304)
+        self.assertEqual(buckets, {1795596000000: 304})
+        self.assertEqual(api.query_ts_reference.call_count, 2)
+        for call in api.query_ts_reference.call_args_list:
+            params = call.args[0]
+            self.assertEqual(params["metric_merge"], "a")
+            self.assertEqual([q["reference_name"] for q in params["query_list"]], ["a", "a", "a"])
+
+        raw_params = api.query_ts_raw.call_args.args[0]
+        self.assertEqual(raw_params["metric_merge"], "a + b + c")
+        self.assertEqual([q["reference_name"] for q in raw_params["query_list"]], ["a", "b", "c"])
+        self.assertEqual(handler.base_dict["metric_merge"], "a + b + c")
+        self.assertEqual([q["reference_name"] for q in handler.base_dict["query_list"]], ["a", "b", "c"])
 
     def test_snapshot_uses_real_fields_not_the_placeholder_time(self):
         handler = SimpleNamespace(index_info_list=[{"index_set_id": 1}, {"index_set_id": 2}], base_dict={})

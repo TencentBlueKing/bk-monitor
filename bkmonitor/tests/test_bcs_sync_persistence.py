@@ -46,8 +46,8 @@ class PersistenceTests(unittest.TestCase):
             )
         if not apps.ready:
             django.setup()
-        from django.db import IntegrityError, connections, models, transaction
-        from django.db.models import Q
+        from django.db import DatabaseError, IntegrityError, connections, models, transaction
+        from django.db.models import Count, Q
         from django.utils import timezone
 
         connections.databases[DATABASE] = {
@@ -145,8 +145,11 @@ class PersistenceTests(unittest.TestCase):
             "Iterable": Iterable,
             "islice": islice,
             "Q": Q,
+            "Count": Count,
+            "DatabaseError": DatabaseError,
             "transaction": transaction,
             "timezone": timezone,
+            "is_biz_in_tenant": lambda biz, tenant: True,
             "router": SimpleNamespace(db_for_write=lambda model: DATABASE),
             "defaultdict": defaultdict,
             "logger": logging.getLogger("bcs-sync-regression"),
@@ -430,6 +433,273 @@ class PersistenceTests(unittest.TestCase):
         self.assertEqual(self.Cluster.objects.using(DATABASE).get(id=old.id).node_count, 8)
         self.assertEqual(self.Cluster.objects.using(DATABASE).get(id=protected.id).name, "protected")
         self.assertEqual(self.Cluster.objects.using(DATABASE).get(bcs_cluster_id="cluster-later").node_count, 3)
+
+    def test_cross_tenant_inventory_reclaims_existing_row_and_counts_only_for_owner(self):
+        clusters = self.Cluster.objects.using(DATABASE)
+        old = clusters.create(name="old", bk_tenant_id="previous", unique_hash="1:cluster-a", config="custom")
+        self.sync([self.row("node", labels={"app": "demo"})])
+        tenants = ["previous", "owner", "other"]
+        count = Mock(return_value={"node_count": 4})
+        api = SimpleNamespace(
+            bk_login=SimpleNamespace(list_tenant=lambda: [{"id": tenant} for tenant in tenants]),
+            kubernetes=SimpleNamespace(fetch_k8s_node_count_by_cluster=count),
+        )
+
+        def load(params):
+            return [self.Cluster(name="updated", unique_hash="1:cluster-a", bk_tenant_id=params["bk_tenant_id"])]
+
+        with (
+            patch.object(self.Cluster, "load_list_from_api", side_effect=load, create=True),
+            patch.dict(self.namespace, {"api": api, "is_biz_in_tenant": lambda biz, tenant: tenant == "owner"}),
+        ):
+            for _ in range(2):
+                synced = self.namespace["sync_bcs_cluster_to_db"]()
+                current = clusters.get()
+                self.assertEqual([cluster.id for cluster in synced], [old.id])
+                self.assertEqual((current.bk_tenant_id, current.config, current.node_count), ("owner", "custom", 4))
+                count.assert_called_once_with({"bk_tenant_id": "owner", "bcs_cluster_id": "cluster-a"})
+                count.reset_mock()
+                tenants.reverse()
+        self.assertEqual(self.Relation.objects.using(DATABASE).count(), 1)
+
+    def test_unknown_owner_preserves_existing_cluster_without_refreshing_it(self):
+        old = self.Cluster.objects.using(DATABASE).create(name="old", unique_hash="1:cluster-a")
+        incoming = self.Cluster(name="updated", unique_hash=old.unique_hash)
+        api = SimpleNamespace(bk_login=SimpleNamespace(list_tenant=lambda: [{"id": "tenant"}]))
+        with (
+            patch.object(self.Cluster, "load_list_from_api", return_value=[incoming], create=True),
+            patch.dict(self.namespace, {"api": api, "is_biz_in_tenant": lambda biz, tenant: False}),
+        ):
+            self.assertEqual(self.namespace["sync_bcs_cluster_to_db"](), [])
+        old.refresh_from_db(using=DATABASE)
+        self.assertEqual(old.name, "old")
+        self.assertIsNone(old.last_synced_at)
+
+    def test_foreign_inventory_preserves_old_row_until_owner_sync_succeeds(self):
+        clusters = self.Cluster.objects.using(DATABASE)
+        old = clusters.create(name="old", unique_hash="old-business", bk_tenant_id="previous")
+        node = self.row("node")
+        node.save(using=DATABASE)
+        api = SimpleNamespace(
+            bk_login=SimpleNamespace(list_tenant=lambda: [{"id": "previous"}, {"id": "owner"}]),
+            kubernetes=SimpleNamespace(fetch_k8s_node_count_by_cluster=Mock(return_value={"node_count": 1})),
+        )
+
+        def load(params):
+            return [self.Cluster(bk_tenant_id=params["bk_tenant_id"], bk_biz_id=2, unique_hash="new-business")]
+
+        with (
+            patch.object(self.Cluster, "load_list_from_api", side_effect=load, create=True) as inventory,
+            patch.dict(self.namespace, {"api": api, "is_biz_in_tenant": lambda biz, tenant: tenant == "owner"}),
+        ):
+            inventory.side_effect = [load({"bk_tenant_id": "previous"}), RuntimeError("owner unavailable")]
+            with self.assertRaisesRegex(RuntimeError, "1 objects"):
+                self.namespace["sync_bcs_cluster_to_db"]()
+            self.assertEqual(clusters.get().id, old.id)
+            inventory.side_effect = load
+            self.namespace["sync_bcs_cluster_to_db"]()
+        self.assertEqual(clusters.get().bk_tenant_id, "owner")
+        self.assertTrue(self.Resource._base_manager.using(DATABASE).filter(id=node.id).exists())
+
+    def test_cluster_visible_only_to_another_tenant_survives_until_owner_sync(self):
+        clusters = self.Cluster.objects.using(DATABASE)
+        old = clusters.create(name="old", unique_hash="old-biz", config="custom", bk_tenant_id="previous")
+        clusters.create(name="gone", bcs_cluster_id="cluster-gone", unique_hash="gone", bk_tenant_id="previous")
+        self.sync([self.row("node", labels={"app": "demo"}), self.row("gone", cluster="cluster-gone")])
+        tenants = ["previous", "observer", "owner"]
+        api = SimpleNamespace(
+            bk_login=SimpleNamespace(list_tenant=lambda: [{"id": t} for t in tenants]),
+            kubernetes=SimpleNamespace(fetch_k8s_node_count_by_cluster=Mock(return_value={"node_count": 2})),
+        )
+        owner_available = False
+
+        def load(params):
+            tenant = params["bk_tenant_id"]
+            if tenant == "previous":
+                return []
+            if tenant == "owner" and not owner_available:
+                raise RuntimeError("owner unavailable")
+            return [self.Cluster(name="moved", bk_tenant_id=tenant, bk_biz_id=2, unique_hash="new-biz")]
+
+        with (
+            patch.object(self.Cluster, "load_list_from_api", side_effect=load, create=True),
+            patch.dict(
+                self.namespace,
+                {"api": api, "is_biz_in_tenant": lambda biz, tenant: tenant == "owner", **self.inventory_resources()},
+            ),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "1 objects"):
+                self.namespace["sync_bcs_cluster_to_db"]()
+            self.assertEqual(list(clusters.values_list("id", "config")), [(old.id, "custom")])
+            self.assertEqual(list(self.Resource._base_manager.using(DATABASE).values_list("name", flat=True)), ["node"])
+            self.assertEqual(self.Relation.objects.using(DATABASE).count(), 1)
+            api.kubernetes.fetch_k8s_node_count_by_cluster.assert_not_called()
+
+            owner_available = True
+            tenants.reverse()
+            self.namespace["sync_bcs_cluster_to_db"]()
+            self.assertEqual(list(clusters.values_list("bk_tenant_id", "unique_hash")), [("owner", "new-biz")])
+            self.assertEqual(self.Resource._base_manager.using(DATABASE).get().name, "node")
+            self.assertEqual(self.Relation.objects.using(DATABASE).count(), 1)
+
+    def test_retired_tenant_hash_conflict_recovers_on_next_inventory(self):
+        clusters = self.Cluster.objects.using(DATABASE)
+        clusters.create(bk_tenant_id="previous", bk_biz_id=2, unique_hash="2:A", config="previous")
+        owner = clusters.create(bk_tenant_id="owner", bk_biz_id=1, unique_hash="1:A", config="owner")
+        self.sync([self.row("node", labels={"app": "demo"})])
+        relation = self.Relation.objects.using(DATABASE).get()
+        tenants = ["previous", "owner"]
+        api = SimpleNamespace(
+            bk_login=SimpleNamespace(list_tenant=lambda: [{"id": tenant} for tenant in tenants]),
+            kubernetes=SimpleNamespace(fetch_k8s_node_count_by_cluster=Mock(return_value={"node_count": 1})),
+        )
+
+        def load(params):
+            if params["bk_tenant_id"] == "previous":
+                return []
+            return [self.Cluster(bk_tenant_id="owner", bk_biz_id=2, unique_hash="2:A")]
+
+        outcomes = []
+        with (
+            patch.object(self.Cluster, "load_list_from_api", side_effect=load, create=True),
+            patch.dict(
+                self.namespace,
+                {"api": api, "is_biz_in_tenant": lambda biz, tenant: tenant == "owner", **self.inventory_resources()},
+            ),
+        ):
+            for _ in range(3):
+                try:
+                    self.namespace["sync_bcs_cluster_to_db"]()
+                except RuntimeError as exc:
+                    outcome = str(exc.__cause__)
+                else:
+                    outcome = "ok"
+                outcomes.append((outcome, list(clusters.order_by("id").values_list("id", "unique_hash", "config"))))
+                self.assertEqual(self.Resource._base_manager.using(DATABASE).get().id, relation.resource_id)
+                self.assertEqual(self.Relation.objects.using(DATABASE).get().id, relation.id)
+                tenants.reverse()
+        self.assertEqual(
+            outcomes,
+            [
+                ("ambiguous Cluster identity: ('owner', 'cluster-a')", [(owner.id, "1:A", "owner")]),
+                ("ok", [(owner.id, "2:A", "owner")]),
+                ("ok", [(owner.id, "2:A", "owner")]),
+            ],
+        )
+
+    def test_failed_owner_releases_only_absent_conflicting_row_with_existing_owner(self):
+        clusters = self.Cluster.objects.using(DATABASE)
+        previous = clusters.create(bk_tenant_id="previous", unique_hash="target")
+        other = clusters.create(bk_tenant_id="other", unique_hash="other")
+        incoming = self.Cluster(bk_tenant_id="owner", unique_hash="target")
+        inventories = {"previous": [], "other": [], "owner": [incoming]}
+        api = SimpleNamespace(bk_login=SimpleNamespace(list_tenant=lambda: [{"id": t} for t in inventories]))
+        save = self.namespace["bulk_save_resources"]
+
+        def fail_owner(resource, models, *args, **kwargs):
+            if models:
+                raise RuntimeError("owner write failed")
+            return save(resource, models, *args, **kwargs)
+
+        def failed_round():
+            with self.assertRaisesRegex(RuntimeError, "1 objects"):
+                self.namespace["sync_bcs_cluster_to_db"]()
+            return set(clusters.values_list("id", flat=True))
+
+        with (
+            patch.object(
+                self.Cluster, "load_list_from_api", side_effect=lambda p: inventories[p["bk_tenant_id"]], create=True
+            ),
+            patch.dict(
+                self.namespace,
+                {
+                    "api": api,
+                    "is_biz_in_tenant": lambda biz, tenant: tenant == "owner",
+                    "bulk_save_resources": fail_owner,
+                    **self.inventory_resources(),
+                },
+            ),
+        ):
+            self.assertEqual(failed_round(), {previous.id, other.id})
+            owner = clusters.create(bk_tenant_id="owner", unique_hash="original")
+            inventories["previous"] = [previous]
+            self.assertEqual(failed_round(), {previous.id, other.id, owner.id})
+            inventories["previous"] = []
+            duplicate_owner = clusters.create(bk_tenant_id="owner", unique_hash="ambiguous")
+            self.assertEqual(failed_round(), {previous.id, other.id, owner.id, duplicate_owner.id})
+            duplicate_owner.delete(using=DATABASE)
+            self.assertEqual(failed_round(), {other.id, owner.id})
+
+    def test_inventory_visibility_survives_validation_or_write_failure(self):
+        clusters = self.Cluster.objects.using(DATABASE)
+        old = clusters.create(name="old", unique_hash="old-biz", bk_tenant_id="previous")
+        self.sync([self.row("node", labels={"app": "demo"})])
+        visible = self.Cluster(name="moved", bk_tenant_id="observer", bk_biz_id=2, unique_hash="new-biz")
+        other = self.Cluster(name="other", bk_tenant_id="observer", bcs_cluster_id="cluster-b", unique_hash="other")
+        api = SimpleNamespace(bk_login=SimpleNamespace(list_tenant=lambda: [{"id": "previous"}, {"id": "observer"}]))
+        save = self.namespace["bulk_save_resources"]
+
+        def save_batch(resource, models, *args, **kwargs):
+            if models:
+                raise RuntimeError("write failed for other cluster")
+            return save(resource, models, *args, **kwargs)
+
+        for inventory in ([visible, visible], [visible, other]):
+            with (
+                self.subTest(inventory=[model.bcs_cluster_id for model in inventory]),
+                patch.object(self.Cluster, "load_list_from_api", side_effect=[[], inventory], create=True),
+                patch.dict(
+                    self.namespace,
+                    {
+                        "api": api,
+                        "is_biz_in_tenant": lambda biz, tenant: biz == 1 and tenant == "observer",
+                        "bulk_save_resources": save_batch,
+                        **self.inventory_resources(),
+                    },
+                ),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "1 objects"):
+                    self.namespace["sync_bcs_cluster_to_db"]()
+                self.assertEqual(list(clusters.values_list("id", flat=True)), [old.id])
+                self.assertEqual(self.Resource._base_manager.using(DATABASE).get().name, "node")
+                self.assertEqual(self.Relation.objects.using(DATABASE).count(), 1)
+
+    def test_other_business_write_does_not_confirm_conflicting_cluster_observation(self):
+        clusters = self.Cluster.objects.using(DATABASE)
+        old = clusters.create(name="old", unique_hash="old-biz", config="custom", bk_tenant_id="previous")
+        self.sync([self.row("node", labels={"app": "demo"})])
+        observed = {
+            "previous": [old],
+            "owner": [self.Cluster(bk_tenant_id="owner", bk_biz_id=2, unique_hash="new-biz")],
+        }
+        api = SimpleNamespace(
+            bk_login=SimpleNamespace(list_tenant=lambda: [{"id": tenant} for tenant in observed]),
+            kubernetes=SimpleNamespace(fetch_k8s_node_count_by_cluster=Mock(return_value={"node_count": 1})),
+        )
+        with (
+            patch.object(
+                self.Cluster,
+                "load_list_from_api",
+                side_effect=lambda params: observed[params["bk_tenant_id"]],
+                create=True,
+            ),
+            patch.dict(
+                self.namespace,
+                {
+                    "api": api,
+                    "is_biz_in_tenant": lambda biz, tenant: biz == 2 and tenant == "owner",
+                    **self.inventory_resources(),
+                },
+            ),
+        ):
+            self.namespace["sync_bcs_cluster_to_db"]()
+            self.assertEqual(clusters.get(id=old.id).config, "custom")
+            self.assertEqual(clusters.get(bk_tenant_id="owner").unique_hash, "new-biz")
+            observed["previous"] = []
+            self.namespace["sync_bcs_cluster_to_db"]()
+            self.assertEqual(list(clusters.values_list("bk_tenant_id", flat=True)), ["owner"])
+        self.assertEqual(self.Resource._base_manager.using(DATABASE).get().name, "node")
+        self.assertEqual(self.Relation.objects.using(DATABASE).count(), 1)
 
     def test_last_cluster_cleanup_includes_all_eight_resource_types(self):
         self.Cluster.objects.using(DATABASE).create(name="last", unique_hash="last")

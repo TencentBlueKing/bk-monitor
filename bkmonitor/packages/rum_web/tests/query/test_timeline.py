@@ -129,14 +129,16 @@ class TestTimelineBuilder:
     def test_sorts_views_and_children_with_action_affinity(self):
         spans = [
             _view("view-span-2", "view-2", started_at=2000, start_time=10),
-            _span("cross-view", "resource", 2_010_000, "view-2", {"action.id": "action-1"}),
-            _span("resource-2", "resource", 1_040_000, attrs={"action.id": "action-1"}),
+            _span("cross-view", "resource", 2_010_000, "view-2", {"action.ids": ["action-1"]}),
+            _span("cross-view-legacy", "resource", 2_020_000, "view-2", {"action.id": "action-1"}),
+            _span("resource-2", "resource", 1_040_000, attrs={"action.ids": ["action-1", "action-2"]}),
             _span("action", "action", 1_020_000, attrs={"action.id": "action-1"}),
-            _span("resource-1", "resource", 1_030_000, attrs={"action.id": "action-1"}),
-            _span("long-task", "long_task", 1_010_000, attrs={"action.id": "action-1"}),
-            _span("error", "error", 1_050_000, attrs={"action.id": "action-1"}),
-            _span("custom", "custom", 1_060_000, attrs={"action.id": "action-1"}),
-            _span("websocket", "websocket", 1_070_000, attrs={"action.id": "action-1"}),
+            _span("action-2", "action", 1_045_000, attrs={"action.id": "action-2"}),
+            _span("resource-1", "resource", 1_030_000, attrs={"action.ids": ["action-1"]}),
+            _span("long-task", "long_task", 1_010_000, attrs={"action.ids": ["action-1"]}),
+            _span("error", "error", 1_050_000, attrs={"action.ids": ["action-1"]}),
+            _span("custom", "custom", 1_060_000),
+            _span("websocket", "websocket", 1_070_000),
             _view(start_time=3_000_000),
         ]
 
@@ -153,13 +155,17 @@ class TestTimelineBuilder:
                             {"span_id": "resource-1"},
                             {"span_id": "resource-2"},
                             {"span_id": "error"},
-                            {"span_id": "custom"},
-                            {"span_id": "websocket"},
                         ],
-                    }
+                    },
+                    {"span_id": "action-2", "children": [{"span_id": "resource-2"}]},
+                    {"span_id": "custom"},
+                    {"span_id": "websocket"},
                 ],
             },
-            {"span_id": "view-span-2", "children": [{"span_id": "cross-view"}]},
+            {
+                "span_id": "view-span-2",
+                "children": [{"span_id": "cross-view"}, {"span_id": "cross-view-legacy"}],
+            },
         ]
         assert {record["span_id"] for record in result["records"]} == {span["span_id"] for span in spans}
 
@@ -168,10 +174,13 @@ class TestTimelineBuilder:
             _view(),
             _span("other-action", "action", 1_015_000, attrs={"action.id": "action-2"}),
             _span("action", "action", 1_020_000, attrs={"action.id": "action-1"}),
-            _span("future", "navigation", 1_025_000, attrs={"action.id": "action-1"}),
-            _span("owned-error", "error", 1_030_000, attrs={"action.id": "action-1"}),
-            _span("loose-error", "error", 1_040_000, attrs={"action.id": "missing"}),
+            _span("legacy-resource", "resource", 1_025_000, attrs={"action.id": "action-1"}),
+            _span("legacy-custom", "custom", 1_026_000, attrs={"action.id": "action-1"}),
+            _span("owned-error", "error", 1_030_000, attrs={"action.id": "action-2", "action.ids": ["action-1"]}),
+            _span("loose-error", "error", 1_040_000, attrs={"action.ids": ["missing"]}),
+            _span("no-action", "long_task", 1_045_000, attrs={"action.id": "action-1", "action.ids": []}),
             _span("plain", "long_task", 1_050_000),
+            _span("new-custom", "custom", 1_055_000, attrs={"action.ids": ["action-1"]}),
         ]
 
         result = build_timeline(spans)
@@ -183,10 +192,16 @@ class TestTimelineBuilder:
                     {"span_id": "other-action"},
                     {
                         "span_id": "action",
-                        "children": [{"span_id": "future"}, {"span_id": "owned-error"}],
+                        "children": [
+                            {"span_id": "legacy-resource"},
+                            {"span_id": "legacy-custom"},
+                            {"span_id": "owned-error"},
+                        ],
                     },
                     {"span_id": "loose-error"},
+                    {"span_id": "no-action"},
                     {"span_id": "plain"},
+                    {"span_id": "new-custom"},
                 ],
             }
         ]

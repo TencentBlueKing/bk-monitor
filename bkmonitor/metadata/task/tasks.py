@@ -2611,3 +2611,19 @@ def create_single_tenant_system_proc_datalink(data_bk_biz_id: int | None = None,
     SpaceTableIDRedis().push_table_id_detail(
         bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=list(data_id_to_table_id.values()), is_publish=True
     )
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def reconcile_doris_jobs():
+    """pending 进入依赖检查，verifying 只回读上次 DDL 的结果。
+    扫描结果只是候选 ID；同一 ID 被重叠的扫描选中时，由单 Job 行锁决定如何处理。
+    """
+    from metadata.models.data_link import DorisJobConfig
+    from metadata.service.doris_job import reconcile_job
+
+    ids = DorisJobConfig.objects.filter(reconcile_status__in=("pending", "verifying")).values_list("pk", flat=True)
+    for job_id in ids.iterator():
+        try:
+            reconcile_job(job_id)
+        except Exception:
+            logger.exception("reconcile_doris_jobs: job_id=%s", job_id)

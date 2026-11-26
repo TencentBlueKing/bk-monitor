@@ -10,12 +10,15 @@ specific language governing permissions and limitations under the License.
 
 from typing import Any
 
+from django.db import transaction
 from django.db.models import Q
 
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
     PAGE_LIST_TENANT_SCHEMA,
+    REQUIRED_TENANT_SCHEMA,
+    SAFETY_LEVEL_WRITE,
     _mask_sensitive_fields,
     build_response,
     filter_by_bk_tenant_id,
@@ -27,12 +30,14 @@ from kernel_api.rpc.functions.admin.common import (
     normalize_pagination,
     normalize_string_list_filter,
     paginate_queryset,
+    require_bk_tenant_id,
     serialize_model,
     tenant_filter_kwargs,
 )
 from metadata import models
+from metadata.config import DATABASE_CONNECTION_NAME
 from metadata.models.data_link.data_link_configs import ClusterConfig, COMPONENT_CLASS_MAP
-from metadata.models.data_link.vm_query_cluster import VmQueryClusterConfig
+from metadata.models.data_link.relation import SimpleDatabusRelationError, rebuild_simple_databus_relation
 
 FUNC_COMPONENT_LIST = "admin.datalink.component_list"
 FUNC_COMPONENT_DETAIL = "admin.datalink.component_detail"
@@ -87,24 +92,6 @@ CLUSTER_CONFIG_FIELDS = [
     "update_time",
 ]
 
-VM_QUERY_CLUSTER_FIELDS = [
-    "bk_tenant_id",
-    "namespace",
-    "name",
-    "cluster_name",
-    "cluster_domain",
-    "num_replicas",
-    "monitor_storage_clusters",
-    "k8s_cluster",
-    "k8s_namespace",
-    "version",
-    "status",
-    "last_synced_at",
-    "origin_config",
-    "create_time",
-    "last_modify_time",
-]
-
 DATALINK_FIELDS = [
     "data_link_name",
     "bk_tenant_id",
@@ -142,7 +129,7 @@ DATALINK_DETAIL_KIND_ORDER = [
 
 DRLRB_KINDS = set(COMPONENT_CLASS_MAP.keys())
 CLUSTER_CONFIG_KINDS = set(ClusterConfig.KIND_TO_NAMESPACES_MAP.keys())
-VALID_KINDS_FOR_LIST = DRLRB_KINDS | CLUSTER_CONFIG_KINDS | {VmQueryClusterConfig.kind}
+VALID_KINDS_FOR_LIST = DRLRB_KINDS | CLUSTER_CONFIG_KINDS
 VALID_KINDS_FOR_COMPONENT_CONFIG = VALID_KINDS_FOR_LIST
 
 KIND_FILTER_MAP: dict[str, list[str]] = {
@@ -170,12 +157,6 @@ def _valid_kind_message(kinds: set[str]) -> str:
 
 
 def _get_component_config_instance(kind: str, bk_tenant_id: str, namespace: str, name: str):
-    if kind == VmQueryClusterConfig.kind:
-        try:
-            return VmQueryClusterConfig.objects.get(bk_tenant_id=bk_tenant_id, namespace=namespace, name=name)
-        except VmQueryClusterConfig.DoesNotExist as error:
-            raise CustomException(message=f"未找到组件: kind={kind}, namespace={namespace}, name={name}") from error
-
     if kind in COMPONENT_CLASS_MAP:
         model_class = COMPONENT_CLASS_MAP[kind]
         try:
@@ -207,16 +188,6 @@ def _serialize_component(instance, kind: str) -> dict[str, Any]:
     item["created_at"] = item.pop("create_time", None)
     item["updated_at"] = item.pop("last_modify_time", None)
     item["kind"] = kind
-    return item
-
-
-def _serialize_vm_query_cluster(instance: VmQueryClusterConfig) -> dict[str, Any]:
-    """序列化独立的 VM Query 镜像，不添加链路或业务归属字段。"""
-    item = serialize_model(instance, VM_QUERY_CLUSTER_FIELDS)
-    item["kind"] = instance.kind
-    item["created_at"] = item.pop("create_time", None)
-    item["updated_at"] = item.pop("last_modify_time", None)
-    item["origin_config"] = _mask_sensitive_fields(item["origin_config"])
     return item
 
 
@@ -307,14 +278,13 @@ def _fetch_component_config_for_item(instance, item, warnings_list):
 @KernelRPCRegistry.register(
     FUNC_COMPONENT_LIST,
     summary="Admin 查询 DataLink 组件列表",
-    description="按 kind 查询 DataLink 组件、ClusterConfig 或 VmQueryCluster 镜像，支持条件过滤和分页。",
+    description="按 kind 查询 DataLink 组件或 ClusterConfig，支持条件过滤和分页。",
     params_schema={
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "kind": "必填，组件类型: " + _valid_kind_message(VALID_KINDS_FOR_LIST),
         "namespace": "可选，命名空间精确匹配",
         "namespaces": "可选，命名空间数组，最多 100 项；与 namespace 合并去重",
         "search": "可选，按 name 模糊匹配",
-        "vmstorage": "可选，VmQueryCluster 的 monitor_storage_clusters 数组成员精确匹配",
         "status": "可选，状态精确匹配",
         "statuses": "可选，状态数组，最多 100 项；与 status 合并去重",
         "bk_data_id": "可选，数据源 ID (DataId/Databus 类型)",
@@ -354,23 +324,7 @@ def list_components(params: dict[str, Any]) -> dict[str, Any]:
             message=f"未知的组件类型 (kind={kind})，有效值: {_valid_kind_message(VALID_KINDS_FOR_LIST)}"
         )
 
-    if kind == VmQueryClusterConfig.kind:
-        queryset = filter_by_bk_tenant_id(VmQueryClusterConfig.objects.all(), bk_tenant_id)
-        namespaces = normalize_string_list_filter(params, "namespace", "namespaces")
-        if namespaces:
-            queryset = queryset.filter(namespace__in=namespaces)
-        if params.get("search"):
-            queryset = queryset.filter(name__contains=str(params["search"]).strip())
-        vmstorage = str(params.get("vmstorage") or "").strip()
-        if vmstorage:
-            queryset = queryset.filter(monitor_storage_clusters__contains=[vmstorage])
-        statuses = normalize_string_list_filter(params, "status", "statuses")
-        if statuses:
-            queryset = queryset.filter(status__in=statuses)
-        queryset = queryset.order_by("-create_time")
-        items_raw, total = paginate_queryset(queryset, page=page, page_size=page_size)
-        items = [_serialize_vm_query_cluster(item) for item in items_raw]
-    elif kind in CLUSTER_CONFIG_KINDS:
+    if kind in CLUSTER_CONFIG_KINDS:
         queryset = ClusterConfig.objects.filter(kind=kind, **tenant_filter_kwargs(bk_tenant_id))
 
         namespaces = normalize_string_list_filter(params, "namespace", "namespaces")
@@ -431,7 +385,7 @@ def list_components(params: dict[str, Any]) -> dict[str, Any]:
 @KernelRPCRegistry.register(
     FUNC_COMPONENT_DETAIL,
     summary="Admin 查询 DataLink 组件详情",
-    description="按 kind、namespace、name 查询 DataLink 组件、ClusterConfig 或 VmQueryCluster 镜像详情。",
+    description="按 kind、namespace、name 查询 DataLink 组件或 ClusterConfig 详情。",
     params_schema={
         "bk_tenant_id": "可选，租户 ID",
         "kind": "必填，组件类型: " + _valid_kind_message(VALID_KINDS_FOR_LIST),
@@ -465,10 +419,7 @@ def get_component_detail(params: dict[str, Any]) -> dict[str, Any]:
     if not name:
         raise CustomException(message="name 为必填项")
 
-    if kind == VmQueryClusterConfig.kind:
-        instance = _get_component_config_instance(kind, bk_tenant_id, namespace, name)
-        item = _serialize_vm_query_cluster(instance)
-    elif kind in CLUSTER_CONFIG_KINDS:
+    if kind in CLUSTER_CONFIG_KINDS:
         try:
             instance = ClusterConfig.objects.get(bk_tenant_id=bk_tenant_id, kind=kind, namespace=namespace, name=name)
         except ClusterConfig.DoesNotExist as error:
@@ -842,3 +793,75 @@ def get_datalink_detail(params: dict[str, Any]) -> dict[str, Any]:
 )
 def get_datalink_component_config(params: dict[str, Any]) -> dict[str, Any]:
     return _handle_component_config(params, "datalink.datalink_component_config", FUNC_DATALINK_COMPONENT_CONFIG)
+
+
+SIMPLE_RELATION_PARAMS = {
+    "bk_tenant_id": REQUIRED_TENANT_SCHEMA,
+    "namespace": "必填，目标 Databus 的命名空间",
+    "name": "必填，目标 Databus 的完整名称",
+}
+SIMPLE_RELATION_EXAMPLE = {"bk_tenant_id": "system", "namespace": "bkmonitor", "name": "databus_example"}
+
+
+def _simple_relation_target(params, *, lock=False):
+    tenant = require_bk_tenant_id(params)
+    namespace = str(params.get("namespace") or "").strip()
+    name = str(params.get("name") or "").strip()
+    if not namespace or not name:
+        raise CustomException(message="namespace 和 name 为必填项")
+    model = COMPONENT_CLASS_MAP["Databus"]
+    queryset = model.objects.select_for_update() if lock else model.objects
+    try:
+        target = queryset.get(bk_tenant_id=tenant, namespace=namespace, name=name)
+    except model.DoesNotExist as error:
+        raise CustomException(message=f"租户 {tenant} 下未找到 Databus {namespace}/{name}") from error
+    if target.data_link_name:
+        raise CustomException(message=f"Databus {namespace}/{name} 已归属链路 {target.data_link_name}")
+    return target
+
+
+@KernelRPCRegistry.register(
+    "admin.datalink.preview_simple_relation",
+    summary="预览 Databus 简单链路重建",
+    description="解析未配置 data_link_name 的单个 Databus，返回拟关联的链路、结果表与存储绑定。",
+    params_schema=SIMPLE_RELATION_PARAMS,
+    example_params=SIMPLE_RELATION_EXAMPLE,
+)
+def preview_simple_relation(params: dict[str, Any]) -> dict[str, Any]:
+    target = _simple_relation_target(params)
+    try:
+        plan = rebuild_simple_databus_relation(target, dry_run=True, raise_on_skip=True)
+    except SimpleDatabusRelationError as error:
+        raise CustomException(message=str(error)) from error
+    return build_response(
+        operation="datalink.preview_simple_relation",
+        func_name="admin.datalink.preview_simple_relation",
+        bk_tenant_id=target.bk_tenant_id,
+        data={
+            key: plan[key]
+            for key in ("data_link_name", "strategy", "bk_data_id", "table_ids", "sinks", "result_tables")
+        },
+    )
+
+
+@KernelRPCRegistry.register(
+    "admin.datalink.rebuild_simple_relation",
+    summary="重建 Databus 简单链路",
+    description="按现有元数据重建一个未归属链路的 Databus 及其存储绑定、结果表映射。",
+    params_schema=SIMPLE_RELATION_PARAMS,
+    example_params=SIMPLE_RELATION_EXAMPLE,
+)
+def rebuild_simple_relation(params: dict[str, Any]) -> dict[str, Any]:
+    with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+        target = _simple_relation_target(params, lock=True)
+        try:
+            link = rebuild_simple_databus_relation(target, dry_run=False, raise_on_skip=True)
+        except SimpleDatabusRelationError as error:
+            raise CustomException(message=str(error)) from error
+    return build_response(
+        operation="datalink.rebuild_simple_relation",
+        func_name="admin.datalink.rebuild_simple_relation",
+        bk_tenant_id=target.bk_tenant_id,
+        data={"data_link_name": link.data_link_name},
+        safety_level=SAFETY_LEVEL_WRITE,
+    )

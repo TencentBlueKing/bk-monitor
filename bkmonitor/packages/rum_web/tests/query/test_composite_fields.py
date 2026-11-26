@@ -72,7 +72,7 @@ def test_column_layouts_reference_available_fields_and_preserve_query_capabiliti
         assert layout.keys() == {"primary", "sections"}
         assert all(section.keys() <= {"items", "badges", "separator"} for section in layout["sections"])
         assert all(
-            item.keys() <= {"field_name", "show_if"}
+            item.keys() <= {"field_name", "show_if", "type"}
             for section in layout["sections"]
             for item in [*section.get("items", []), *section.get("badges", [])]
         )
@@ -148,7 +148,7 @@ def test_page_column_has_identical_members_in_span_and_view():
     page = fields["span"]["attributes.view.url_template"]["extra_config"]["composite"]
     assert page == fields["view"]["attributes.view.url_template"]["extra_config"]["composite"]
     assert page["primary"] == "attributes.view.url_template"
-    assert page["sections"][1]["items"][0]["field_name"] == "attributes.view.url"
+    assert page["sections"][1]["items"] == [{"field_name": "attributes.view.url", "type": "link"}]
     assert page["sections"][0]["badges"] == [
         {"field_name": "virtual.viewport"},
         {"field_name": "attributes.view.loading_type"},
@@ -222,6 +222,19 @@ def test_list_response_returns_raw_values_and_virtual_strings(mocker, mode):
     assert result["virtual.viewport"] == "1440 x 900"
 
 
+@pytest.mark.parametrize("precomputed", [False, True])
+def test_view_config_web_vitals_use_short_alias_and_hover(precomputed):
+    fields = {field["field_name"]: field for field in view_config("view", precomputed)["fields"]}
+    for metric in ("lcp", "inp", "cls", "fcp", "ttfb"):
+        field = fields[f"web_vitals.{metric}"]
+        assert field["field_alias"] == metric.upper()
+        hover = field["extra_config"]["hover"]
+        assert "hover" not in field
+        assert str(hover["title"]).startswith(f"{metric.upper()}（")
+        assert hover["source"]["url"] == f"https://web.dev/articles/{metric}"
+    assert "hover" not in fields["duration"].get("extra_config", {})
+
+
 def test_view_config_includes_frontend_selection_rules():
     fields = {field["field_name"]: field for field in view_config("span")["fields"]}
     layout = fields["span_name"]["extra_config"]["composite"]
@@ -231,6 +244,10 @@ def test_view_config_includes_frontend_selection_rules():
         "attributes.resource.type": ["xhr", "fetch"],
     }
     subtitle = layout["sections"][1]
+    assert {item["field_name"]: item["type"] for item in subtitle["items"] if "type" in item} == {
+        "attributes.view.url": "link",
+        "attributes.url.full": "link",
+    }
     assert {item["field_name"]: item["show_if"] for item in subtitle["items"]} == {
         "attributes.action.target.tag": {"attributes.span_type": ["action"]},
         "attributes.view.url": {"attributes.span_type": ["view"]},

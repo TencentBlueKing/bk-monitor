@@ -111,7 +111,6 @@ def test_reject_invalid_name_sources(scene, source_id):
 
 def test_register_retry_reuses_name_after_remote_failure(source, mocker):
     mocker.patch.object(models.DataIdConfig, "compose_predefined_config", return_value={})
-    mocker.patch.object(models.DataIdConfig, "compose_data_source_config", return_value={})
     remote = mocker.patch("metadata.models.data_source.api.bkdata.apply_data_link", side_effect=RuntimeError("offline"))
     with pytest.raises(RuntimeError, match="offline"):
         source.register_to_bkbase(2)
@@ -127,7 +126,6 @@ def test_register_retry_reuses_name_after_remote_failure(source, mocker):
 
 def test_explicit_registration_name_stays_fixed(source, mocker):
     mocker.patch.object(models.DataIdConfig, "compose_predefined_config", return_value={})
-    mocker.patch.object(models.DataIdConfig, "compose_data_source_config", return_value={})
     mocker.patch("metadata.models.data_source.api.bkdata.apply_data_link")
     source.register_to_bkbase(2, bkbase_data_name="fixed_legacy_name")
     assert models.DataIdConfig.objects.get(bk_data_id=source.bk_data_id).name == "fixed_legacy_name"
@@ -365,7 +363,6 @@ def test_registered_identity_is_tenant_and_namespace_scoped(source):
 @pytest.mark.django_db(databases="__all__", transaction=True)
 def test_concurrent_registration_allocates_one_name(source, mocker):
     mocker.patch.object(models.DataIdConfig, "compose_predefined_config", return_value={})
-    mocker.patch.object(models.DataIdConfig, "compose_data_source_config", return_value={})
     mocker.patch("metadata.models.data_source.api.bkdata.apply_data_link")
     barrier = Barrier(2)
 

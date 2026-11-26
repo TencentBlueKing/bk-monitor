@@ -349,54 +349,64 @@ class DataSource(models.Model):
         # data list 在consul中的作用被废弃，不再使用
         pass
 
-    def apply_to_namespace(self, target_namespace: str) -> dict:
-        """根据当前数据源元信息下发独立的 BKBase DataSource 配置。"""
-        from django.utils import timezone
+    def apply_to_namespace(self, target_namespace: str, bk_biz_id: int | None = None) -> dict:
+        """将已登记的 DataId 共享到目标项目，保留原始 Kafka 通道与 topic。"""
+        from metadata.models.data_link import DataIdConfig, utils
 
-        from metadata.models.data_link.data_link_configs import DataIdConfig, _format_data_source_datetime
+        source_namespaces = (BKBASE_NAMESPACE_BK_MONITOR, BKBASE_NAMESPACE_BK_LOG)
+        if self.etl_config in LOG_EVENT_ETL_CONFIGS and self.etl_config != EtlConfigs.BK_CUSTOM_FORMAT.value:
+            source_namespaces = (BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR)
+        for source_namespace in source_namespaces:
+            name = utils.find_registered_bkdata_data_id_name(self, source_namespace)
+            if name:
+                break
+        else:
+            raise ValueError(f"数据源 {self.bk_data_id} 尚未在 bkmonitor 或 bklog 登记 DataId")
 
-        name = f"bkm_datasource_{self.bk_data_id}"
-        bk_biz_id, _ = get_space_uid_and_bk_biz_id_by_bk_data_id(self.bk_tenant_id, self.bk_data_id)
-        operator = settings.BK_DATA_PROJECT_MAINTAINER.split(",")[0]
-        now = timezone.now()
-        metadata = {
-            "name": name,
-            "namespace": target_namespace,
-            "labels": {"raw_data_id": str(self.bk_data_id)},
-        }
+        if bk_biz_id is None:
+            project = api.bkdata.get_namespace(bk_tenant_id=self.bk_tenant_id, name=target_namespace)
+            bk_biz_id = project["spec"].get("bk_biz_id", project["spec"].get("bkBizId"))
+            if bk_biz_id is None:
+                raise ValueError(f"目标项目 {target_namespace} 未配置所属业务")
+
+        source = api.bkdata.get_data_link(
+            bk_tenant_id=self.bk_tenant_id, namespace=source_namespace, kind="dataids", name=name
+        )
+        spec = {**source["spec"], "bizId": bk_biz_id}
+        if not (spec.get("predefined") or {}).get("topic"):
+            # 动态申请或未显式指定 topic 的 DataId，复用源项目实际绑定的通道和 topic。
+            binding = api.bkdata.get_data_link(
+                bk_tenant_id=self.bk_tenant_id,
+                namespace=source_namespace,
+                kind="channelbindings",
+                name=f"{name}_default",
+            )
+            spec["predefined"] = {
+                "dataId": self.bk_data_id,
+                "channel": binding["spec"]["channel"],
+                "topic": binding["metadata"].get("annotations", {}).get("topic") or f"{name}{source['spec']['bizId']}",
+            }
+
+        metadata = {"name": name, "namespace": target_namespace, "labels": source["metadata"].get("labels", {})}
         if settings.ENABLE_MULTI_TENANT_MODE:
             metadata["tenant"] = self.bk_tenant_id
-        data_source_config = {
-            "kind": "DataSource",
-            "metadata": metadata,
-            "spec": {
-                "basic_info": {
-                    "data_source_name": name,
-                    "data_source_alias": self.data_name,
-                    "data_encoding": "UTF-8",
-                    "bk_biz_id": get_tenant_datalink_biz_id(self.bk_tenant_id, bk_biz_id).data_biz_id,
-                    "time_zone": settings.TIME_ZONE,
-                    "tags": [],
-                    "description": self.data_description,
-                    "access_channel": "bkbase",
-                    "access_channel_alias": "计算平台",
-                },
-                "report_config": {"type": "custom"},
-                "data_conn": None,
-                "created_by": self.creator or operator,
-                "created_at": _format_data_source_datetime(self.create_time or now),
-                "updated_by": self.last_modify_user or operator,
-                "updated_at": _format_data_source_datetime(self.last_modify_time or now),
-                "desired_status": "Running",
-            },
-        }
-        api.bkdata.apply_data_link(config=[data_source_config], bk_tenant_id=self.bk_tenant_id)
-        DataIdConfig.objects.update_or_create(
-            bk_tenant_id=self.bk_tenant_id,
-            namespace=target_namespace,
-            name=name,
-            defaults={"bk_data_id": self.bk_data_id, "bk_biz_id": bk_biz_id},
+        api.bkdata.apply_data_link(
+            config=[{"kind": "DataId", "metadata": metadata, "spec": spec}], bk_tenant_id=self.bk_tenant_id
         )
+        with atomic(config.DATABASE_CONNECTION_NAME):
+            DataIdConfig.objects.update_or_create(
+                bk_tenant_id=self.bk_tenant_id,
+                namespace=target_namespace,
+                name=name,
+                defaults={"bk_data_id": self.bk_data_id, "bk_biz_id": bk_biz_id},
+            )
+            # 替换旧接口写入的独立 DataSource 登记，避免同一项目返回两个跳转名称。
+            DataIdConfig.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                namespace=target_namespace,
+                bk_data_id=self.bk_data_id,
+                name=f"bkm_datasource_{self.bk_data_id}",
+            ).exclude(name=name).delete()
         return {"bk_data_id": self.bk_data_id, "name": name, "target_namespace": target_namespace}
 
     def register_to_bkbase(self, bk_biz_id: int, namespace: str = "bkmonitor", bkbase_data_name: str = ""):
@@ -412,7 +422,6 @@ class DataSource(models.Model):
 
         from metadata.models.data_link import DataIdConfig, utils
         from metadata.models.data_link.constants import DataLinkNameScene
-        from metadata.models.data_link.service import apply_data_source_config
 
         # 名称先落库再下发；远端失败及并发注册都复用同一资源。
         with atomic(config.DATABASE_CONNECTION_NAME):
@@ -441,16 +450,7 @@ class DataSource(models.Model):
         # 下发发生在名称提交之后；即使 BKBase 请求失败，下次注册仍使用这条登记记录。
         logger.info("register_to_bkbase: bkbase_data_name: %s", data_id_config_ins.name)
         data_id_config = data_id_config_ins.compose_predefined_config(data_source=self)
-        data_source_config = data_id_config_ins.compose_data_source_config(
-            data_source_alias=self.data_name,
-            description=self.data_description,
-            created_by=self.creator,
-            created_at=self.create_time,
-            updated_by=self.last_modify_user,
-            updated_at=self.last_modify_time,
-        )
         api.bkdata.apply_data_link(config=[data_id_config], bk_tenant_id=self.bk_tenant_id)
-        apply_data_source_config(bk_tenant_id=self.bk_tenant_id, data_source_config=data_source_config)
 
         # 更新数据源的创建来源
         self.created_from = DataIdCreatedFromSystem.BKDATA.value

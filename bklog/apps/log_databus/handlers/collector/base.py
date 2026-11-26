@@ -29,9 +29,11 @@ from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils.translation import gettext as _
 from django.utils.module_loading import import_string
+from rest_framework.exceptions import ValidationError
 
 from apps.api import BkDataAccessApi, NodeApi, TransferApi
 from apps.api.modules.bk_node import BKNodeApi
+from apps.api.modules.utils import get_non_bkcc_space_related_bkcc_biz_id
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.exceptions import ApiError
@@ -1219,6 +1221,71 @@ class CollectorHandler:
         if "consul" in broker_url and settings.DEFAULT_KAFKA_HOST:
             return settings.DEFAULT_KAFKA_HOST
         return broker_url
+
+    def _namespace_data_id(self):
+        if settings.ENABLE_MULTI_TENANT_MODE and (
+            Space.get_tenant_id(bk_biz_id=self.data.bk_biz_id, is_need_default=False) != get_request_tenant_id()
+        ):
+            raise CollectorConfigNotExistException()
+        if not self.data.bk_data_id:
+            raise CollectorConfigDataIdNotExistException()
+        return self.data.bk_data_id
+
+    def _business_namespaces(self, tenant):
+        bk_biz_id = self.data.bk_biz_id
+        if bk_biz_id < 0:
+            bk_biz_id = get_non_bkcc_space_related_bkcc_biz_id(bk_biz_id)
+        if bk_biz_id <= 0:
+            return {}
+
+        namespaces = BkDataAccessApi.list_namespaces(
+            {"tenant": tenant if settings.ENABLE_MULTI_TENANT_MODE else "default"},
+            bk_tenant_id=tenant,
+        )
+        business_namespaces = {}
+        for entry in namespaces:
+            name = entry["metadata"]["name"]
+            spec = entry["spec"]
+            namespace_biz_id = spec.get("bk_biz_id", spec.get("bkBizId"))
+            if namespace_biz_id == bk_biz_id:
+                business_namespaces[name] = {"alias": spec.get("alias"), "bk_biz_id": namespace_biz_id}
+        return business_namespaces
+
+    def list_authorized_namespaces(self):
+        data_id = self._namespace_data_id()
+        tenant = get_request_tenant_id()
+        namespaces = self._business_namespaces(tenant)
+        if not namespaces:
+            return []
+        registered = TransferApi.list_data_source_namespaces({"bk_data_id": data_id}, bk_tenant_id=tenant)
+        authorized = {entry["namespace"] for entry in registered}
+        return [
+            {
+                "name": name,
+                "alias": spec.get("alias"),
+                "bk_biz_id": spec["bk_biz_id"],
+                "is_authorized": name in authorized,
+            }
+            for name, spec in namespaces.items()
+        ]
+
+    def authorize_namespace(self, name):
+        data_id = self._namespace_data_id()
+        tenant = get_request_tenant_id()
+        namespaces = self._business_namespaces(tenant)
+        if name not in namespaces:
+            raise ValidationError(_("目标命名空间不在当前采集项关联业务的可选范围内"))
+        result = TransferApi.apply_data_source(
+            {"bk_data_id": data_id, "target_namespace": name, "bk_biz_id": namespaces[name]["bk_biz_id"]},
+            bk_tenant_id=tenant,
+            request_cookies=False,
+        )
+        return {
+            "name": result["target_namespace"],
+            "bk_data_id": result["bk_data_id"],
+            "data_source_name": result["name"],
+            "is_authorized": True,
+        }
 
     def tail(self):
         if not self.data.bk_data_id:

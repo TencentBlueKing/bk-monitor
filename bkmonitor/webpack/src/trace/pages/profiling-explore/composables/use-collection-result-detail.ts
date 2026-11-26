@@ -53,7 +53,7 @@ export function useCollectionResultDetail({
   dataType: Ref<string>;
   graphMode: Ref<GraphMode>;
   onDataType: (value: string) => void;
-  selection: Ref<CollectionResultSelection>;
+  selection: Ref<CollectionResultSelection | null>;
   source: Ref<CollectionHostResult | undefined>;
 }) {
   const { t } = useI18n();
@@ -96,9 +96,14 @@ export function useCollectionResultDetail({
     profileLoading.value = false;
     callLoading.value = false;
     exporting.value = false;
+    // 侧栏常驻后 selection 会被清空，此时只重置状态，不发起请求
+    const selected = selection.value;
+    if (!selected) {
+      loading.value = false;
+      return;
+    }
     loading.value = true;
     try {
-      const selected = selection.value;
       const host =
         source.value ||
         executionResultRows(await getCollectionExecution(bizId.value, selected, current.signal)).find(

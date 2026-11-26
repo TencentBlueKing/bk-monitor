@@ -205,6 +205,7 @@ def get_basic_context(request, space_list: list[dict[str, Any]], bk_biz_id: int)
             "SPACE_LIST": space_list,
             "BK_BIZ_ID": bk_biz_id,
             "BK_TENANT_ID": get_request_tenant_id(peaceful=True) or DEFAULT_TENANT_ID,
+            "ESB_DISABLED": settings.ESB_DISABLED,
             "ENABLE_MULTI_TENANT_MODE": settings.ENABLE_MULTI_TENANT_MODE,
             # 服务拨测设置最大 duration
             "MAX_AVAILABLE_DURATION_LIMIT": settings.MAX_AVAILABLE_DURATION_LIMIT,
@@ -235,7 +236,9 @@ def get_basic_context(request, space_list: list[dict[str, Any]], bk_biz_id: int)
             # 是否开启事件中心AIOps功能
             "ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST": settings.ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST,
             # 用户管理网关接口
-            "BK_USER_WEB_API_URL": settings.BK_USER_WEB_API_URL,
+            "BK_USER_WEB_API_URL": (
+                settings.BK_USER_WEB_API_URL_FRONTEND if settings.ESB_DISABLED else settings.BK_USER_WEB_API_URL
+            ),
             # RUM 是否开启
             "RUM_BIZ_LIST": settings.RUM_BIZ_LIST,
             # Profiling 主动采集是否开启

@@ -1,9 +1,6 @@
 @import '../../../../theme/theme';
 @import '../../../../theme/mixin';
 
-/** 块（父元素与内部子元素）默认最小宽度，过窄时子元素被裁切不展示 */
-$matrix-min-block-width: 32px;
-
 .llm-statistic-cards {
   flex-shrink: 0;
   overflow: hidden;
@@ -13,9 +10,11 @@ $matrix-min-block-width: 32px;
 }
 
 .llm-statistic-cards-header {
+  box-sizing: border-box;
   gap: 0;
+  height: 48px;
   min-width: 0;
-  padding: 4px 16px;
+  padding: 0 16px;
   cursor: pointer;
   user-select: none;
   background: #f7f9fc;
@@ -70,7 +69,7 @@ $matrix-min-block-width: 32px;
   flex: 1;
   gap: 2px;
   min-width: 0;
-  padding: 4px 0;
+  padding: 0;
 
   @include flex-column;
 
@@ -99,17 +98,22 @@ $matrix-min-block-width: 32px;
 .llm-token-matrix {
   width: 100%;
   height: 100%;
+  overflow-x: auto;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 16px;
 
   @include flex-align(stretch);
 }
 
+/* 分栏：先按 token 比例分栏（行内 flex 权重），占比过低时以该列全文案宽度为下限 */
 .llm-token-matrix-side {
   flex: 1 0 0;
-  min-width: 0;
+  min-width: max-content;
   height: 100%;
 
   &:first-child {
-    border-right: 1px solid #c1cde5;
+    border-right: 1px solid #dde3f0;
   }
 }
 
@@ -117,7 +121,7 @@ $matrix-min-block-width: 32px;
   gap: 4px;
   min-width: 0;
   height: 100%;
-  padding: 8px;
+  padding: 4px;
 
   @include flex-column;
 }
@@ -134,38 +138,37 @@ $matrix-min-block-width: 32px;
 
 .llm-token-matrix-title {
   flex-shrink: 0;
-  gap: 8px;
+  gap: 4px;
   width: 100%;
   min-width: 0;
   overflow: hidden;
-  font-size: $font-size-base;
-  line-height: 20px;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 16px;
   white-space: nowrap;
 
   @include flex-align(center);
 
   &-name {
     flex-shrink: 0;
-    font-weight: 500;
+    font-weight: 400;
     color: #313238;
   }
 
   &-value,
   &-pct {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   &-value {
     font-family: arial, sans-serif;
-    font-weight: 700;
+    font-weight: 400;
     color: #313238;
   }
 
   &-pct {
     font-family: arial, sans-serif;
-    font-weight: 700;
+    font-weight: 400;
     color: #3463b3;
   }
 }
@@ -179,7 +182,7 @@ $matrix-min-block-width: 32px;
 
   &.is-top {
     flex-shrink: 0;
-    height: 96px;
+    height: calc(96px * var(--llm-matrix-scale, 1));
   }
 
   &.is-fill {
@@ -189,13 +192,13 @@ $matrix-min-block-width: 32px;
 }
 
 .llm-token-matrix-container {
-  gap: 8px;
-  min-width: $matrix-min-block-width;
+  gap: 4px;
+  min-width: max-content;
   min-height: 0;
-  padding: 8px;
+  padding: 4px;
   overflow: hidden;
   background: #fff;
-  border: 1px solid #c1cde5;
+  border: 1px solid #dde3f0;
   border-radius: 4px;
 
   @include flex-column;
@@ -204,36 +207,66 @@ $matrix-min-block-width: 32px;
 .llm-token-matrix-block,
 .llm-token-matrix-tools {
   gap: 0;
-  min-width: $matrix-min-block-width;
+  min-width: max-content;
   min-height: 0;
-  padding: 6px 8px 8px;
+  padding: 4px;
   overflow: hidden;
   border-radius: 4px;
 
   @include flex-column;
 }
 
+.llm-token-matrix-block,
+#apm .llm-token-matrix .llm-token-matrix-block {
+  // 下限取名称、数值中较长的一行，宽则同行，窄则数值换行
+  min-width: min-content;
+}
+
+/* Span 详情开启点击定位时才变色、出手型；Trace 详情保持默认光标 */
+.llm-token-matrix.is-interactive {
+  .llm-token-matrix-block,
+  .llm-token-matrix-tools {
+    cursor: pointer;
+    transition: filter 0.2s ease;
+
+    &:hover {
+      filter: saturate(1.25) brightness(0.97);
+
+      .llm-token-matrix-block-name {
+        text-decoration: underline;
+      }
+    }
+  }
+}
+
 .llm-token-matrix-block-head {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 4px;
+  align-items: center;
   flex-shrink: 0;
   min-width: 0;
+  max-width: 100%;
+}
+
+.llm-token-matrix-block-name,
+.llm-token-matrix-block-meta {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .llm-token-matrix-block-name {
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 20px;
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 16px;
   color: #4e5e7a;
-
-  @include ellipsis;
 }
 
 .llm-token-matrix-block-meta {
   gap: 4px;
-  min-width: 0;
   font-size: 10px;
-  font-weight: 500;
-  line-height: 20px;
-  white-space: nowrap;
+  font-weight: 400;
+  line-height: 16px;
 
   @include flex-align(center);
 }
@@ -242,25 +275,51 @@ $matrix-min-block-width: 32px;
   color: #4e5e7a;
 }
 
-.llm-token-matrix-block-pct {
-  color: #8f9fbd;
+.llm-token-matrix-block-pct,
+.llm-token-matrix-tool-pct {
+  color: #3463b3;
 }
 
 .llm-token-matrix-tool-list {
   flex: 1;
-  gap: 2px;
+  gap: 4px;
+  align-self: flex-start;
+  width: max-content;
+  max-width: 100%;
   min-height: 0;
   margin-top: 4px;
   overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
 
   @include flex-column;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 2px;
+  }
+
+  &:hover {
+    scrollbar-color: #c1cde5 transparent;
+
+    &::-webkit-scrollbar-thumb {
+      background: #c1cde5;
+    }
+  }
 }
 
 .llm-token-matrix-tool {
   gap: 8px;
-  min-width: $matrix-min-block-width;
-  padding: 0 4px;
+  width: 100%;
+  min-width: max-content;
+  padding: 2px 4px;
   font-size: 10px;
+  font-weight: 400;
   line-height: 16px;
   color: #4e5e7a;
   background: rgb(255 255 255 / 80%);
@@ -269,9 +328,7 @@ $matrix-min-block-width: 32px;
   @include flex-align(center);
 
   &-name {
-    flex: 1;
-
-    @include ellipsis;
+    white-space: nowrap;
   }
 
   &-meta {
@@ -284,82 +341,12 @@ $matrix-min-block-width: 32px;
 
     .llm-token-matrix-tool-name {
       text-decoration: underline;
+      text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);
     }
 
     &:hover {
       color: #3974ff;
     }
-  }
-}
-
-/* 块被压到最小宽度时折叠为省略号，内部子元素不展示；hover 面板内通过移除 is-collapsed 恢复 */
-.llm-token-matrix-block.is-collapsed,
-.llm-token-matrix-tools.is-collapsed,
-.llm-token-matrix-container.is-collapsed,
-.llm-token-matrix-tool.is-collapsed {
-  position: relative;
-
-  > * {
-    visibility: hidden;
-  }
-
-  &::after {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    font-size: 14px;
-    line-height: 1;
-    color: #4e5e7a;
-    content: '...';
-    transform: translate(-50%, -50%);
-  }
-}
-
-/* tippy 外壳清掉默认内边距，避免面板内部多出一层 padding */
-.llm-token-matrix-tippy .tippy-content {
-  padding: 0;
-}
-
-/* hover 放大面板：克隆真实块（含父元素与内部子元素）并解除折叠 / 裁切后完整展示 */
-.llm-token-matrix-panel {
-  width: max-content;
-  max-width: 80vw;
-  padding: 4px;
-  background: transparent;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
-
-  /* 面板最外层克隆的容器去掉边线，内部嵌套块不受影响 */
-  > .llm-token-matrix-container {
-    border: none;
-  }
-
-  .llm-token-matrix-block,
-  .llm-token-matrix-tools,
-  .llm-token-matrix-container,
-  .llm-token-matrix-row,
-  .llm-token-matrix-tool,
-  .llm-token-matrix-title {
-    flex: initial;
-    width: auto;
-    min-width: max-content;
-    max-width: none;
-    max-height: none;
-    overflow: visible;
-  }
-
-  .llm-token-matrix-tool-list {
-    max-height: none;
-    overflow: visible;
-  }
-
-  .llm-token-matrix-block-name,
-  .llm-token-matrix-title-name,
-  .llm-token-matrix-title-value,
-  .llm-token-matrix-title-pct,
-  .llm-token-matrix-tool .llm-token-matrix-tool-name {
-    overflow: visible;
-    text-overflow: clip;
-    white-space: nowrap;
   }
 }
 

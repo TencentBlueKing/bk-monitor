@@ -84,6 +84,12 @@ RUN groupadd -r ${username}  \
 
 # move code and python packages
 COPY --from=python-builder --chown=${username}:${username} /app/venv /app/venv
+
+# Bundle tokenizer files so LLM token estimation never downloads them while serving requests.
+ENV TIKTOKEN_CACHE_DIR=/app/tiktoken_cache
+RUN /app/venv/bin/python -c "import tiktoken; [tiktoken.get_encoding(name) for name in ('cl100k_base', 'o200k_base')]" \
+    && chmod -R a+rX ${TIKTOKEN_CACHE_DIR}
+
 COPY --from=node-builder --chown=${username}:${username} /app/dist/ /app/code/static/
 COPY --chown=${username}:${username} bkmonitor/ /app/code/
 COPY --chown=${username}:${username} ai_agent/ /app/code/ai_agent/

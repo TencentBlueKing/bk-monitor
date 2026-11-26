@@ -9,6 +9,8 @@ specific language governing permissions and limitations under the License.
 """
 
 from . import (
+    alarm_config,
+    evidence,
     alarm_query,
     alarm_redis,
     alarm_strategy,
@@ -27,9 +29,11 @@ from . import (
     consul,
     datalink,
     datasource,
+    diagnostics,
     doris_sql,
     doris_jobs,
     es_storage,
+    grafana,
     kafka_sample,
     kafka_status,
     kubernetes,
@@ -51,10 +55,12 @@ from . import (
     uptime_check,
     unify_query,
     vm_short_link,
-    vm_query,
+    user_query,
 )
 
 __all__ = [
+    "alarm_config",
+    "evidence",
     "alarm_query",
     "alarm_redis",
     "alarm_strategy",
@@ -73,9 +79,11 @@ __all__ = [
     "consul",
     "datalink",
     "datasource",
+    "diagnostics",
     "doris_sql",
     "doris_jobs",
     "es_storage",
+    "grafana",
     "kafka_sample",
     "kafka_status",
     "kubernetes",
@@ -97,5 +105,5 @@ __all__ = [
     "uptime_check",
     "unify_query",
     "vm_short_link",
-    "vm_query",
+    "user_query",
 ]

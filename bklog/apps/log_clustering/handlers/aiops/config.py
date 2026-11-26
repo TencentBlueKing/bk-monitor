@@ -29,7 +29,7 @@ TENANT_RESOURCE_CONFIGS_KEY = "tenant_resource_configs"
 
 
 def get_online_clustering_config(bk_biz_id: int):
-    """Resolve temporary tenant-specific resources for the online clustering flow.
+    """Resolve tenant-specific resources for the online clustering flow.
 
     Example:
     {
@@ -41,13 +41,17 @@ def get_online_clustering_config(bk_biz_id: int):
             "tenant_a": {
                 "project_id": 1001,
                 "model_id": "tenant_a_model",
-                "tspider_cluster": "tenant_a_tspider"
+                "tspider_cluster": "tenant_a_tspider",
+                "signature_format_udf": "udf_signature_format_tenant_a",
+                "predict_es_storage": "tenant_a_es"
             }
         }
     }
 
     Tenant values are optional overrides. If a field is absent under the tenant key,
-    the top-level value is used.
+    the top-level value is used. The optional predict_es_storage is the
+    BKBase name for the source index set's physical ES cluster. It is only
+    read when creating the clustering configuration and saved as es_storage.
     """
     config = deepcopy(FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config)
     bk_tenant_id = Space.get_tenant_id(bk_biz_id=bk_biz_id)

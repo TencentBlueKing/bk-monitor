@@ -2803,25 +2803,21 @@ class DataLink(models.Model):
             type(self).objects.select_for_update().get(pk=self.pk)
             existing_context = ExistingComponentContext.from_datalink(self)
 
-        supports_cmdb_output = self.data_link_strategy in {
-            self.BK_EXPORTER_TIME_SERIES,
-            self.BK_STANDARD_TIME_SERIES,
-        }
-        cmdb_output_enabled = False
-        if supports_cmdb_output:
-            from metadata.models.result_table import ResultTableOption
+        from metadata.models.result_table import ResultTableOption
 
-            cmdb_level_option = ResultTableOption.objects.filter(
-                bk_tenant_id=self.bk_tenant_id,
-                table_id=table_id,
-                name=ResultTableOption.OPTION_CMDB_LEVEL_CONFIG,
-            ).first()
-            cmdb_levels = cmdb_level_option.get_value() if cmdb_level_option is not None else None
-            cmdb_output_enabled = isinstance(cmdb_levels, list) and bool(cmdb_levels)
-
-        # 白名单配置
+        cmdb_level_option = ResultTableOption.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
+            table_id=table_id,
+            name=ResultTableOption.OPTION_CMDB_LEVEL_CONFIG,
+        ).first()
+        cmdb_levels = cmdb_level_option.get_value() if cmdb_level_option is not None else None
+        cmdb_output_enabled = isinstance(cmdb_levels, list) and bool(cmdb_levels)
         whitelist = self._compose_time_series_field_whitelist(table_id)
 
+        # 关闭关联输出时保留历史查询资源。先认领它们，再按原规则复用主表和主绑定。
+        cmdb_table_id = f"{table_id}_cmdb"
+        existing_context.claim(ResultTableConfig, lambda c: c.table_id == cmdb_table_id, require_unique=True)
+        existing_context.claim(VMStorageBindingConfig, lambda c: c.table_id == cmdb_table_id, require_unique=True)
         existing_rt = existing_context.claim(ResultTableConfig, lambda c: c.data_type != "graph", require_unique=True)
         existing_binding = existing_context.claim(VMStorageBindingConfig, lambda c: True, require_unique=True)
         existing_databus = existing_context.claim(
@@ -2924,29 +2920,42 @@ class DataLink(models.Model):
         )
         data_bus_ins.apply_consumer_group(consumer_group)
 
-        transform_format = self.DATABUS_TRANSFORMER_FORMAT.get(self.data_link_strategy)
+        main_rt_config = vm_table_id_ins.compose_config()
+        configs = [
+            main_rt_config,
+            vm_storage_ins.compose_config(whitelist=whitelist, rt_name=vm_table_id_ins.name),
+        ]
         transform_options = None
         if cmdb_output_enabled:
-            bkbase_table_id = vm_table_id_ins.bkbase_table_id or (
-                f"{vm_table_id_ins.datalink_biz_ids.data_biz_id}_{vm_table_id_ins.name}"
+            data_biz_id = main_rt_config["spec"]["bizId"]
+            main_name = vm_table_id_ins.name.removeprefix(f"{data_biz_id}_").replace("-", "_")
+            main_rt_id = vm_table_id_ins.bkbase_table_id or f"{data_biz_id}_{main_name}"
+            cmdb_rt_id = f"{main_rt_id}_cmdb"
+            cmdb_name = self._strip_bkbase_biz_prefix(cmdb_rt_id)
+            identity = {"bk_tenant_id": self.bk_tenant_id, "namespace": self.namespace, "name": cmdb_name}
+            defaults = {"data_link_name": self.data_link_name, "bk_biz_id": bk_biz_id, "table_id": cmdb_table_id}
+            # BKBase 已有的资源可能先以无所属链路的镜像同步回来。
+            owners = ["", self.data_link_name]
+            cmdb_rt, _ = ResultTableConfig.objects.filter(data_link_name__in=owners).update_or_create(
+                **identity, defaults={**defaults, "bkbase_table_id": cmdb_rt_id}
             )
-            transform_options = {
-                "exporter_cmdb": True,
-                "exporter_cmdb_rt": f"{bkbase_table_id}__cmdb",
-            }
+            cmdb_binding, _ = VMStorageBindingConfig.objects.filter(data_link_name__in=owners).update_or_create(
+                **identity,
+                defaults={**defaults, "bkbase_result_table_name": cmdb_name, "vm_cluster_name": storage_cluster_name},
+            )
+            configs.extend(
+                [cmdb_rt.compose_config(), cmdb_binding.compose_config(whitelist=whitelist, rt_name=cmdb_name)]
+            )
+            # 关联 Binding 供查询引擎定位 VM。清洗输出走同一个 sink，由 result_table_id 区分。
+            transform_options = {"exporter_cmdb": True, "exporter_cmdb_rt": cmdb_rt_id}
 
-        configs = [
-            vm_table_id_ins.compose_config(),
-            # 显式透传 RT 的 name，避免 compose_bk_plugin 场景下开启复用后
-            # RT / Binding name 被独立 claim 成不同值时，binding payload 的
-            # spec.data.name 仍然指向 "binding.name" 这个并不存在的 RT。
-            vm_storage_ins.compose_config(whitelist=whitelist, rt_name=vm_table_id_ins.name),
+        configs.append(
             data_bus_ins.compose_config(
                 sinks=sinks,
-                transform_format=transform_format,
+                transform_format=self.DATABUS_TRANSFORMER_FORMAT.get(self.data_link_strategy),
                 transform_options=transform_options,
-            ),
-        ]
+            )
+        )
         return configs
 
     def _get_databus_monitor_label_table(self) -> "ResultTable | None":

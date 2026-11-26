@@ -30,7 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getLinkMapping } from 'monitor-api/modules/commons';
 import { APP_NAV_COLORS, getBizRouteHref } from 'monitor-common/utils';
-import { globalUrlFeatureMap } from 'monitor-common/utils/global-feature-map';
+import { globalUrlFeatureMap, isAidevEmbed } from 'monitor-common/utils/global-feature-map';
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
 import { dispatchApmK8sCacheFlush } from 'monitor-pc/pages/monitor-k8s/monitor-k8s-apm';
 import AuthorityModal from 'monitor-ui/authority-modal';
@@ -57,7 +57,7 @@ export default class App extends tsc<object> {
   private needCopyLink = false;
   private needBack = false;
   private needMenu = !window.__POWERED_BY_BK_WEWEB__;
-  // eslint-disable-next-line @typescript-eslint/member-ordering
+
   @ProvideReactive('readonly') readonly: boolean = window.__BK_WEWEB_DATA__?.readonly ?? globalUrlFeatureMap.READONLY;
   get navRouteList() {
     return this.$store.getters.navRouteList;
@@ -93,6 +93,11 @@ export default class App extends tsc<object> {
   }
   created() {
     this.needMenu && this.handleSetNeedMenu();
+    // AIDev 嵌入只保留内容区和时间工具，菜单、页签由只读态一起收起
+    if (isAidevEmbed()) {
+      this.needMenu = false;
+      this.readonly = true;
+    }
     this.bizId = this.$store.getters.bizId;
     this.menuToggle = localStorage.getItem('navigationToggle') === 'true';
     Vue.prototype.$authorityStore = authorityStore;
@@ -272,7 +277,7 @@ export default class App extends tsc<object> {
   }
   render() {
     return (
-      <div class={{ 'apm-wrap': true, 'is-micro-app': !this.needMenu }}>
+      <div class={{ 'apm-wrap': true, 'is-micro-app': !this.needMenu, 'is-aidev-embed': isAidevEmbed() }}>
         <bk-navigation
           default-open={this.menuToggle}
           navigation-type='top-bottom'

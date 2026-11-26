@@ -20,7 +20,7 @@ PAGE: CompositeFieldConfig = {
                 {"field_name": "attributes.view.loading_type"},
             ],
         },
-        {"items": [{"field_name": "attributes.view.url"}]},
+        {"items": [{"field_name": "attributes.view.url", "type": "link"}]},
     ],
 }
 ENVIRONMENT: CompositeFieldConfig = {
@@ -75,9 +75,10 @@ SPAN_NAME: CompositeFieldConfig = {
                 {"field_name": "attributes.action.target.tag", "show_if": _ACTION},
                 {
                     "field_name": "attributes.view.url",
+                    "type": "link",
                     "show_if": {"attributes.span_type": ["view"]},
                 },
-                {"field_name": "attributes.url.full", "show_if": _RESOURCE},
+                {"field_name": "attributes.url.full", "type": "link", "show_if": _RESOURCE},
             ],
         },
     ],

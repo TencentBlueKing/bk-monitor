@@ -111,7 +111,7 @@
             </div>
           </div>
           <div
-            v-if="item.dataTypeLabel === 'time_series'"
+            v-if="item.dataTypeLabel === 'time_series' && !item.hideGraph"
             class="card-content-right"
             @click.stop
           >

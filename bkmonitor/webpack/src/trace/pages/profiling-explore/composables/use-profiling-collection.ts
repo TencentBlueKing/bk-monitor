@@ -30,6 +30,7 @@ import { commonPageSizeGet } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
 
 import {
+  enableCollection,
   getCollectionMeta,
   getCollectionTasks,
   removeCollectionTask,
@@ -74,6 +75,8 @@ export function useProfilingCollection(
   /** 新建采集的回填配置，如从执行快照回填 */
   const prefill = shallowRef<Omit<CollectionPayload, 'bk_biz_id'>>();
   const editorOpen = shallowRef(false);
+  /** 表单会话：每次打开递增，用于重建表单实例，避免沿用上一次的草稿 */
+  const editorSession = shallowRef(0);
   const detailId = shallowRef<number>();
   const deleting = shallowRef<CollectionTask>();
   const executing = shallowRef<CollectionTask>();
@@ -144,12 +147,31 @@ export function useProfilingCollection(
     }
   }
 
+  /** 启用主动采集：成功后刷新配置并落到 Profiling 结果列表 */
+  async function startActiveCollection() {
+    if (readonly || loading.value) return;
+    const current = actionController;
+    loading.value = true;
+    try {
+      await enableCollection(bizId.value, current.signal);
+      if (current.signal.aborted) return;
+      patch({ tab: 'results' });
+      await refresh();
+    } catch (e) {
+      if (!current.signal.aborted) Message({ theme: 'error', message: (e as Error)?.message || t('操作失败，请重试') });
+    } finally {
+      if (!current.signal.aborted) loading.value = false;
+    }
+  }
+
   function openEditor(task?: CollectionTask, prefillValue?: Omit<CollectionPayload, 'bk_biz_id'>) {
     if (readonly || !meta.value) return;
     detailId.value = undefined;
     editing.value = task;
     // 回填只用于新建，编辑仍以任务本身为准
     prefill.value = task ? undefined : prefillValue;
+    // 表单只在挂载时按 task/prefill 生成草稿，递增会话保证每次打开都重新初始化
+    editorSession.value += 1;
     editorOpen.value = true;
   }
 
@@ -228,6 +250,7 @@ export function useProfilingCollection(
       meta.value = undefined;
       busy.value = undefined;
       editorOpen.value = false;
+      editorSession.value = 0;
       prefill.value = undefined;
       detailId.value = undefined;
       deleting.value = undefined;
@@ -257,6 +280,7 @@ export function useProfilingCollection(
     editing,
     prefill,
     editorOpen,
+    editorSession,
     detailId,
     detail,
     detailHosts,
@@ -267,6 +291,7 @@ export function useProfilingCollection(
     executing,
     refresh,
     runAction,
+    startActiveCollection,
     openEditor,
     openHistory,
     changeHistory,

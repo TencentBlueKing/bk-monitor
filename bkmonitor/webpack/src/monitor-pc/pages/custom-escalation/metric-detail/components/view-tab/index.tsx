@@ -134,8 +134,6 @@ export default class ViewTab extends tsc<IProps, IEmit> {
 
   async fetchViewData() {
     this.isViewDetailLoading = true;
-    this.tabRef.updateActiveBarPosition(this.viewTab);
-    this.tabRef.checkActiveName();
 
     const updateCurrentSelectedGroupAndMetricNameList = (selectedList: GroupItem[]) => {
       // 视图保存的 metric 可能被隐藏，需要过滤掉不存在的 metric
@@ -184,7 +182,6 @@ export default class ViewTab extends tsc<IProps, IEmit> {
           metrics: this.metricGroupList.length > 0 ? [defaultSelectedData] : [],
         });
 
-        this.isViewDetailLoading = false;
         return;
       }
 
@@ -277,7 +274,7 @@ export default class ViewTab extends tsc<IProps, IEmit> {
       <div>
         <div
           class='bk-monitor-new-metric-view-view-tab'
-          v-bkloading={{ isListLoading: this.isListLoading }}
+          v-bkloading={{ isLoading: this.isListLoading || this.isViewDetailLoading }}
         >
           {this.isTabListInit && (
             <bk-tab
@@ -337,7 +334,7 @@ export default class ViewTab extends tsc<IProps, IEmit> {
             />
           </div>
         </div>
-        <div v-bkloading={{ isLoading: this.isViewDetailLoading }}>{this.$slots.default}</div>
+        {this.$slots.default}
       </div>
     );
   }

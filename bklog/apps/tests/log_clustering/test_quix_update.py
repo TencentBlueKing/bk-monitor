@@ -37,7 +37,7 @@ def create_running_runtime() -> LogClusteringRuntime:
     LogClusteringOperation.objects.filter(pk=operation.pk).update(status=ClusteringOperationStatusEnum.SUCCESS.value)
     runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
     runtime.phase = ClusteringRuntimePhaseEnum.RUNNING.value
-    runtime.active_config = build_clustering_config("log", ERROR_RULES)
+    runtime.active_config = {**build_clustering_config("log", ERROR_RULES), "kafka_cluster_id": 21}
     runtime.pending_config = None
     runtime.bkfara_task_id = "task-uuid"
     runtime.save()
@@ -59,7 +59,7 @@ class TestQuixUpdateRunner(TestCase):
     def setUp(self):
         runtime = create_running_runtime()
         runtime.phase = ClusteringRuntimePhaseEnum.UPDATING.value
-        runtime.pending_config = build_clustering_config("log", WARN_RULES)
+        runtime.pending_config = {**build_clustering_config("log", WARN_RULES), "kafka_cluster_id": 21}
         runtime.save()
         _, self.operation = LogClusteringRuntime.start_operation(
             INDEX_SET_ID, ClusteringOperationTypeEnum.UPDATE.value, {"filter_rules": WARN_RULES}
@@ -340,6 +340,7 @@ class TestQuixClusteringHandlerUpdate(TestCase):
 
     def test_changed_rules_start_update(self, mock_delay):
         runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
+        runtime.active_config["kafka_cluster_id"] = 21
         runtime.active_config["result_mode"] = "append"
         runtime.save()
         operation_id = QuixClusteringHandler(self.index_set).update(
@@ -350,6 +351,7 @@ class TestQuixClusteringHandlerUpdate(TestCase):
         self.assertEqual(runtime.phase, ClusteringRuntimePhaseEnum.UPDATING.value)
         self.assertEqual(runtime.pending_config["log_filter"][0]["value"], ["WARN"])
         self.assertEqual(runtime.pending_config["result_mode"], "append")
+        self.assertEqual(runtime.pending_config["kafka_cluster_id"], 21)
         self.assertEqual(runtime.active_config["log_filter"][0]["value"], ["ERROR"])
         clustering_config = ClusteringConfig.objects.get(index_set_id=INDEX_SET_ID)
         self.assertEqual((clustering_config.filter_rules, clustering_config.regex_template_id), (ERROR_RULES, 3))

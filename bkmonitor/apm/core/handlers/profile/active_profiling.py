@@ -79,6 +79,14 @@ CACHE_MISS = object()
 EVENT_RECONCILED_HOST_FIELDS = ("status", "started_at", "finished_at", "processes", "error_type", "message")
 
 
+def build_cancelled_message(cancelled_by=None):
+    """取消的执行信息：采集端上报的原始信息是英文，统一换成中文；
+    取消人只有 SaaS 受理取消时记录，采集端自行结束为 cancelled、只有 Event 时没有"""
+    if cancelled_by:
+        return _("采集已被用户 {} 取消").format(cancelled_by)
+    return _("采集已被用户取消")
+
+
 def aggregate_execution_status(statuses):
     """仍有主机 running 时保持 running；状态都相同时沿用；有成功主机的混合为 partial_succeed；其余混合为 failed"""
     distinct_statuses = set(statuses)
@@ -214,9 +222,9 @@ class ActiveProfilingExecutionQueryHandler:
             scheduled_at__gte=params["start_time"],
             scheduled_at__lte=params["end_time"],
         )
-        execution_filter = self._build_execution_filter(filters)
-        if execution_filter:
-            queryset = queryset.filter(execution_id__in=self._execution_queryset(params, execution_filter).values("id"))
+        execution_q = self._build_execution_q(filters)
+        if execution_q:
+            queryset = queryset.filter(execution_id__in=self._execution_queryset(params, execution_q).values("id"))
         if filters.get("status"):
             queryset = queryset.filter(self._build_statuses_q(self._build_host_status_q, filters["status"]))
 
@@ -247,7 +255,7 @@ class ActiveProfilingExecutionQueryHandler:
     def list_executions(self, params):
         """任务历史：一次执行一行；主机/进程条件只决定选中哪些执行，汇总仍按该执行的全部主机"""
         filters = params.get("filters", {})
-        queryset = self._execution_queryset(params, self._build_execution_filter(filters))
+        queryset = self._execution_queryset(params, self._build_execution_q(filters))
         host_q = self._build_host_q(filters)
         if host_q:
             queryset = queryset.filter(
@@ -378,7 +386,7 @@ class ActiveProfilingExecutionQueryHandler:
             return self._query_recent_processes(hosts, field, limit, keyword)
 
         # 执行级字段在同一次执行内一致，按执行的主机数累加
-        executions = self._execution_queryset(params, {f"{field}__contains": keyword} if keyword else {})
+        executions = self._execution_queryset(params, Q(**{f"{field}__contains": keyword}) if keyword else Q())
         if gap_start is not None:
             executions = executions.exclude(self._lag_gap_q(gap_start))
         rows = (
@@ -419,6 +427,9 @@ class ActiveProfilingExecutionQueryHandler:
             }
             for host in host_rows
         ]
+        # 从计划触发的立即执行带上触发计划，前端重新采集时据此继续关联；计划执行的计划 ID 即 task_id
+        if execution.source_task_id is not None:
+            fields["source_task_id"] = execution.source_task_id
         return {
             **fields,
             "total_hosts": len(hosts),
@@ -463,26 +474,34 @@ class ActiveProfilingExecutionQueryHandler:
             return list(dict.fromkeys(filter(None, row.split(","))))
         return [f"{process['process_name']}:{process['pid']}" for process in row]
 
-    def _execution_queryset(self, params, execution_filter):
+    def _execution_queryset(self, params, execution_q=None):
         return ActiveProfilingExecution.objects.filter(
+            execution_q or Q(),
             bk_tenant_id=self.bk_tenant_id,
             bk_biz_id=self.bk_biz_id,
             scheduled_at__gte=params["start_time"],
             scheduled_at__lte=params["end_time"],
-            **execution_filter,
         )
 
     @staticmethod
-    def _build_execution_filter(filters):
-        """执行级筛选：任务 ID 精确匹配，任务名包含匹配，执行方式、采集方式与类型多选"""
+    def _build_execution_q(filters):
+        """执行级筛选：任务名包含匹配，执行方式、采集方式与类型多选。
+        任务 ID 是计划 ID，命中该计划的计划执行与从该计划点立即执行的立即执行；
+        立即执行的 task_id 是执行行自己的 id，与计划 ID 不在同一取值空间，不能参与比较"""
         optional_filters = {
-            "task_id": filters.get("task_id"),
             "task_name__contains": filters.get("task_name"),
             "schedule_type__in": filters.get("schedule_types"),
             "collection_method__in": filters.get("collection_methods"),
             "collection_type__in": filters.get("collection_types"),
         }
-        return {key: value for key, value in optional_filters.items() if value}
+        q = Q(**{key: value for key, value in optional_filters.items() if value})
+        task_id = filters.get("task_id")
+        if task_id:
+            # 只有从计划点立即执行的行有 source_task_id
+            q &= Q(schedule_type__in=ACTIVE_PROFILING_PLANNED_SCHEDULE_TYPES, task_id=task_id) | Q(
+                source_task_id=task_id
+            )
+        return q
 
     @staticmethod
     def _build_host_q(filters):
@@ -671,30 +690,31 @@ class ActiveProfilingExecutionQueryHandler:
 
     def _lag_gap_execution_ids(self, params, gap_start):
         """查询范围内落后区间计划执行的 id，供主机执行一侧排除"""
-        return self._execution_queryset(params, {}).filter(self._lag_gap_q(gap_start)).values("id")
+        return self._execution_queryset(params).filter(self._lag_gap_q(gap_start)).values("id")
 
     def _build_lag_gap_overrides(self, params, gap_start):
         """落后区间内执行表已有的计划执行（通常只有最新一次及其前一个运行窗口内的），SaaS 只写进 MySQL 的信息：
         取消（采集端的 finished 还没上报）与改名，由 ES 查询覆盖到 Event 配出的行上；
-        执行表已有的执行才能取消、改名，没建行的执行不会有这些信息"""
+        执行表已有的执行才能取消、改名，没建行的执行不会有这些信息。执行行 id 也一并带上，没建行的执行没有 id"""
         executions = {
             execution.id: execution
-            for execution in self._execution_queryset(params, {})
+            for execution in self._execution_queryset(params)
             .filter(self._lag_gap_q(gap_start))
             .only("id", "schedule_type", "scheduled_at", "task_id", "task_name")
         }
         cancelled_hosts = ActiveProfilingHostExecution.objects.filter(
             execution_id__in=list(executions), status="cancelled"
-        ).values_list("execution_id", "bk_host_id", "finished_at")
+        ).values_list("execution_id", "bk_host_id", "finished_at", "cancelled_by")
         return {
+            "ids": {self._execution_key(execution): execution.id for execution in executions.values()},
             "task_names": {self._execution_key(execution): execution.task_name for execution in executions.values()},
             "hosts": {
                 # 与 Event 维度对应的主机执行键，同 _host_execution_key
                 (*self._execution_key(executions[execution_id]), bk_host_id): {
-                    "status": "cancelled",
                     "finished_at": finished_at,
+                    "cancelled_by": cancelled_by,
                 }
-                for execution_id, bk_host_id, finished_at in cancelled_hosts
+                for execution_id, bk_host_id, finished_at, cancelled_by in cancelled_hosts
             },
         }
 
@@ -853,14 +873,15 @@ class ActiveProfilingExecutionQueryHandler:
         if host.status == "unknown":
             return _("请检查agent状态及版本信息，若持续异常请联系管理员")
         if host.status == "cancelled":
-            if host.cancelled_by:
-                return _("采集已被用户 {} 取消").format(host.cancelled_by)
-            return _("采集已被用户取消")
+            return build_cancelled_message(host.cancelled_by)
         return host.message
 
     def _build_execution_fields(self, execution):
-        """执行行的展示字段；立即执行不返回 task_id，与一期协议一致"""
-        fields = {"task_id": execution.task_id} if execution.schedule_type != "immediate" else {}
+        """执行行的展示字段；立即执行不返回 task_id，与一期协议一致。
+        id 是执行表的行 id，一次执行一个：同一计划的多次执行 task_id 相同、任务名也可能相同，靠它区分"""
+        fields = {"id": execution.id}
+        if execution.schedule_type != "immediate":
+            fields["task_id"] = execution.task_id
         status_summary = execution.status_summary
         if execution.scheduled_at < self.expire_before:
             # 同一执行的全部主机计划时间相同，成功类计数一起合并为 outdate
@@ -905,9 +926,14 @@ class ActiveProfilingExecutionQueryHandler:
             "creator": execution.creator,
             "scheduled_at": host.scheduled_at,
         }
-        # 只有失败的行带失败类型，前端悬浮在状态上时按类型给出展示文案；旧版采集端不上报，为空串
+        # 只有失败的行带失败类型和原始执行信息：前端悬浮在状态上时按类型给出展示文案，查看详情时展示原始信息；
+        # 旧版采集端不上报失败类型，为空串
         if host.status == "failed":
             row["error_type"] = host.error_type
+            row["message"] = host.message
+        # 取消的行带执行信息，与执行详情一致显示取消人
+        elif host.status == "cancelled":
+            row["message"] = build_cancelled_message(host.cancelled_by)
         return row
 
     @staticmethod
@@ -1174,7 +1200,8 @@ class ActiveProfilingExecutionWriter:
 
     @classmethod
     def create_immediate(cls, bk_tenant_id, creator, validated_data, target_hosts):
-        """同一事务内建执行行与全部目标主机的占位行，执行行的 id 即本次立即执行的 task_id"""
+        """同一事务内建执行行与全部目标主机的占位行，执行行的 id 即本次立即执行的 task_id；
+        从计划点立即执行时另记触发计划 ID"""
         scheduled_at = validated_data["schedule"]["execute_at"]
         unknown_at = cls._unknown_at(scheduled_at, validated_data["collector_config"])
         database = router.db_for_write(ActiveProfilingExecution)
@@ -1183,6 +1210,7 @@ class ActiveProfilingExecutionWriter:
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=validated_data["bk_biz_id"],
                 schedule_type="immediate",
+                source_task_id=validated_data.get("source_task_id"),
                 scheduled_at=scheduled_at,
                 task_name=validated_data["name"],
                 creator=creator,
@@ -1301,9 +1329,17 @@ class ActiveProfilingImmediateHandler(ActiveProfilingDeployMixin):
         self.creator = get_request_username()
 
     def execute(self, validated_data):
-        # 业务未开通时在建行前报错
+        # 业务未开通、触发计划不存在时在建行前报错
         profile_data_id = self._get_profile_data_id(self.bk_biz_id)
         event_data_id = self._get_event_group(self.bk_biz_id).bk_data_id
+        # 只校验计划属于本业务：重新采集已删除计划的历史执行时仍关联原计划，停用、删除都不阻止采集
+        if (
+            "source_task_id" in validated_data
+            and not ActiveProfilingTask.origin_objects.filter(
+                bk_biz_id=self.bk_biz_id, id=validated_data["source_task_id"]
+            ).exists()
+        ):
+            raise ValueError(_("计划不存在"))
         bk_host_ids = [node["bk_host_id"] for node in validated_data["target_config"]["nodes"]]
         target_hosts = self._build_target_hosts(bk_host_ids, self._get_host_ips(self.bk_biz_id, bk_host_ids))
         writer = ActiveProfilingExecutionWriter.create_immediate(

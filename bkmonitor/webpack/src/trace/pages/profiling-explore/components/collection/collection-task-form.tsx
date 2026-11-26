@@ -42,6 +42,7 @@ import hostNormalDot from './assets/collection-host-normal-dot.svg';
 import CollectionCrontab from './collection-crontab';
 import CollectionHostSelector from './collection-host-selector';
 import CollectionProcessSelector from './collection-process-selector';
+import HostPluginCheckDialog from './host-plugin-check-dialog';
 
 import type { CollectionFieldKey, CollectionMeta, CollectionPayload, CollectionTask } from '../../types/collection';
 
@@ -53,7 +54,7 @@ import './collection-task-form.scss';
  * 主机选择弹窗（ip-selector 内置 magic-vue 弹层，transfer 到 body）的 z-index 取自 magic-vue 的全局计数器，
  * 侧栏 z-index 用同一计数器保证弹窗必然更高；只能在实例创建时取一次，若在 render 中取值，
  * 弹窗打开后的任意表单重渲染都会让侧栏 z-index 反超并重新压住弹窗
- * @returns 侧栏使用的 z-index
+ * @returns 分配给弹层的 z-index
  */
 const getNextZIndex = () =>
   (window as unknown as { __bk_zIndex_manager?: { nextZIndex?: () => number } }).__bk_zIndex_manager?.nextZIndex?.() ||
@@ -84,6 +85,8 @@ export default defineComponent({
     prefill: { type: Object as PropType<Omit<CollectionPayload, 'bk_biz_id'>>, default: undefined },
     /** 默认时区，时间选择按此时区解析并回写 */
     timezone: { type: String, required: true },
+    /** 显隐由外层受控，打开/关闭都只切换 show，不卸载组件 */
+    show: { type: Boolean, required: true },
   },
   /** 对外事件：close 关闭侧栏；saved 保存成功，参数为是否立即执行 */
   emits: { close: () => true, saved: (_immediate: boolean) => true },
@@ -94,6 +97,12 @@ export default defineComponent({
     const form = useCollectionForm(props.meta, props.bizId, props.timezone, props.task, props.prefill, immediate =>
       emit('saved', immediate)
     );
+    const pluginCheckDialogZIndex = shallowRef(sidesliderZIndex + 1);
+    watch(form.hostPluginCheck.dialogShow, show => {
+      if (show) {
+        pluginCheckDialogZIndex.value = Math.max(getNextZIndex(), sidesliderZIndex + 1);
+      }
+    });
     /** 执行周期组件实例，提交前用于校验 cron 表达式 */
     const crontab = shallowRef<InstanceType<typeof CollectionCrontab>>();
     /** 表单滚动容器，用于把首条错误滚动到可视区 */
@@ -182,6 +191,7 @@ export default defineComponent({
       timeShortcuts,
       scrollToFirstError,
       sidesliderZIndex,
+      pluginCheckDialogZIndex,
     };
   },
   /**
@@ -232,7 +242,7 @@ export default defineComponent({
         class='collection-task-form'
         beforeClose={() => !f.loading.value}
         escClose={!f.loading.value}
-        isShow={true}
+        isShow={this.show}
         quickClose={false}
         title={this.t(this.task ? '编辑采集' : 'trace-新建采集')}
         transfer={false}
@@ -266,16 +276,32 @@ export default defineComponent({
                     required
                   >
                     <div class='collection-host-selection'>
-                      {d.hosts.length ? (
+                      {f.hostPluginCheck.verifying.value ? (
+                        <div class='collection-host-checking'>
+                          <span
+                            class='collection-host-checking-spinner'
+                            aria-hidden='true'
+                          />
+                          <span>{this.t('正在校验采集器版本')}</span>
+                          {f.hostPluginCheck.skipable.value && (
+                            <Button
+                              class='collection-host-checking-skip'
+                              theme='primary'
+                              text
+                              onClick={f.hostPluginCheck.skip}
+                            >
+                              {this.t('跳过校验')}
+                            </Button>
+                          )}
+                        </div>
+                      ) : d.hosts.length ? (
                         <div class='collection-host-summary'>
                           <span class='collection-host-selected'>
                             <Button
                               class='collection-host-edit'
                               aria-label={this.t('编辑主机')}
                               text
-                              onClick={() => {
-                                f.hostSelectorOpen.value = true;
-                              }}
+                              onClick={f.openHostSelector}
                             >
                               <img
                                 alt=''
@@ -324,9 +350,7 @@ export default defineComponent({
                       ) : (
                         <Button
                           class='collection-host-add'
-                          onClick={() => {
-                            f.hostSelectorOpen.value = true;
-                          }}
+                          onClick={f.openHostSelector}
                         >
                           <span class='collection-host-add-inner'>
                             <i class='icon-monitor icon-a-1jiahao' />
@@ -581,19 +605,17 @@ export default defineComponent({
                 </Form>
                 {f.hostSelectorOpen.value && (
                   <CollectionHostSelector
-                    hosts={d.hosts}
+                    hosts={f.selectorHosts.value}
                     service={f.hostServices}
                     onChange={f.changeHosts}
-                    onClose={() => {
-                      f.hostSelectorOpen.value = false;
-                    }}
+                    onClose={f.closeHostSelector}
                   />
                 )}
               </div>
               <div class={['collection-form-footer', { 'is-sticky': this.footerSticky }]}>
                 <div>
                   <Button
-                    disabled={!d.name.trim() || !d.hosts.length}
+                    disabled={!d.name.trim() || !d.hosts.length || f.hostPluginCheck.verifying.value}
                     loading={f.loading.value}
                     theme='primary'
                     onClick={async () => {
@@ -614,6 +636,13 @@ export default defineComponent({
                 ref='footerBoundary'
                 class='collection-form-footer-boundary'
                 aria-hidden='true'
+              />
+              <HostPluginCheckDialog
+                groups={f.hostPluginCheck.groups.value}
+                show={f.hostPluginCheck.dialogShow.value}
+                zIndex={this.pluginCheckDialogZIndex}
+                onContinue={f.hostPluginCheck.handleContinue}
+                onReselect={f.hostPluginCheck.handleReselect}
               />
             </>
           ),

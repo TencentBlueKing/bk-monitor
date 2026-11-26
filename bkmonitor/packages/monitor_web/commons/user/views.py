@@ -9,7 +9,9 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+import re
 
+from django.conf import settings
 from django.http import HttpResponse
 from rest_framework import serializers, viewsets
 from rest_framework.decorators import action
@@ -31,29 +33,42 @@ class UserViewSet(viewsets.GenericViewSet):
     permission_classes = []
 
     class RequestSerializer(serializers.Serializer):
-        fuzzy_lookups = serializers.CharField(label="查询关键字", default="")
+        fuzzy_lookups = serializers.CharField(label="查询关键字", default="", allow_blank=True)
+        exact_lookups = serializers.CharField(label="精确查询账号", required=False, allow_blank=True)
         lookup_field = serializers.ChoiceField(
-            label="查询字段", choices=ALLOWED_USER_LOOKUP_FIELDS, required=False
+            label="查询字段", choices=ALLOWED_USER_LOOKUP_FIELDS, required=False, allow_blank=True
         )
-        page = serializers.IntegerField(label="限制数量", default=1)
-        page_size = serializers.IntegerField(label="限制数量", default=20)
+        page = serializers.IntegerField(label="页码", default=1, min_value=1)
+        page_size = serializers.IntegerField(label="每页数量", default=20, min_value=1)
         fields = serializers.CharField(label="返回字段", default="id,display_name,username,logo")
-        callback = serializers.CharField(label="json回调函数", required=False)
+        callback = serializers.CharField(label="json回调函数", required=False, allow_blank=True)
 
     def get_serializer_class(self):
         return self.RequestSerializer
 
     @action(methods=["GET"], detail=False)
     def list_users(self, request: Request):
-        params = dict(request.query_params)
-        params.pop("callback", None)
-        params.pop("app_code", None)
-
         # 安全限制：仅允许按 username / display_name 过滤，
         # 防止通过 lookup_field 指定 password 等敏感字段进行字段枚举（信息泄露）
         # 校验全部取值，避免重复传参（lookup_field=username&lookup_field=password）绕过
         if any(lf and lf not in ALLOWED_USER_LOOKUP_FIELDS for lf in request.query_params.getlist("lookup_field")):
             raise serializers.ValidationError({"lookup_field": "仅支持按 username、display_name 过滤"})
+
+        callback = request.query_params.get("callback")
+        if settings.ESB_DISABLED:
+            serializer = self.get_serializer(data=request.query_params.dict(), partial=True)
+            serializer.is_valid(raise_exception=True)
+            params = dict(serializer.validated_data)
+            params.pop("callback", None)
+            if callback and (
+                request.headers.get("Sec-Fetch-Site") in {"cross-site", "same-site"}
+                or not re.fullmatch(r"[A-Za-z_$][A-Za-z0-9_$]*", callback)
+            ):
+                raise serializers.ValidationError({"callback": "无效的选人回调"})
+        else:
+            params = dict(request.query_params)
+            params.pop("callback", None)
+            params.pop("app_code", None)
 
         all_user_result = api.bk_login.get_all_user(**params)
         result = {
@@ -74,7 +89,10 @@ class UserViewSet(viewsets.GenericViewSet):
         }
         if "callback" in request.query_params:
             result_str = f"{request.query_params['callback']}({json.dumps(result)})"
-            return HttpResponse(content=result_str, content_type="application/x-javascript")
+            response = HttpResponse(content=result_str, content_type="application/x-javascript")
+            if settings.ESB_DISABLED:
+                response["Cross-Origin-Resource-Policy"] = "same-origin"
+            return response
         else:
             return Response(result)
 

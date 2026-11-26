@@ -20,6 +20,7 @@ from bkmonitor.utils.user import (
     get_admin_username,
     get_local_username,
     get_request_username,
+    make_userinfo,
     single_tenant_backend_username,
 )
 from constants.dataflow import AutoOffsetResets
@@ -238,10 +239,16 @@ class QueryDataResource(UseSaaSAuthInfoMixin, BkDataQueryAPIGWResource):
             validated_request_data["bkdata_data_token"] = settings.BKDATA_DATA_TOKEN
             return validated_request_data
 
-        self.bk_username = single_tenant_backend_username(settings.COMMON_USERNAME)
         validated_request_data["bkdata_authentication_method"] = "user"
-        if configured:
-            validated_request_data["bk_username"] = self.bk_username
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            # 网关头与 BKData 用户鉴权共用同一身份。调用方传空用户名时再按租户补齐。
+            if not validated_request_data.get("bk_username"):
+                validated_request_data.update(make_userinfo(bk_tenant_id=self._get_tenant_id()))
+            self.bk_username = validated_request_data["bk_username"]
+        else:
+            self.bk_username = single_tenant_backend_username(settings.COMMON_USERNAME)
+            if configured:
+                validated_request_data["bk_username"] = self.bk_username
         if user_request:
             validated_request_data.pop("_user_request", None)
         else:
@@ -1208,6 +1215,23 @@ class ApplyDataLink(DataAccessAPIResource):
 
     class RequestSerializer(serializers.Serializer):
         config = serializers.ListField(default=list, label="资源描述")
+
+
+class GetNamespace(DataAccessAPIResource):
+    """查询 BKBase 项目所属业务。"""
+
+    use_tenant_admin = True
+    method = "GET"
+
+    @property
+    def action(self):
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            return "/v4/tenants/{bk_tenant_id}/namespaces/{name}"
+        return "/v4/tenants/default/namespaces/{name}"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
+        name = serializers.CharField(label="项目名称")
 
 
 class GetDataLink(DataAccessAPIResource):

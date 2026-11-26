@@ -336,6 +336,7 @@ class CreateOrUpdateExternalPermission(Resource):
         }
 
         try:
+            # TODO: 外部授权审批接入 ITSM V4 后迁移建单、状态查询和回调验签。
             data = api.itsm.create_fast_approval_ticket(ticket_data)
         except Exception as e:
             logger.error(f"审批创建异常: {e}")

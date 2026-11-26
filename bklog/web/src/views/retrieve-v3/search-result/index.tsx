@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineAsyncComponent, type ComputedRef, defineComponent, onBeforeUnmount } from 'vue';
+import { computed, defineAsyncComponent, type ComputedRef, defineComponent, onBeforeUnmount, watch } from 'vue';
 
 import { debounce } from 'lodash-es';
 import { useRoute, useRouter } from 'vue-router/composables';
@@ -73,6 +73,15 @@ export default defineComponent({
       });
     }, 60);
     const activeTab = computed(() => route.query.tab ?? 'origin') as ComputedRef<string>;
+    const isPlatformIndex = computed(() => {
+      const ids = (store.state.indexItem?.ids ?? []).map(id => `${id}`);
+      if (!ids.length) return false;
+      const items = store.state.retrieve.flatIndexSetList ?? [];
+      return items.some(item => ids.includes(`${item.index_set_id}`) && item.is_platform_index);
+    });
+    const resolvedTab = computed(() =>
+      isPlatformIndex.value && activeTab.value === RouteQueryTab.CLUSTERING ? RouteQueryTab.ORIGIN : activeTab.value,
+    );
 
     let trendSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -90,6 +99,16 @@ export default defineComponent({
         }, 300);
       }
     };
+
+    watch(
+      isPlatformIndex,
+      enabled => {
+        if (enabled && activeTab.value === RouteQueryTab.CLUSTERING) {
+          handleTabChange(RouteQueryTab.ORIGIN, false);
+        }
+      },
+      { immediate: true },
+    );
 
     const handleFavoriteChange = item => {
       debounceUpdateTabValue(item.favorite_type === 'chart' ? 'graph_analysis' : 'origin');
@@ -115,13 +134,13 @@ export default defineComponent({
         return <Grep></Grep>;
       }
 
-      if (activeTab.value === RouteQueryTab.CLUSTERING) {
+      if (activeTab.value === RouteQueryTab.CLUSTERING && !isPlatformIndex.value) {
         return <LogClustering />;
       }
 
       return (
         <SearchResultPanel
-          active-tab={activeTab.value}
+          active-tab={resolvedTab.value}
           onUpdate:active-tab={handleTabChange}
         ></SearchResultPanel>
       );
@@ -130,7 +149,7 @@ export default defineComponent({
     return () => (
       <div class='v3-bklog-body'>
         <SearchResultTab
-          value={activeTab.value}
+          value={resolvedTab.value}
           on-input={handleTabChange}
         ></SearchResultTab>
         {renderTabContent()}

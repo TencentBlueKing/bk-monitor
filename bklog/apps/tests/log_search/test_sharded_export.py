@@ -33,6 +33,7 @@ from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import enterModuleContext
 from unittest.mock import MagicMock, Mock, patch
 
 from blueapps.core.celery.celery import app
@@ -142,6 +143,11 @@ from apps.log_search.tasks.sharded_export import (
     notify_sharded_export,
     plan_sharded_export,
 )
+
+
+def setUpModule():
+    enterModuleContext(patch("apps.log_search.export.scheduler.app.send_task"))
+    enterModuleContext(patch("django_redis.cache.RedisCache.lock"))
 
 
 def build_policy(**overrides):

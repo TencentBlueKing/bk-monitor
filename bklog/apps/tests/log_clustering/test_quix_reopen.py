@@ -104,6 +104,9 @@ class TestQuixReopenRunner(TestCase):
         self.transfer.operate_log_clustering.assert_not_called()
 
     def test_reopen_redeclares_tables_while_worker_is_not_ready(self):
+        runtime = LogClusteringRuntime.objects.get(index_set_id=INDEX_SET_ID)
+        runtime.active_config["kafka_cluster_id"] = 21
+        runtime.save()
         self.assertIsNone(self.run_operation())
 
         self.bkfara.restart_clustering.assert_called_once_with(
@@ -118,6 +121,8 @@ class TestQuixReopenRunner(TestCase):
         self.assertEqual(actions, ["enable"])
         # 重新声明当前集群的 Pattern 表并按声明注册路由，由 metadata 完成 Databus 接入。
         params = self.transfer.set_log_clustering_config.call_args.args[0]
+        self.assertEqual(params["kafka_cluster_id"], 21)
+        self.transfer.get_data_id.assert_not_called()
         self.assertEqual(
             params["pattern_store"], {"table_id": "2_bklog.index_set_42_pattern", "cluster_id": STORAGE_CLUSTER_ID}
         )

@@ -363,7 +363,7 @@ class BkApiClient(BkApiClientProtocol, ABC):
             BkApiMode: API模式
         """
         # 如果启用多租户，必须使用apigw
-        if self.config.blueking.enable_multi_tenancy:
+        if not self.config.blueking.esb_enabled or self.config.blueking.enable_multi_tenancy:
             return BkApiMode.APIGW
 
         module_config = self.config.blueking.api_configs.get(self.module_name)

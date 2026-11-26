@@ -1,9 +1,11 @@
+from copy import deepcopy
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from django.test import TestCase
 from jinja2 import Environment
 
+from apps.exceptions import ValidationError
 from apps.log_clustering.constants import NEW_SERIES_ALGORITHM_TYPE, StrategiesType
 from apps.log_clustering.handlers.clustering_monitor import ClusteringMonitorHandler
 from apps.log_clustering.serializers import NewClsStrategySerializer
@@ -213,18 +215,114 @@ class TestClusteringMonitorHandler(TestCase):
         )
         self.handler.save_new_cls_clustering_strategy.assert_not_called()
 
-    @patch("apps.log_clustering.handlers.clustering_monitor.SignatureStrategySettings.objects.filter")
-    def test_resave_new_series_strategy_preserves_existing_params(self, mock_filter):
-        mock_filter.return_value.first.return_value = SimpleNamespace(strategy_id=9527)
-        params = {"interval": 30, "threshold": 5, "level": 1, "user_groups": [42]}
-        self.handler.get_strategy = Mock(return_value=params)
-        self.handler.save_new_cls_clustering_strategy = Mock(return_value={"strategy_id": 9527})
+    def strategy_snapshot(self):
+        return {
+            "id": 17,
+            "labels": ["custom"],
+            "items": [
+                {
+                    "id": 21,
+                    "query_configs": [
+                        {
+                            "id": 31,
+                            "index_set_id": 123,
+                            "agg_dimension": ["signature", "pod"],
+                            "agg_condition": [{"key": "app", "method": "neq", "value": ["demo"]}],
+                            "query_string": "severity:error",
+                        }
+                    ],
+                    "algorithms": [
+                        {
+                            "id": 41,
+                            "type": "NewSeries",
+                            "level": 2,
+                            "config": {"threshold": 4, "detect_range": 86400, "alert_mode": "continuous"},
+                        }
+                    ],
+                }
+            ],
+            "notice": {"user_groups": [7], "options": {"chart_image_enabled": True}},
+            "detects": [{"id": 51, "level": 2, "trigger_config": {"count": 1, "check_window": 9}}],
+        }
 
-        result = self.handler.resave_new_cls_clustering_strategy()
+    @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.save_alarm_strategy_v3")
+    def test_group_change_only_updates_dimensions_of_bound_query(self, save):
+        current = self.strategy_snapshot()
+        other = dict(current["items"][0]["query_configs"][0], id=32, index_set_id=456)
+        current["items"][0]["query_configs"].insert(0, other)
+        self.handler._bound_strategy = Mock(return_value=deepcopy(current))
 
-        self.assertEqual(result, {"strategy_id": 9527})
-        self.handler.get_strategy.assert_called_once_with(StrategiesType.NEW_CLS_strategy, 9527)
-        self.handler.save_new_cls_clustering_strategy.assert_called_once_with(params=params)
+        self.handler.resave_new_cls_clustering_strategy()
+
+        current["items"][0]["query_configs"][1]["agg_dimension"] = ["signature", "service_name"]
+        save.assert_called_once_with(params=current)
+        self.handler.resave_new_cls_clustering_strategy()
+        self.assertEqual(save.call_count, 1)
+
+    @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.save_alarm_strategy_v3")
+    def test_manual_save_only_updates_changed_form_fields(self, save):
+        current = self.strategy_snapshot()
+        algorithms = current["items"][0]["algorithms"]
+        algorithms.append(dict(algorithms[0], id=40, level=1, config={"threshold": 19, "detect_range": 86400}))
+        # 监控可配置非整天的周期，页面只显示整天。
+        algorithms[0]["config"]["detect_range"] += 60
+        self.handler._read_strategy = Mock(return_value=current)
+        self.handler._bound_strategy = Mock(return_value=deepcopy(current))
+        strategy_type = StrategiesType.NEW_CLS_strategy
+        form = self.handler.get_strategy(strategy_type, current["id"])
+        self.assertEqual((form["level"], form["threshold"], form["interval"]), (2, 5, 1))
+
+        serializer = NewClsStrategySerializer(data=form)
+        serializer.is_valid(raise_exception=True)
+        self.handler.create_or_update_clustering_strategy(strategy_type, serializer.validated_data)
+        save.assert_not_called()
+
+        serializer = NewClsStrategySerializer(data={**form, "threshold": 11, "user_groups": [8]})
+        serializer.is_valid(raise_exception=True)
+        self.handler.create_or_update_clustering_strategy(strategy_type, serializer.validated_data)
+        algorithms[0]["config"]["threshold"] = 10
+        current["notice"]["user_groups"] = [8]
+        save.assert_called_once_with(params=current)
+
+    @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.save_alarm_strategy_v3")
+    def test_unsupported_algorithm_rejects_the_whole_form(self, save):
+        current = self.strategy_snapshot()
+        current["items"][0]["algorithms"].insert(
+            0, {"id": 42, "type": "Threshold", "level": 1, "config": [[{"method": "gte", "threshold": 3}]]}
+        )
+        self.handler._bound_strategy = Mock(return_value=deepcopy(current))
+        form = NewClsStrategySerializer(data={"interval": 1, "threshold": 11, "level": 1, "user_groups": [8]})
+        form.is_valid(raise_exception=True)
+
+        with self.assertRaises(ValidationError):
+            self.handler.create_or_update_clustering_strategy(StrategiesType.NEW_CLS_strategy, form.validated_data)
+
+        save.assert_not_called()
+        self.assertEqual(self.handler._bound_strategy.return_value, current)
+
+    @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.save_alarm_strategy_v3")
+    def test_level_edit_preserves_trigger_options(self, save):
+        current = self.strategy_snapshot()
+        self.handler._bound_strategy = Mock(return_value=deepcopy(current))
+        self.handler.create_or_update_clustering_strategy(StrategiesType.NEW_CLS_strategy, {"level": 1})
+        current["items"][0]["algorithms"][0]["level"] = 1
+        current["detects"][0]["level"] = 1
+        save.assert_called_once_with(params=current)
+
+    @patch("apps.log_clustering.handlers.clustering_monitor.MonitorApi.save_alarm_strategy_v3")
+    def test_legacy_and_count_alert_update_only_requested_argument(self, save):
+        for strategy_type, params, arg in (
+            (StrategiesType.NEW_CLS_strategy, {"threshold": 8}, "$new_class_alert_th"),
+            (StrategiesType.NORMAL_STRATEGY, {"sensitivity": 8}, "$sensitivity"),
+        ):
+            with self.subTest(strategy_type=strategy_type):
+                current = self.strategy_snapshot()
+                algo = current["items"][0]["algorithms"][0]
+                algo.update(type="IntelligentDetect", config={"args": {"$custom": 5}, "plan_id": 6})
+                self.handler._bound_strategy = Mock(return_value=deepcopy(current))
+                self.handler.create_or_update_clustering_strategy(strategy_type, params)
+                algo["config"]["args"][arg] = 8
+                save.assert_called_with(params=current)
 
     @patch("apps.feature_toggle.handlers.toggle.FeatureToggleObject.toggle", return_value=None)
     def test_new_series_gray_switch_defaults_to_on(self, _mock_toggle):

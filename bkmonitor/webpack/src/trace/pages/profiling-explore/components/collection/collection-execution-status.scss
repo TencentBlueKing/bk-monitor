@@ -21,6 +21,10 @@
   }
 }
 
+.collection-execution-status.bk-popover.bk-pop2-content {
+  padding: 7px 14px;
+}
+
 @keyframes collection-execution-spin {
   to {
     transform: rotate(360deg);

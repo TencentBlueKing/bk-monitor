@@ -27,27 +27,30 @@ class QuerySerializer(serializers.Serializer):
         return attrs
 
 
+QUERY_SCHEMA = {
+    "type": "object",
+    "required": ["bk_tenant_id", "promql", "start", "end", "step"],
+    "properties": {
+        "bk_tenant_id": {"type": "string", "minLength": 1},
+        "bk_biz_id": {
+            "type": "integer",
+            "description": "业务或空间 ID，支持负数空间 ID；缺省使用 DEFAULT_BK_BIZ_ID",
+        },
+        "parse_only": {"type": "boolean", "default": False, "description": "仅解析路由和存储请求，不执行查询"},
+        "promql": {"type": "string", "minLength": 1, "maxLength": 65536},
+        "start": {"type": "integer", "minimum": 0, "description": "Unix 秒"},
+        "end": {"type": "integer", "minimum": 0, "description": "Unix 秒"},
+        "step": {"type": "integer", "minimum": 1, "description": "采样步长，秒"},
+    },
+    "additionalProperties": False,
+}
+
+
 @KernelRPCRegistry.register(
     FUNC_QUERY,
     summary="Admin unify-query PromQL 范围查询",
     description="只读查询；缺省业务使用目标环境 DEFAULT_BK_BIZ_ID，复用统一查询 Resource，不接受 URL 或 Header。",
-    params_schema={
-        "type": "object",
-        "required": ["bk_tenant_id", "promql", "start", "end", "step"],
-        "properties": {
-            "bk_tenant_id": {"type": "string", "minLength": 1},
-            "bk_biz_id": {
-                "type": "integer",
-                "description": "业务或空间 ID，支持负数空间 ID；缺省使用 DEFAULT_BK_BIZ_ID",
-            },
-            "parse_only": {"type": "boolean", "default": False, "description": "仅解析路由和存储请求，不执行查询"},
-            "promql": {"type": "string", "minLength": 1, "maxLength": 65536},
-            "start": {"type": "integer", "minimum": 0, "description": "Unix 秒"},
-            "end": {"type": "integer", "minimum": 0, "description": "Unix 秒"},
-            "step": {"type": "integer", "minimum": 1, "description": "采样步长，秒"},
-        },
-        "additionalProperties": False,
-    },
+    params_schema=QUERY_SCHEMA,
     example_params={
         "bk_tenant_id": "system",
         "bk_biz_id": 2,
@@ -91,7 +94,7 @@ def query(params):
     "admin.unify_query.preview",
     summary="Admin unify-query 解析预览（不执行查询）",
     description="使用专用 check 入口返回路由和存储请求预览；不回退到查询入口。",
-    params_schema=KernelRPCRegistry.get_function_detail(FUNC_QUERY)["params_schema"],
+    params_schema=QUERY_SCHEMA,
     example_params={
         "bk_tenant_id": "system",
         "bk_biz_id": 2,

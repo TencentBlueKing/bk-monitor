@@ -92,6 +92,9 @@ class ActiveProfilingExecution(models.Model):
     schedule_type = models.CharField("执行方式", max_length=16)
     # 计划执行为计划 ID，立即执行为本行 id；改造前上报的立即执行没有 task_id，写 0，不用 NULL 以免唯一索引失效
     task_id = models.IntegerField("任务 ID", default=0)
+    # 从计划点立即执行时记录该计划 ID，按计划筛选执行时一并命中；立即执行的 task_id 是本行 id，不能用来关联计划。
+    # 其余执行为空，BMW 不写这一列，所以可空
+    source_task_id = models.IntegerField("触发计划 ID", null=True)
     scheduled_at = models.BigIntegerField("执行计划时间")
     task_name = models.CharField("任务名称", max_length=128)
     creator = models.CharField("创建人", max_length=128)

@@ -34,14 +34,18 @@ from rum_web.handlers.builder.span.base import (
     named,
 )
 from rum_web.handlers.builder.span.timing.view import ViewTimingLayout
-from rum_web.handlers.builder.utils import build_rating_config, get_safe_number, phase, safe_diff, waterfall
+from rum_web.handlers.builder.utils import (
+    build_rating_config,
+    get_safe_number,
+    phase,
+    safe_diff,
+    select_latest_vitals,
+    waterfall,
+)
 
 
 VITAL_METRICS = ("ttfb", "fcp", "lcp", "inp", "cls")
 MARKER_METRICS = VITAL_METRICS[:3]
-TTFB_SEGMENTS = tuple(
-    f"attributes.vital.ttfb.{segment}_duration" for segment in ("waiting", "dns", "connection", "request")
-)
 VIEW_SNAPSHOT_FIELDS = (
     "end_time",
     "elapsed_time",
@@ -109,8 +113,8 @@ class ViewNavigationKeyInfoSection(KeyInfoSection):
     )
 
 
-def vital_group(metric: str, extra: tuple[str, ...] = ()) -> DictItem:
-    fields = ("attributes.vital.metric", "attributes.vital.value", *extra)
+def vital_group(metric: str) -> DictItem:
+    fields = ("attributes.vital.metric", "attributes.vital.value")
     return DictItem(
         metric,
         (
@@ -124,7 +128,7 @@ def vital_group(metric: str, extra: tuple[str, ...] = ()) -> DictItem:
 class ViewWebVitalsSection(BaseSection):
     KEY = "web_vitals"
     TYPE = SectionType.SUMMARY_CARDS.value
-    DATA = (vital_group("ttfb", TTFB_SEGMENTS), *(vital_group(metric) for metric in VITAL_METRICS[1:]))
+    DATA = tuple(vital_group(metric) for metric in VITAL_METRICS)
 
 
 class ViewLoadingTimingSection(WaterfallSection):
@@ -303,16 +307,8 @@ class ViewSpanBuilder(SpanBuilder):
 
     @staticmethod
     def _build_vital_map(flat_related: Sequence[dict[str, Any]]) -> dict[str, dict[str, Any]]:
-        vital_map: dict[str, dict[str, Any]] = {}
-        for item in flat_related:
-            if item.get("attributes.span_type") != RumSpanType.VITAL.value:
-                continue
-            metric = str(item.get("attributes.vital.metric", "")).lower()
-            if metric not in VITAL_METRICS:
-                continue
-            previous = vital_map.get(metric)
-            if previous is None or (get_safe_number(item.get("end_time")) or 0) > (
-                get_safe_number(previous.get("end_time")) or 0
-            ):
-                vital_map[metric] = item
-        return vital_map
+        # 与 View 列表 Web Vitals 汇总共用选取规则，避免两处取到不同快照。
+        return select_latest_vitals(
+            (item for item in flat_related if item.get("attributes.span_type") == RumSpanType.VITAL.value),
+            VITAL_METRICS,
+        )

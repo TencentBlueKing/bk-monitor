@@ -23,7 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { enableActiveCollection } from 'monitor-api/modules/apm_active_profiling';
 import {
+  checkPluginVersion,
   createTask,
   deleteTask,
   editTask,
@@ -39,11 +42,24 @@ import type {
   CollectionTarget,
   CollectionTask,
   CollectionTaskColumn,
+  PluginVersionCheckResult,
   PreviewSelector,
   ProcessPreview,
 } from '../types/collection';
 
 const options = (signal: AbortSignal) => ({ signal, needMessage: false });
+
+export function checkHostPluginVersion(
+  bizId: number,
+  target: CollectionTarget,
+  signal: AbortSignal
+): Promise<PluginVersionCheckResult> {
+  return checkPluginVersion({ bk_biz_id: bizId, target_config: target }, options(signal));
+}
+
+export function enableCollection(bizId: number, signal: AbortSignal): Promise<void> {
+  return enableActiveCollection({ bk_biz_id: bizId }, options(signal));
+}
 
 export function getCollectionMeta(bizId: number, signal: AbortSignal): Promise<CollectionMeta> {
   return metaConfig({ bk_biz_id: bizId }, options(signal));

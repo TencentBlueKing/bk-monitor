@@ -2150,23 +2150,25 @@ DORIS_SQL_FIELD_TYPES = frozenset(item.value for item in DorisFieldTypeEnum)
 
 # 页面可识别的 ES 字段类型，与 web/src/store/constant.js 的 fieldTypeMap 键严格对齐。
 # 任一侧新增类型都必须同步修改，并由对应的白名单一致性用例固化。
-ES_FIELD_TYPES = frozenset({
-    "any",
-    "number",
-    "integer",
-    "double",
-    "float",
-    "keyword",
-    "long",
-    "text",
-    "date",
-    "date_nanos",
-    "boolean",
-    "conflict",
-    "__virtual__",
-    "object",
-    "flattened",
-})
+ES_FIELD_TYPES = frozenset(
+    {
+        "any",
+        "number",
+        "integer",
+        "double",
+        "float",
+        "keyword",
+        "long",
+        "text",
+        "date",
+        "date_nanos",
+        "boolean",
+        "conflict",
+        "__virtual__",
+        "object",
+        "flattened",
+    }
+)
 
 # 仅供混挂索引组的字段规范化使用，不得并入 DorisFieldTypeEnum.get_es_field_type。
 # 后者同时被原生 Doris 分支与 apps/log_search/export/query.py 的导出时间字段判定使用，
@@ -2248,6 +2250,8 @@ LOG_BUILT_IN_FIELD_LIST = [
     "__dist_05",
     "__dist_07",
     "__dist_09",
+    "__log_signature",
+    "__log_cluster_publish_revision",
     "__ipv6__",
     "__parse_failure",
     "time",

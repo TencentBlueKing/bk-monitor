@@ -55,6 +55,7 @@ export type IndexSetDataList = {
     tag_id: number;
   }[];
   is_favorite: boolean;
+  is_platform_index?: boolean;
   no_data_check_time: string;
   collector_scenario_id: number | null;
   permission: {
@@ -367,10 +368,7 @@ export interface QuixStatus {
   } | null;
   bkfara: { state?: string; error?: string; pending_result_count?: number } | null;
 }
-const closeClusteringAccess = { url: '/clustering_config/:index_set_id/access/close/', method: 'post' };
-const reopenClusteringAccess = { url: '/clustering_config/:index_set_id/access/reopen/', method: 'post' };
 const previewClusteringAccess = { url: '/clustering_config/:index_set_id/access/preview/', method: 'post' };
-const retryClusteringAccess = { url: '/clustering_config/:index_set_id/access/retry/:operation_id/', method: 'post' };
 
 export interface ClusteringConfigStatus {
   quix?: QuixStatus;
@@ -641,9 +639,6 @@ export {
   createClusteringConfig,
   updateClusteringConfig,
   getClusteringConfigStatus,
-  closeClusteringAccess,
-  reopenClusteringAccess,
-  retryClusteringAccess,
   previewClusteringAccess,
   updateUserFiledTableConfig,
   generateQueryString,

@@ -13,5 +13,4 @@ from django.utils.translation import gettext_lazy as _
 from semconv.rum.field import FieldSpec
 from semconv.rum.constants import DeviceType
 
-DEVICE_ID = FieldSpec(field_name="device.id", field_alias=_("设备 ID"))
 DEVICE_TYPE = FieldSpec(field_name="device.type", field_alias=_("设备类型"), option_values=DeviceType)

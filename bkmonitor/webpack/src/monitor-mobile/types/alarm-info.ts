@@ -28,6 +28,7 @@ import type VueI18n from 'vue-i18n';
 export type EventStatus = 'ABNORMAL' | 'CLOSED' | 'RECOVERED' | 'SHIELD_ABNORMAL';
 
 export interface IEventItem {
+  hideGraph?: boolean;
   dimensionMessage: string;
   duration: string;
   eventId: string;

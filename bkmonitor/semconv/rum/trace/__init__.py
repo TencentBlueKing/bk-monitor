@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from semconv.constants import FieldDisplayType, FieldUnit
 from semconv.rum import virtual
 from semconv.rum.attributes import span_attributes, virtual_attributes
 from semconv.rum.field import FieldSpec
@@ -76,8 +77,16 @@ class SpanSpec(FieldSpec):
         """按完整路径查找字段描述符。
 
         :param field_name: 字段完整路径，如 ``"attributes.span_type"``、``"status.code"``。
-        :return: 已注册的共享 ``FieldSpec`` 对象；未注册时返回仅含原始字段名的新 ``FieldSpec``。
+        :return: 已注册字段或动态自定义耗时的描述符。其他字段仅保留原始字段名。
         """
+        prefix = "attributes.view.custom_timings."
+        if field_name.startswith(prefix) and (name := field_name.removeprefix(prefix)):
+            return FieldSpec(
+                field_name=field_name,
+                field_alias=name,
+                field_unit=FieldUnit.MS.value,
+                field_display_type=FieldDisplayType.DURATION.value,
+            )
         return _SPAN_FIELDS.from_field(field_name)
 
     @classmethod

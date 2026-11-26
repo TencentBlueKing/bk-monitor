@@ -26,6 +26,7 @@ from apps.api.base import DataAPI, DataDRFAPISet, DRFActionAPI
 from apps.api.modules.utils import (
     add_esb_info_before_request_for_bkdata_user,
     biz_to_tenant_getter,
+    build_bkdata_gateway_url,
 )
 from config.domains import META_APIGATEWAY_ROOT
 
@@ -47,7 +48,7 @@ class _BkDataMetaApi:
     def __init__(self):
         self.get_datalink_metadata = DataAPI(
             method="GET",
-            url=f"{settings.PAAS_API_HOST}/api/bk-base/{settings.ENVIRONMENT}/v4/meta/datalink/metadata/",
+            url=build_bkdata_gateway_url("v4/meta/datalink/metadata/"),
             module=self.MODULE,
             description="查询数据链路元数据",
             before_request=add_esb_info_before_request_for_bkdata_user,

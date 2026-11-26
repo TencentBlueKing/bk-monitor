@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from dataclasses import dataclass, field, replace
 from collections.abc import Iterator
-from typing import NotRequired, Protocol, TypedDict
+from typing import Literal, NotRequired, Protocol, TypedDict
 
 
 class HasChoicesCachedEnum(Protocol):
@@ -43,6 +43,7 @@ class CompositeFieldItem(TypedDict):
     """复用字段元数据的单元格内容。"""
 
     field_name: str
+    type: NotRequired[Literal["link"]]
     # 同一字段的候选值取 OR，不同字段取 AND；由前端选取当前行的成员。
     show_if: NotRequired[dict[str, list[str]]]
 
@@ -62,9 +63,24 @@ class CompositeFieldConfig(TypedDict):
     sections: list[CompositeFieldSection]
 
 
+class HoverSource(TypedDict):
+    label: str
+    url: str
+
+
+class HoverConfig(TypedDict):
+    """字段说明，不包含计算方式、公式或原始字段表达式。"""
+
+    title: str
+    description: str
+    user_experience: NotRequired[str]
+    source: NotRequired[HoverSource]
+
+
 class FieldExtraConfig(TypedDict, total=False):
     virtual: VirtualFieldConfig
     composite: CompositeFieldConfig
+    hover: HoverConfig
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,7 +118,7 @@ class FieldSpec:
             默认 ``True``。
         option_values: 枚举候选值类型，为 ``CachedEnum`` 子类，无枚举时为 ``None``。
         rating_config: 评级阈值配置，按数组顺序匹配。
-        extra_config: virtual 定义后端查询维度，composite 定义多行单元格。
+        extra_config: virtual 定义后端查询维度，composite 定义多行单元格，hover 定义字段说明。
     """
 
     field_name: str
