@@ -68,6 +68,74 @@
   border-radius: var(--bklog-radius-none);
 }
 
+// TagInput and multi-select TagInput share the outlined input padding and compact chip styling.
+:root .t-tag-input.t-is-empty:not(:has(> .t-input > .t-input__prefix:not(:empty))) > .t-input > .t-input__inner {
+  margin-inline-start: 0;
+}
+
+:root .t-tag-input:where(:not(.t-is-empty)) > .t-input:where(:not(.t-input--borderless)) {
+  padding-block: var(--bklog-border-width);
+  padding-inline-start: var(--bklog-space-4);
+
+  &.t-size-s {
+    padding-block: 0;
+  }
+
+  &.t-size-l {
+    padding-block: calc(var(--bklog-space-4) + var(--bklog-border-width));
+  }
+}
+
+:root .t-tag-input .t-tag:not([data-v2-display='tag'], [data-bklog-tag='number']) {
+  box-sizing: border-box;
+  height: var(--bklog-tag-size-large);
+  padding-inline: calc(var(--bklog-space-4) + var(--bklog-space-2));
+  border-radius: var(--bklog-radius-control);
+  font-size: var(--bklog-font-body);
+  line-height: calc(var(--bklog-tag-size-large) - 2 * var(--bklog-border-width));
+}
+
+:root .t-tag-input :where(.t-tag:not([data-v2-display='tag'], [data-bklog-tag='number'])) .t-tag__icon-close {
+  margin-inline-start: var(--bklog-space-4);
+}
+
+:root .t-tag-input .t-input.t-size-s .t-tag:not([data-v2-display='tag'], [data-bklog-tag='number']) {
+  height: var(--bklog-space-20);
+  padding-inline: calc(var(--bklog-space-4) + var(--bklog-space-2) - var(--bklog-border-width));
+  font-size: var(--bklog-font-body);
+  line-height: calc(var(--bklog-space-20) - 2 * var(--bklog-border-width));
+}
+
+:root:not([theme-mode='dark']) .t-tag-input {
+  &:not(.t-is-disabled, :has(> .t-input.t-is-disabled)) .t-tag.t-tag--default:not(.t-tag--disabled) {
+    color: var(--bklog-text-secondary);
+    background-color: var(--bklog-surface-component);
+
+    &:hover {
+      background-color: var(--bklog-surface-component-hover);
+    }
+
+    .t-tag__icon-close {
+      color: var(--bklog-text-placeholder);
+
+      &:hover {
+        color: var(--bklog-text-secondary);
+      }
+    }
+  }
+
+  &:is(.t-is-disabled, :has(> .t-input.t-is-disabled)) .t-tag.t-tag--default,
+  .t-tag.t-tag--default.t-tag--disabled {
+    color: var(--bklog-text-disabled);
+    background-color: var(--bklog-surface-component);
+    border-color: transparent;
+
+    .t-tag__icon-close {
+      color: var(--bklog-text-disabled);
+    }
+  }
+}
+
 :root .t-input-adornment:has(> .t-input__wrap) .t-input-adornment__text {
   --td-radius-default: var(--bklog-standard-control-radius);
 }

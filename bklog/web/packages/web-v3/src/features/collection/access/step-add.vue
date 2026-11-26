@@ -2101,7 +2101,7 @@ import { ServicesInstance } from '@/platform/services';
         height: 30px;
       }
 
-      .bk-tag-selector {
+      .t-tag-input {
         width: 320px;
         transform: translate3d(66px, -30px, 0);
       }
@@ -2137,9 +2137,8 @@ import { ServicesInstance } from '@/platform/services';
     }
 
     .tagRulesColor {
-      .bk-tag-input {
-        /* stylelint-disable-next-line declaration-no-important */
-        border-color: #ff5656 !important;
+      > .t-input:not(.t-input--focused, :focus-within) {
+        border-color: var(--bklog-status-error-emphasis, #ff5656);
       }
     }
 

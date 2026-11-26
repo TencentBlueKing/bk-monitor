@@ -251,7 +251,7 @@ import type { FavoriteRecord, FavoriteGroup, FavoriteGroupId, FavoriteResponse }
 import { ServicesInstance } from '@/platform/services';
 
 import { computed, ref, nextTick, watch, h, onBeforeUnmount } from 'vue';
-import { useDialogVisible, useOverlayZIndex } from '@/shared/global/overlay/index';
+import { allocateOverlayZIndex, useDialogVisible, useOverlayZIndex } from '@/shared/global/overlay/index';
 
 
 import useLocale from '@/shared/composables/use-locale';
@@ -566,6 +566,7 @@ const handleFavoriteSearch = () => {
 /** 删除单个收藏 */
 const handleDelete = (row: FavoriteRecord) => {
   const dialog = DialogPlugin.confirm({
+    zIndex: allocateOverlayZIndex('DIALOG'),
     body: $t('当前收藏名为 {n}，确认是否删除？', { n: row.name }),
     theme: 'warning',
     onCancel: () => dialog.destroy(),

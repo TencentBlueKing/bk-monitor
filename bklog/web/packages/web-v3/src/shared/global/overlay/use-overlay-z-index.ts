@@ -8,6 +8,9 @@ export type OverlayLayer = 'DROPDOWN' | 'DRAWER' | 'DIALOG';
 export function allocateOverlayZIndex(layer: OverlayLayer = 'DIALOG'): number {
   const floor = Z_INDEX_LAYERS[layer];
   if (!zIndexManager) return floor;
+  if (typeof zIndexManager.nextLayerZIndex === 'function') {
+    return zIndexManager.nextLayerZIndex(layer);
+  }
   zIndexManager.nextZIndex(floor);
   return zIndexManager.nextZIndex();
 }

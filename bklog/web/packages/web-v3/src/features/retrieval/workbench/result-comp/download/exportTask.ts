@@ -19,6 +19,7 @@
  */
 
 import { MessagePlugin as TDesignMessage, DialogPlugin as TDesignDialog } from 'tdesign-vue-next';
+import { allocateOverlayZIndex } from '@/shared/global/overlay/use-overlay-z-index';
 import type { ServiceOperation } from '@/platform/services/runtime/service-client';
 import { ServicesInstance } from '@/platform/services';
 
@@ -64,6 +65,7 @@ export async function submitExportWithSortConfirmation(
     };
     dialog = TDesignDialog.confirm({
       attach: 'body',
+      zIndex: allocateOverlayZIndex('DIALOG'),
       theme: 'warning',
       header: context.$t('确认调整导出排序'),
       body: context.$t(

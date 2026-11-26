@@ -1462,20 +1462,20 @@ import { MessagePlugin as TDesignMessage } from 'tdesign-vue-next';
         }
       }
 
-      :deep(.bk-tag-input) {
+      :deep(.t-tag-input > .t-input) {
         background-color: transparent;
-        border: none;
+        border-color: transparent;
+        box-shadow: none;
 
-        .input {
-          background-color: transparent;
+        &:not(.t-input--focused, :focus-within):hover {
+          background-color: var(--bklog-surface-component-hover, #eaebf0);
+          border-color: transparent;
         }
-      }
 
-      :deep(.bk-tag-input):hover {
-        background-color: #eaebf0;
-
-        .input {
-          background-color: #eaebf0;
+        &.t-input--focused,
+        &:focus-within {
+          background-color: var(--bklog-surface, #fff);
+          border-color: var(--bklog-brand-primary, #3a84ff);
         }
       }
 

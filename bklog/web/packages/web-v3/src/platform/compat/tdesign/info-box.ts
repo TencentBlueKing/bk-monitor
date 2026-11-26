@@ -10,7 +10,7 @@ export const bkInfoBox = createInfoService((props, source) => {
   props = {
     ...props,
     dialogClassName: ['bklog-info-box', props.dialogClassName].filter(Boolean).join(' '),
-    zIndex: props.zIndex ?? overlayRegistry.nextZIndex(),
+    zIndex: props.zIndex ?? overlayRegistry.nextZIndex('DIALOG'),
   };
   if (source.icon || source.type === 'loading') {
     const body = props.body;

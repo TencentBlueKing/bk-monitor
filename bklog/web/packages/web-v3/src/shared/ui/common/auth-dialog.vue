@@ -31,6 +31,7 @@
       attach="body"
       dialog-class-name="bklog-authority-dialog"
       :visible="showApplyDialog"
+      :z-index="applyDialogZIndex"
       :close-btn="false"
       :close-on-overlay-click="false"
       :confirm-btn="$t('申请')"
@@ -88,6 +89,7 @@
       attach="body"
       dialog-class-name="bklog-authority-dialog"
       :visible="showConfirmDialog"
+      :z-index="confirmDialogZIndex"
       :confirm-btn="$t('刷新')"
       :header="$t('权限申请单已提交？')"
       @close="closeAuth"
@@ -101,6 +103,7 @@
 <script>
 
 import { useApplicationStore } from '@/app/state/domains/application-store';
+import { allocateOverlayZIndex, Z_INDEX_LAYERS } from '@/shared/global/overlay/index';
 import { Dialog as TDialog } from 'tdesign-vue-next';
 
   export default {
@@ -109,6 +112,8 @@ import { Dialog as TDialog } from 'tdesign-vue-next';
       return {
         showApplyDialog: false,
         showConfirmDialog: false,
+        applyDialogZIndex: Z_INDEX_LAYERS.DIALOG,
+        confirmDialogZIndex: Z_INDEX_LAYERS.DIALOG,
         tableData: [],
       };
     },
@@ -150,6 +155,7 @@ import { Dialog as TDialog } from 'tdesign-vue-next';
           });
 
           this.tableData = tableData;
+          this.applyDialogZIndex = allocateOverlayZIndex('DIALOG');
           this.showApplyDialog = true;
         } catch (err) {
           console.log('无权限的数据格式不对', err);
@@ -159,6 +165,7 @@ import { Dialog as TDialog } from 'tdesign-vue-next';
         this.showApplyDialog = false;
 
         setTimeout(() => {
+          this.confirmDialogZIndex = allocateOverlayZIndex('DIALOG');
           this.showConfirmDialog = true;
           window.open(this.authDialogData.apply_url);
         }, 360);
