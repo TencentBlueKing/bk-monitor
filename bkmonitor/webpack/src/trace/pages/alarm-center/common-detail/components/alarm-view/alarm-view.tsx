@@ -72,13 +72,15 @@ export default defineComponent({
   render() {
     return (
       <div class='alarm-view'>
-        <div class='alarm-view-chart-wrapper'>
-          <AlarmCharts
-            bizId={this.bizId}
-            defaultTimeRange={this.defaultTimeRange}
-            detail={this.detail}
-          />
-        </div>
+        {this.detail && !this.detail.hide_graph && (
+          <div class='alarm-view-chart-wrapper'>
+            <AlarmCharts
+              bizId={this.bizId}
+              defaultTimeRange={this.defaultTimeRange}
+              detail={this.detail}
+            />
+          </div>
+        )}
         <div class='alarm-view-tab'>
           <Tab
             active={this.activeTab}

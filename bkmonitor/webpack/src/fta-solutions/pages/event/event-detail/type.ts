@@ -46,6 +46,7 @@ export interface IDetail {
   first_anomaly_time: number; // 首次异常事件
   follower?: string[];
   graph_panel?: any;
+  hide_graph?: boolean;
   id: string; // 告警id
   ip?: string;
   is_ack: boolean; // 是否确认
