@@ -1,7 +1,5 @@
 """BKBase VM 查询集群的本地只读镜像。"""
 
-from typing import Any
-
 from django.db import models
 
 from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_MONITOR, DataLinkKind
@@ -32,15 +30,3 @@ class VmQueryClusterConfig(models.Model):
         verbose_name = "VM 查询集群配置"
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
-
-    @property
-    def component_config(self) -> dict[str, Any] | None:
-        """查询 BKBase 中该资源的实时配置。"""
-        from metadata.models.data_link.service import get_data_link_component_config
-
-        return get_data_link_component_config(
-            bk_tenant_id=self.bk_tenant_id,
-            kind=self.kind,
-            namespace=self.namespace,
-            component_name=self.name,
-        )
