@@ -1,4 +1,4 @@
-@use '@/shared/ui/loading/status-spinner' as *;
+@use '@/shared/styles/theme/components/contracts' as bklogControls;
 @use '@/shared/ui/loading/status-spinner' as *;
 
 @use '../../business-comp/step2/index-set-option' as *;
@@ -157,26 +157,34 @@
       height: var(--sort-control-height);
 
       .usage-sort-popover-trigger {
+        position: relative;
         display: flex;
         align-items: stretch;
         height: var(--sort-control-height);
+
+        &:hover {
+          z-index: 1;
+        }
+
+        &:focus-within {
+          z-index: 2;
+        }
       }
 
       .sort-prefix-icon {
+        box-sizing: border-box;
+        flex-shrink: 0;
         display: flex;
         align-items: center;
         justify-content: center;
         width: var(--sort-control-height);
         height: var(--sort-control-height);
         line-height: 1;
-        color: #63656e;
-        background: #fafbfd;
-        border: 1px solid #c4c6cc;
+        color: var(--bklog-standard-control-text, var(--td-text-color-secondary));
+        background: var(--bklog-standard-control-surface-disabled, var(--td-bg-color-secondarycontainer));
+        border: var(--bklog-border-width) solid var(--bklog-standard-control-border, var(--td-border-level-2-color));
         border-right: 0;
-        border-top-left-radius: 2px;
-        border-top-right-radius: 0;
-        border-bottom-right-radius: 0;
-        border-bottom-left-radius: 2px;
+        border-radius: var(--bklog-standard-control-radius) 0 0 var(--bklog-standard-control-radius);
       }
 
       .sort-field-select,
@@ -187,30 +195,41 @@
         .t-input {
           height: var(--sort-control-height);
           line-height: calc(var(--sort-control-height) - 2px);
-          border-radius: 0;
         }
       }
 
       .sort-field-select {
         width: 112px;
-        border-radius: 0;
 
-        .bk-select-name {
-          border-radius: 0;
+        .bk-select-name,
+        .t-input {
+          border-radius: var(--bklog-radius-none);
         }
       }
 
       .sort-direction-select {
+        position: relative;
         width: 96px;
         margin-left: -1px;
-        border-radius: 0 2px 2px 0;
+
+        &:hover {
+          z-index: 1;
+        }
+
+        &:focus-within {
+          z-index: 2;
+        }
 
         &.is-name-sort {
           width: 150px;
         }
 
         .bk-select-name {
-          border-radius: 0 2px 2px 0;
+          border-radius: 0 var(--bklog-standard-control-radius) var(--bklog-standard-control-radius) 0;
+        }
+
+        .t-input {
+          @include bklogControls.join-previous;
         }
       }
     }

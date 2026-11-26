@@ -195,21 +195,3 @@
     }
   }
 }
-
-.grade-value-suggestion {
-  .grade-value-suggestion-item {
-    display: flex;
-    align-items: center;
-    min-height: var(--bklog-control-size-medium);
-    padding: 0 12px;
-    font-size: var(--bklog-font-body);
-    line-height: var(--bklog-line-height-body);
-    color: var(--td-text-color-primary);
-    cursor: pointer;
-
-    &:hover,
-    &.is-selected {
-      background: var(--bklog-option-surface-hover);
-    }
-  }
-}

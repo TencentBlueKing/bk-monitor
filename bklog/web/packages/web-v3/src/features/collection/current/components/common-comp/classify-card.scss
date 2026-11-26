@@ -1,45 +1,57 @@
 .classify-card-main {
+  position: relative;
   display: flex;
+  align-items: center;
+  box-sizing: border-box;
   width: 260px;
   height: 72px;
-  background: #f5f7fa;
-  box-shadow: inset 0 1px 6px 0 #78787803;
-  border: 2px solid #f5f7fa;
-  border-radius: 2px;
-  align-items: center;
+  overflow: hidden;
   cursor: pointer;
-  position: relative;
+  background: var(--bklog-surface-hover, #f5f7fa);
+  border: var(--bklog-border-width, 1px) solid transparent;
+  border-radius: var(--bklog-panel-radius, 6px);
+  box-shadow: inset 0 1px 6px 0 #78787803;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+
   .icon-correct {
     position: absolute;
-    right: 1px;
-    top: 1px;
-    color: #fff;
+    top: 2px;
+    right: 2px;
     z-index: var(--bklog-z-base);
     display: none;
+    color: var(--bklog-text-inverse, #fff);
   }
+
   &:hover {
-    border: 2px solid #a3c5fd;
+    border-color: var(--bklog-brand-hover, #6190ff);
   }
+
   .card-icon {
+    flex-shrink: 0;
     width: 48px;
     height: 48px;
     margin: 0 12px;
   }
+
   .card-txt {
-    color: #313238;
+    color: var(--td-text-color-primary, #313238);
   }
+
   &.active {
-    border: 2px solid #3a84ff;
+    background: var(--bklog-brand-tint-subtle, var(--td-brand-color-light));
+    border-color: var(--td-brand-color, #3974ff);
+
     &::after {
-      content: '';
       position: absolute;
+      top: 0;
+      right: 0;
       width: 32px;
       height: 32px;
-      right: 0;
-      top: 0;
-      background: #3a84ff;
+      content: '';
+      background: var(--td-brand-color, #3974ff);
       clip-path: polygon(0 0, 100% 0, 100% 100%);
     }
+
     .icon-correct {
       display: block;
     }
