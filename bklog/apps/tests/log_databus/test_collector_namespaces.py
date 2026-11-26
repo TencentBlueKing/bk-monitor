@@ -75,7 +75,9 @@ class CollectorNamespaceTests(SimpleTestCase):
             {"name": "orders", "bk_data_id": 123, "data_source_name": "bkm_datasource_123", "is_authorized": True},
         )
         self.metadata.apply_data_source.assert_called_once_with(
-            {"bk_data_id": 123, "target_namespace": "orders"}, bk_tenant_id="example", request_cookies=False
+            {"bk_data_id": 123, "target_namespace": "orders", "bk_biz_id": 2},
+            bk_tenant_id="example",
+            request_cookies=False,
         )
         self.list_projects.assert_called_once_with({"tenant": "example"}, bk_tenant_id="example")
 
@@ -90,7 +92,9 @@ class CollectorNamespaceTests(SimpleTestCase):
             with self.subTest(name=name):
                 self.handler.authorize_namespace(name)
                 self.metadata.apply_data_source.assert_called_with(
-                    {"bk_data_id": 123, "target_namespace": name}, bk_tenant_id="example", request_cookies=False
+                    {"bk_data_id": 123, "target_namespace": name, "bk_biz_id": 2},
+                    bk_tenant_id="example",
+                    request_cookies=False,
                 )
 
     def test_bklog_and_bkmonitor_follow_business_scope(self):
@@ -103,7 +107,9 @@ class CollectorNamespaceTests(SimpleTestCase):
         for name in names:
             self.handler.authorize_namespace(name)
             self.metadata.apply_data_source.assert_called_with(
-                {"bk_data_id": 123, "target_namespace": name}, bk_tenant_id="example", request_cookies=False
+                {"bk_data_id": 123, "target_namespace": name, "bk_biz_id": 2},
+                bk_tenant_id="example",
+                request_cookies=False,
             )
 
         self.handler.data.bk_biz_id = 3
@@ -207,7 +213,9 @@ class CollectorNamespaceTests(SimpleTestCase):
             listed.data["data"], [{"name": "orders", "alias": None, "bk_biz_id": 2, "is_authorized": True}]
         )
         self.metadata.apply_data_source.assert_called_once_with(
-            {"bk_data_id": 123, "target_namespace": "orders"}, bk_tenant_id="example", request_cookies=False
+            {"bk_data_id": 123, "target_namespace": "orders", "bk_biz_id": 2},
+            bk_tenant_id="example",
+            request_cookies=False,
         )
 
     @override_settings(IGNORE_IAM_PERMISSION=False)
