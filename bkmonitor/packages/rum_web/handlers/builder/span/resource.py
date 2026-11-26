@@ -120,16 +120,21 @@ class LoadingTimingSection(WaterfallSection):
         "total": _("总耗时"),
         "redirect": _("重定向"),
         "prepare": _("发起前等待"),
-        "queueing": _("[资源调度] 正在排队"),
-        "sw_startup": _("[ServiceWorker] 启动"),
-        "sw_request": _("[ServiceWorker] 发送请求"),
-        "sw_respond_with": _("[ServiceWorker] respondWith"),
+        "queueing": _("正在排队"),
+        "sw_startup": _("启动"),
+        "sw_request": _("发送请求"),
+        "sw_respond_with": _("respondWith"),
         "dns": _("DNS 查询"),
         "connect": _("连接建立"),
         "tls": _("TLS 建连"),
         "first_byte": _("等待首字节"),
         "download": _("内容传输"),
     }
+    PHASE_GROUP_RULES = (
+        (_("资源调度"), ("redirect", "prepare", "queueing")),
+        (_("Service Worker"), ("sw_startup", "sw_request", "sw_respond_with")),
+        (_("Request / Response"), ("dns", "connect", "tls", "first_byte", "download")),
+    )
 
     # 按 A→E 顺序匹配，连接复用需要优先于普通网络请求。
     LAYOUTS = (CrossOriginLayout, ServiceWorkerLayout, LocalLayout, ReusedLayout, NetworkLayout)

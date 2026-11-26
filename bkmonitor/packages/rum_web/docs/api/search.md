@@ -54,6 +54,7 @@
 | 展示对象 | 字段路径 |
 | --- | --- |
 | Web Vitals 列表表头 | `view_config.fields[].extra_config.hover` |
+| Resource 分组加载阶段 | `sections.loading_timing.data.groups[].phases[].hover` |
 | Resource、View 加载阶段 | `sections.loading_timing.data.phases[].hover` |
 | View 指标标记 | `sections.loading_timing.data.markers[].hover` |
 | View 累计里程碑 | `sections.loading_timing.data.milestones[].hover` |
@@ -1389,17 +1390,52 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
               }
             }
           },
-          {"key": "dns", "alias": "DNS", "start": 15, "duration": 5},
+          {"key": "dns", "alias": "DNS 查询", "start": 15, "duration": 5},
           {"key": "connect", "alias": "连接建立", "start": 20, "duration": 8},
-          {"key": "tls", "alias": "TLS", "start": 28, "duration": 7},
+          {"key": "tls", "alias": "TLS 建连", "start": 28, "duration": 7},
           {"key": "first_byte", "alias": "等待首字节", "start": 35, "duration": 45},
-          {"key": "download", "alias": "内容下载", "start": 80, "duration": 20}
+          {"key": "download", "alias": "内容传输", "start": 80, "duration": 20}
+        ],
+        "groups": [
+          {
+            "alias": "资源调度",
+            "phases": [
+              {"key": "redirect", "alias": "重定向", "start": 0, "duration": 10},
+              {
+                "key": "prepare",
+                "alias": "发起前等待",
+                "start": 10,
+                "duration": 2,
+                "hover": {
+                  "title": "发起前等待",
+                  "description": "资源进入 DNS 查询前的准备阶段，可能包含 Service Worker、缓存或连接复用等浏览器处理。",
+                  "user_experience": "浏览器正在确定资源来源和请求方式，尚未开始接收内容。",
+                  "source": {
+                    "label": "W3C · Resource Timing",
+                    "url": "https://www.w3.org/TR/resource-timing/"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "alias": "Request / Response",
+            "phases": [
+              {"key": "dns", "alias": "DNS 查询", "start": 15, "duration": 5},
+              {"key": "connect", "alias": "连接建立", "start": 20, "duration": 8},
+              {"key": "tls", "alias": "TLS 建连", "start": 28, "duration": 7},
+              {"key": "first_byte", "alias": "等待首字节", "start": 35, "duration": 45},
+              {"key": "download", "alias": "内容传输", "start": 80, "duration": 20}
+            ]
+          }
         ]
       }
     }
   ]
 }
 ```
+
+`data.groups` 沿用 `data.phases` 的阶段顺序。连续未匹配的阶段在原位置单独成组，省略 `alias`。各组共用 `data.unit` 和同一时间起点。
 
 ##### 2）Resource（其他资源）
 
