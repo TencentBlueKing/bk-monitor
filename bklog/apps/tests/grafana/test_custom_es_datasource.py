@@ -116,7 +116,7 @@ class TestCustomESDataSource(SimpleTestCase):
             BkDataCustomESDataSource(index_set_id=12).query(self.body())
             self.assertEqual(self.sent_sql()["index"], f"2_first_123456_*,{second}_*")
         self.meta.assert_called_once_with(
-            {"result_table_id": "2_first_123456", "no_request": True}, bk_tenant_id="tenant-a", timeout=3
+            {"result_table_id": "2_first_123456", "no_request": True}, bk_tenant_id="tenant-a"
         )
         self.route.assert_not_called()
 
@@ -128,16 +128,14 @@ class TestCustomESDataSource(SimpleTestCase):
                 with patch("apps.utils.local.get_request", return_value=request):
                     self.assertEqual(BkDataCustomESDataSource(index_set_id=12).get_es_version(), "9.4.3")
         self.space_lookup.assert_called_with(bk_biz_id=2)
-        self.meta.assert_called_once_with(
-            {"result_table_id": "2_first", "no_request": True}, bk_tenant_id="tenant-a", timeout=3
-        )
+        self.meta.assert_called_once_with({"result_table_id": "2_first", "no_request": True}, bk_tenant_id="tenant-a")
 
     def test_probe_uses_index_set_space_when_result_table_has_no_business_prefix(self):
         self.index_set.indexes[0]["result_table_id"] = "bcs_k8s_2_std"
         self.assertEqual(BkDataCustomESDataSource(index_set_id=12).get_es_version(), "9.4.3")
         self.space_lookup.assert_called_once_with(space_uid="bkcc__99")
         self.meta.assert_called_once_with(
-            {"result_table_id": "bcs_k8s_2_std", "no_request": True}, bk_tenant_id="tenant-a", timeout=3
+            {"result_table_id": "bcs_k8s_2_std", "no_request": True}, bk_tenant_id="tenant-a"
         )
 
     def test_probe_uses_index_set_space_when_business_space_is_missing(self):

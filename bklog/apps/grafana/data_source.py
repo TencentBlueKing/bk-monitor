@@ -46,8 +46,6 @@ from bk_dataview.grafana.provisioning import Datasource
 from bkm_space.utils import bk_biz_id_to_space_uid
 import builtins
 
-BKDATA_ES_VERSION_QUERY_TIMEOUT = 3
-
 
 @dataclass
 class CustomIndexSetESDataSource:
@@ -278,7 +276,6 @@ class BkDataCustomESDataSource(CustomESDataSourceTemplate):
             storages = BkDataMetaApi.result_tables.storages(
                 {"result_table_id": result_table_id, "no_request": True},
                 bk_tenant_id=bk_tenant_id,
-                timeout=BKDATA_ES_VERSION_QUERY_TIMEOUT,
             )
             candidate = (((storages or {}).get("es") or {}).get("storage_cluster") or {}).get("version")
             if isinstance(candidate, str) and parse_es_version(candidate) is not None:
