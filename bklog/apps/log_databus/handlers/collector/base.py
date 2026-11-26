@@ -1269,10 +1269,11 @@ class CollectorHandler:
     def authorize_namespace(self, name):
         data_id = self._namespace_data_id()
         tenant = get_request_tenant_id()
-        if name not in self._business_namespaces(tenant):
+        namespaces = self._business_namespaces(tenant)
+        if name not in namespaces:
             raise ValidationError(_("目标命名空间不在当前采集项关联业务的可选范围内"))
         result = TransferApi.apply_data_source(
-            {"bk_data_id": data_id, "target_namespace": name},
+            {"bk_data_id": data_id, "target_namespace": name, "bk_biz_id": namespaces[name]["bk_biz_id"]},
             bk_tenant_id=tenant,
             request_cookies=False,
         )
