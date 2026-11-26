@@ -92,9 +92,12 @@ export default defineComponent({
     bizId: { type: Number, required: true },
     controller: { type: Object as PropType<UseCollectionExecutionReturn>, required: true },
     readonly: { type: Boolean, default: false },
+    // 显隐由外层受控，打开/关闭都只切换 show，不卸载组件
+    show: { type: Boolean, required: true },
     timezone: { type: String, required: true },
   },
   emits: {
+    close: () => true,
     result: (_value: CollectionResultSelection) => true,
     share: (_value?: CollectionResultSelection | null) => true,
     created: () => true,
@@ -318,10 +321,20 @@ export default defineComponent({
     const detail = c.detail.value;
     // 详情未返回前先用列表行撑起头部
     const execution = detail || c.selected.value;
+    // 数据被清空后保留侧栏实例等待下次 show，显隐始终由外层 show 控制
+    if (!execution) {
+      return (
+        <Sideslider
+          width='min(960px, 100vw)'
+          class='collection-execution-detail'
+          isShow={false}
+          transfer={false}
+        />
+      );
+    }
     // 目标进程只在配置快照就绪后展示，旧数据可能没有配置
     const processSelector = detail?.config?.process_selector;
     const processTag = processSelector ? processSelectorText(processSelector, this.t) : '';
-    const resultSelection = this.resultSelection;
     // 优先使用后端下发的列定义，旧接口无该字段时回退默认列并翻译列名
     const hostColumns = detail?.host_columns?.length
       ? detail.host_columns
@@ -386,9 +399,9 @@ export default defineComponent({
           // 取消或改名的提交未完成时禁止关闭，避免请求被中止后列表仍显示旧名称
           return !c.busy.value && !this.renameBusy;
         }}
-        isShow={true}
+        isShow={this.show}
         transfer={false}
-        onClosed={c.close}
+        onClosed={() => this.$emit('close')}
       >
         {{
           header: () => (
@@ -670,7 +683,7 @@ export default defineComponent({
                                 this.diagnosis = row;
                               }}
                             >
-                              {this.t('诊断')}
+                              {this.t('详情')}
                             </Button>
                           ) : (
                             <Button
@@ -720,24 +733,22 @@ export default defineComponent({
                   ),
                 }}
               </Dialog>
-              {resultSelection && (
-                <CollectionResultDetail
-                  key={JSON.stringify(resultSelection)}
-                  bizId={this.bizId}
-                  busy={c.busy.value || this.rerunBusy}
-                  readonly={this.readonly}
-                  selection={resultSelection}
-                  source={this.resultSource}
-                  state={this.resultState}
-                  timezone={this.timezone}
-                  transfer
-                  onChange={this.patchResult}
-                  onClose={this.closeResult}
-                  onExecution={this.closeResult}
-                  onRerun={this.requestRerun}
-                  onShare={() => this.$emit('share', resultSelection)}
-                />
-              )}
+              <CollectionResultDetail
+                bizId={this.bizId}
+                busy={c.busy.value || this.rerunBusy}
+                readonly={this.readonly}
+                selection={this.resultSelection}
+                show={!!this.resultSelection}
+                source={this.resultSource}
+                state={this.resultState}
+                timezone={this.timezone}
+                transfer
+                onChange={this.patchResult}
+                onClose={this.closeResult}
+                onExecution={this.closeResult}
+                onRerun={this.requestRerun}
+                onShare={() => this.$emit('share', this.resultSelection)}
+              />
               <Dialog
                 beforeClose={() => !this.rerunBusy}
                 isShow={!!this.rerunHost}

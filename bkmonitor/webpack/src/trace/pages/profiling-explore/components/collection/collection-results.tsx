@@ -639,41 +639,39 @@ export default defineComponent({
             </div>
           )}
         </div>
-        {this.selection?.scope === 'host' && (
-          <CollectionResultDetail
-            key={JSON.stringify(this.selection)}
-            bizId={this.bizId}
-            busy={h.busy.value}
-            readonly={this.readonly}
-            selection={this.selection}
-            source={this.selectedRow}
-            state={this.state}
-            timezone={this.timezone}
-            onChange={this.patch}
-            onClose={() => this.$emit('change', { result: null })}
-            onExecution={this.openExecution}
-            onRerun={h.requestRerun}
-            onShare={() => this.$emit('share')}
-          />
-        )}
-        {c.selected.value && (
-          <CollectionExecutionDetail
-            bizId={this.bizId}
-            controller={c}
-            readonly={this.readonly}
-            timezone={this.timezone}
-            onBusy={value => {
-              this.executionBusy = value;
-            }}
-            onCreated={() => this.$emit('created')}
-            onResult={value => {
-              // 仅表头「查看全部结果」走此分支，行为保持为切到执行范围的结果列表
-              c.close();
-              this.$emit('result', value, false);
-            }}
-            onShare={value => this.$emit('share', value)}
-          />
-        )}
+        <CollectionResultDetail
+          bizId={this.bizId}
+          busy={h.busy.value}
+          readonly={this.readonly}
+          selection={this.selection}
+          show={this.selection?.scope === 'host'}
+          source={this.selectedRow}
+          state={this.state}
+          timezone={this.timezone}
+          onChange={this.patch}
+          onClose={() => this.$emit('change', { result: null })}
+          onExecution={this.openExecution}
+          onRerun={h.requestRerun}
+          onShare={() => this.$emit('share')}
+        />
+        <CollectionExecutionDetail
+          bizId={this.bizId}
+          controller={c}
+          readonly={this.readonly}
+          show={!!c.selected.value}
+          timezone={this.timezone}
+          onBusy={value => {
+            this.executionBusy = value;
+          }}
+          onClose={c.close}
+          onCreated={() => this.$emit('created')}
+          onResult={value => {
+            // 仅表头「查看全部结果」走此分支，行为保持为切到执行范围的结果列表
+            c.close();
+            this.$emit('result', value, false);
+          }}
+          onShare={value => this.$emit('share', value)}
+        />
         <CollectionExecutionAction
           controller={c}
           readonly={this.readonly}
