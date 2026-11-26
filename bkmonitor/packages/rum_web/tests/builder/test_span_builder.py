@@ -255,10 +255,74 @@ class TestResourceSpanBuilder:
         assert fields.isdisjoint({"attributes.server.address", "attributes.http.request.method"})
         assert _section(result, "key_info")["data"]["delivery"] == {
             "attributes.resource.delivery_type": None,
-            "attributes.resource.cache.hit": None,
+            "display.resource.cache_hit": None,
         }
         # 新旧时序字段均未上报时，整段加载时序省略。
         assert _section(result, "loading_timing") is None
+
+    @pytest.mark.parametrize(
+        "fields, expected",
+        [
+            pytest.param({"resource.delivery_type": "cache"}, True, id="reported-cache"),
+            pytest.param(
+                {
+                    "resource.delivery_type": "",
+                    "resource.transfer_size": 0,
+                    "resource.size": 1000,
+                    "timing.worker_start": 0,
+                    "timing.request_start": 110,
+                    "timing.response_start": 120,
+                },
+                True,
+                id="inferred-from-timing",
+            ),
+            pytest.param(
+                {
+                    "resource.transfer_size": 0,
+                    "resource.decoded_body_size": 1000,
+                    "resource.timing.request_start": 110,
+                    "resource.timing.response_start": 120,
+                },
+                True,
+                id="inferred-from-old-timing",
+            ),
+            pytest.param(
+                {"resource.delivery_type": "cache", "timing.worker_start": 105},
+                None,
+                id="service-worker-overrides-reported-cache",
+            ),
+            pytest.param(
+                {
+                    "resource.transfer_size": 0,
+                    "resource.size": 1000,
+                    "timing.request_start": 110,
+                    "timing.response_start": 120,
+                    "resource.timing.worker_final_router_source": "cache",
+                },
+                None,
+                id="service-worker-overrides-inferred-cache",
+            ),
+            pytest.param(
+                {"resource.transfer_size": 0, "resource.size": 1000, "timing.request_start": 110},
+                None,
+                id="insufficient-timing",
+            ),
+            pytest.param(
+                {"resource.size": 1000, "timing.request_start": 110, "timing.response_start": 120},
+                None,
+                id="missing-transfer-size",
+            ),
+            pytest.param({"resource.cache.hit": True}, None, id="deprecated-field-only"),
+        ],
+    )
+    def test_others_delivery_cache_hit(self, fields, expected):
+        span = _resource_span("img")
+        span["attributes"].update(fields)
+
+        delivery = _section(build(span), "key_info")["data"]["delivery"]
+
+        assert delivery["attributes.resource.delivery_type"] == fields.get("resource.delivery_type")
+        assert delivery["display.resource.cache_hit"] is expected
 
 
 # E 类基线：重定向 + DNS + TCP + TLS，时间点相对 timeOrigin
@@ -621,33 +685,30 @@ class TestInteractionBuilders:
         assert _items(result, "badges")["elapsed_time"] == 432000
 
     @pytest.mark.parametrize(
-        "entry_type, action_fields, expected_action",
+        "fields, expected_action_ids, expected_entry_type",
         [
-            ("long-task", {"action.id": "act-1"}, {"attributes.action.id": "act-1"}),
-            ("long-animation-frame", {"action.ids": ["act-1"]}, {"attributes.action.ids": ["act-1"]}),
-            ("long-animation-frame", {"action.id": "act-1", "action.ids": []}, {"attributes.action.ids": []}),
+            ({"long_task.entry_type": "long-task", "action.id": "act-1", "long_task.name": "self"}, None, "long-task"),
+            (
+                {"long_task.entry_type": "long-animation-frame", "action.ids": ["act-1", "act-2"]},
+                ["act-1", "act-2"],
+                "long-animation-frame",
+            ),
+            ({"action.id": "act-1", "action.ids": []}, [], None),
+            ({}, None, None),
         ],
     )
-    def test_longtask_key_info(self, entry_type, action_fields, expected_action):
+    def test_longtask_key_info(self, fields, expected_action_ids, expected_entry_type):
         result = build(
             _span(
                 "long_task",
-                {
-                    "long_task.blocking_duration": 42.5,
-                    **action_fields,
-                    "long_task.entry_type": entry_type,
-                    "long_task.name": "self",
-                },
+                {"long_task.blocking_duration": 42.5, **fields},
                 elapsed_time=123500,
             )
         )
-        attribution = {"attributes.long_task.entry_type": entry_type}
-        if entry_type == "long-task":
-            attribution["attributes.long_task.name"] = "self"
         assert _section(result, "key_info")["data"] == {
             "duration": {"elapsed_time": 123500, "attributes.long_task.blocking_duration": 42.5},
-            "action": expected_action,
-            "attribution": attribution,
+            "action": {"attributes.action.ids": expected_action_ids},
+            "attribution": {"attributes.long_task.entry_type": expected_entry_type},
         }
 
     @pytest.mark.parametrize(

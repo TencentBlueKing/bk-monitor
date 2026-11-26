@@ -1425,7 +1425,7 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
           "attributes.resource.encoded_body_size": 280833,
           "attributes.resource.decoded_body_size": 903000
         },
-        "delivery": {"attributes.resource.delivery_type": "cache", "attributes.resource.cache.hit": true},
+        "delivery": {"attributes.resource.delivery_type": "cache", "display.resource.cache_hit": true},
         "blocking": {"attributes.resource.render_blocking_status": "non-blocking"}
       }
     },
@@ -1446,7 +1446,9 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
 }
 ```
 
-静态资源详情从 Span 读取 `attributes.resource.cache.hit`。该字段已废弃，Span 缺少该字段时，详情对应值为 `null`，表示无法确认命中。
+`display.resource.cache_hit` 返回 `true` 表示确认命中 HTTP 缓存。存在 Service Worker 介入信号或证据不足时，返回 `null` 表示无法确认。
+
+无 Service Worker 介入信号时，交付类型为 `cache` 可确认命中。交付类型为空时，传输大小为 `0`、解压后正文大小大于 `0`，且同一套时序字段中的请求开始和响应开始时间均大于 `0`，才能推断命中。
 
 ##### 3）Action
 
@@ -1492,7 +1494,7 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
       "type": "summary_cards",
       "data": {
         "duration": {"elapsed_time": 123500, "attributes.long_task.blocking_duration": 42.5},
-        "action": {"attributes.action.ids": ["action-001"]},
+        "action": {"attributes.action.ids": ["action-001", "action-002"]},
         "attribution": {"attributes.long_task.entry_type": "long-animation-frame"}
       }
     }
@@ -1500,7 +1502,7 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
 }
 ```
 
-列表和详情均以数组返回已上报的 `attributes.action.ids`。历史 Long Task 只携带 `attributes.action.id` 时，`key_info.action` 返回该原始字段。
+`attributes.action.ids` 显式上报为空数组时，详情返回 `[]`。Span 缺少 `attributes.action.ids` 或 `attributes.long_task.entry_type` 时，详情中的对应字段返回 `null`。历史单值关联可从 `origin_data` 读取。
 
 ##### 5）Error
 
@@ -2239,7 +2241,7 @@ POST /rum/search/list_records/
 - *[1] 查询范围为 `[end_time - 4h, end_time + 4h]`。在当前 Long Task 的 Session 和 View 内，优先使用 `attributes.action.ids` 查询 Action。显式空数组表示无关联。数组字段缺失时可使用历史字段 `attributes.action.id`。*
 - *[2] 详情卡片取结束时间最新的匹配记录，使用 `list[0]` 的 `attributes.action.target.name` 和 `attributes.action.type`。*
 
-现有前端的 Long Task 关联卡片只读取 `attributes.action.id`。仅上报 `attributes.action.ids` 的记录会显示未关联，前端接入时按上述规则取值。
+现有前端的 Long Task 关联卡片读取 `key_info.action` 下的 `attributes.action.id`。接入上述查询规则前，该卡片会显示未关联。
 
 ### 3.3 Error
 
