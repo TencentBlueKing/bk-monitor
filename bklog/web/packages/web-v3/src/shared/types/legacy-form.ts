@@ -3,6 +3,7 @@
 /** Imperative form API exposed by the retained form adapter. */
 export interface LegacyFormInstance {
   validate(callback?: (valid: boolean) => unknown): Promise<unknown>;
+  validateField(field: string): Promise<unknown>;
   clearError(): void;
   formItems?: { property: string; $children?: { focus?: () => void }[] }[];
 }

@@ -467,13 +467,17 @@ const BkForm = defineComponent({
     formType: { type: String, default: 'horizontal' },
   },
   setup(props, { attrs, slots, expose }) {
-    const form = ref<{ validate: () => Promise<unknown>; clearValidate: () => void } | null>(null);
+    const form = ref<{ validate: (params?: { fields: string[] }) => Promise<unknown>; clearValidate: () => void } | null>(null);
     expose({
       async validate(callback?: (valid: boolean) => unknown) {
         const result = await form.value?.validate();
         const valid = result === true;
         callback?.(valid);
         return valid ? true : Promise.reject(result);
+      },
+      async validateField(field: string) {
+        const result = await form.value?.validate({ fields: [field] });
+        return result === true ? true : Promise.reject(result);
       },
       clearError() {
         form.value?.clearValidate();
