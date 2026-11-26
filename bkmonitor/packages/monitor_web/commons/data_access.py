@@ -377,7 +377,6 @@ class PluginDataAccessor:
                 "default_storage": "influxdb",
                 "label": self.label,
                 "data_label": self.data_label,
-                "external_storage": {"kafka": {"expired_time": 1800000}},
             }
             for table_id in contrast_result[operation]:
                 param.update(
@@ -425,7 +424,6 @@ class PluginDataAccessor:
                 "bk_biz_id": self.bk_biz_id,
                 "table_id": table["table_id"],
                 "table_name_zh": table["table_name_zh"],
-                "external_storage": {"kafka": {"expired_time": 1800000}},
             }
             params_list.append(param)
 
