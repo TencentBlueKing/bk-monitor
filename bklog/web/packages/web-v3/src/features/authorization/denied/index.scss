@@ -91,10 +91,6 @@
     align-items: center;
     color: #3a84ff;
     text-decoration: none;
-
-    .bklog-jump {
-      transform: translateY(1px);
-    }
   }
 
   a.un-authorized-placeholder {
@@ -315,35 +311,49 @@
   }
 }
 
-.un-authorized-help-dialog {
-  .bk-dialog-content {
-    display: flex;
-    flex-direction: column;
-    max-height: calc(100vh - 200px - 32px);
-  }
+// Bind to the dialog card itself; TDialog teleports its content outside the page.
+:root .t-dialog.un-authorized-help-dialog {
+  display: flex;
+  flex-direction: column;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 64px);
+  padding: 16px 24px 0;
+  color: var(--bklog-text-secondary);
 
-  .bk-dialog-tool,
-  .bk-dialog-header,
-  .bk-dialog-footer {
+  .t-dialog__header,
+  .t-dialog__footer {
     flex-shrink: 0;
   }
 
-  .bk-dialog-body {
+  .t-dialog__header {
+    padding: 0 20px 0 0;
+    margin-bottom: 20px;
+  }
+
+  .t-dialog__header-content {
+    white-space: normal;
+  }
+
+  .t-dialog__body {
     min-height: 0;
-    padding-top: 6px;
+    padding: 0 0 28px;
     overflow-y: auto;
-    line-height: 22px;
+    font-size: var(--bklog-font-action);
+    line-height: var(--bklog-line-height-action);
     overflow-wrap: anywhere;
   }
 
-  .bk-dialog-header-inner {
-    padding-right: 20px;
-    white-space: normal;
+  .t-dialog__footer:not(.t-dialog__footer--fullscreen) {
+    margin: 0 -24px;
+    padding: 7px 24px;
+    background: var(--bklog-surface-disabled);
+    border-top: 1px solid var(--bklog-border-muted);
   }
 
   .un-authorized-help-intro {
     margin: 0 0 20px;
-    font-size: 14px;
+    font-size: var(--bklog-font-action);
+    text-align: left;
   }
 
   .un-authorized-permission-guide {
@@ -357,8 +367,8 @@
   .un-authorized-help-card {
     padding: 16px 18px;
     margin-bottom: 18px;
-    color: #63656e;
-    border: 1px solid #dfe5ee;
+    color: var(--bklog-text-secondary);
+    border: 1px solid var(--bklog-border-muted);
     border-radius: 4px;
 
     h3 {
@@ -366,9 +376,9 @@
       gap: 8px;
       align-items: center;
       margin: 0 0 12px;
-      font-size: 14px;
+      font-size: var(--bklog-font-action);
       font-weight: 500;
-      color: #313238;
+      color: var(--bklog-text-primary);
     }
 
     p {
@@ -378,31 +388,31 @@
     .un-authorized-help-path {
       padding: 8px 12px;
       margin: 0 0 14px;
-      color: #3a84ff;
-      background: #f4f8ff;
+      color: var(--bklog-brand-primary);
+      background: var(--bklog-brand-tint-subtle);
     }
   }
 
   .un-authorized-help-label {
     margin-right: 4px;
-    color: #63656e;
+    color: var(--bklog-text-secondary);
   }
 
   .un-authorized-help-recommended {
     padding: 0 6px;
-    font-size: 12px;
+    font-size: var(--bklog-font-body);
     line-height: 18px;
-    color: #3a84ff;
-    background: #edf4ff;
-    border-radius: 2px;
+    color: var(--bklog-brand-primary);
+    background: var(--bklog-brand-tint-subtle);
+    border-radius: var(--bklog-radius-control);
   }
 
   .un-authorized-help-notice {
     padding: 12px 16px;
     margin: 0;
-    color: #63656e;
-    background: #f0f6ff;
-    border: 1px solid #d6e5ff;
+    color: var(--bklog-text-secondary);
+    background: var(--bklog-brand-tint-subtle);
+    border: 1px solid var(--bklog-brand-tint);
     border-radius: 4px;
   }
 
@@ -415,21 +425,21 @@
       display: list-item;
       padding-left: 0;
       margin-bottom: 16px;
-      font-size: 14px;
+      font-size: var(--bklog-font-action);
       list-style: inherit;
     }
 
     h3 {
       margin: 0 0 6px;
-      font-size: 14px;
+      font-size: var(--bklog-font-action);
       font-weight: 500;
-      color: #313238;
+      color: var(--bklog-text-primary);
     }
 
     p {
       margin: 0;
-      font-size: 14px;
-      color: #63656e;
+      font-size: var(--bklog-font-action);
+      color: var(--bklog-text-secondary);
     }
   }
 
@@ -438,21 +448,23 @@
     gap: 16px;
     align-items: center;
     justify-content: space-between;
-    font-size: 14px;
+    font-size: var(--bklog-font-action);
+    text-align: left;
   }
 
   .un-authorized-help-document {
     display: inline-flex;
     gap: 4px;
     align-items: center;
-    color: #3a84ff;
+    color: var(--bklog-brand-primary);
     text-decoration: none;
+    flex-shrink: 0;
 
     &[href] {
       cursor: pointer;
 
       &:hover {
-        color: #699df4;
+        color: var(--bklog-brand-hover);
       }
     }
   }
@@ -462,13 +474,16 @@
     gap: 12px;
     margin-left: auto;
 
+    .t-button + .t-button {
+      margin-left: 0;
+    }
+
     .t-button .bklog-jump {
       margin-left: 4px;
     }
   }
 
   .bklog-jump {
-    font-size: 12px;
-    transform: translateY(1px);
+    font-size: var(--bklog-font-body);
   }
 }

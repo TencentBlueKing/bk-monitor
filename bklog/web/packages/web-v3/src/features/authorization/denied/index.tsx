@@ -250,7 +250,7 @@ export default defineComponent({
           width={720}
           closeOnOverlayClick={false}
           closeOnEscKeydown={true}
-          class='un-authorized-help-dialog'
+          dialogClassName='un-authorized-help-dialog'
           onClose={handleCloseGuide}
           v-slots={{
             footer: () => (
@@ -267,8 +267,14 @@ export default defineComponent({
                   </a>
                 )}
                 <div class='un-authorized-help-buttons'>
-                  <TButton onClick={handleCloseGuide}>{t('关闭')}</TButton>
                   <TButton
+                    theme='default'
+                    onClick={handleCloseGuide}
+                  >
+                    {t('关闭')}
+                  </TButton>
+                  <TButton
+                    class='bklog-icon-label-button'
                     theme='primary'
                     onClick={isPermission ? handleApplyPermission : handleCreateCollection}
                   >
@@ -389,7 +395,11 @@ export default defineComponent({
               <p>{t('当前账号尚未获得业务或空间的日志访问权限。请联系运维人员开通')}</p>
             </div>
             <div class='un-authorized-actions'>
-              <TButton onClick={handleRetry}>
+              <TButton
+                class='bklog-icon-label-button'
+                theme='default'
+                onClick={handleRetry}
+              >
                 <i class='bklog-icon bklog-refresh-icon' />
                 {t('重新检测权限')}
               </TButton>
@@ -424,6 +434,7 @@ export default defineComponent({
             <div class='un-authorized-actions'>
               {isIndexset ? (
                 <TButton
+                  class='bklog-icon-label-button'
                   theme='primary'
                   onClick={handleCreateCollection}
                 >
@@ -432,6 +443,7 @@ export default defineComponent({
                 </TButton>
               ) : (
                 <TButton
+                  class='bklog-icon-label-button'
                   theme='primary'
                   onClick={handleApplyPermission}
                 >
@@ -450,7 +462,11 @@ export default defineComponent({
                   <i class='bklog-icon bklog-jump' />
                 </a>
               ) : (
-                <TButton onClick={handleRetry}>
+                <TButton
+                  class='bklog-icon-label-button'
+                  theme='default'
+                  onClick={handleRetry}
+                >
                   <i class='bklog-icon bklog-refresh-icon' />
                   {t('重新检测权限')}
                 </TButton>

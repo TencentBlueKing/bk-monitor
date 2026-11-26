@@ -44,6 +44,7 @@ import {
   type DatePickerProps,
   type PopupProps,
 } from 'tdesign-vue-next';
+import forbiddenIllustration from '@/shared/assets/exception/403.svg';
 import BkSearchSelect from '@/shared/ui/bk-search-select';
 import BkTagInput from '@/shared/ui/bk-tag-input';
 import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
@@ -985,7 +986,28 @@ const BkException = defineComponent({
           type: BK_EXCEPTION_TYPE[props.type] || 'empty',
           size: scene === 'page' ? 'large' : 'medium',
         },
-        { title: () => title },
+        {
+          title: () => title,
+          ...(props.type === '403'
+            ? {
+                image: () => h('img', {
+                  src: forbiddenIllustration,
+                  alt: '',
+                  style: {
+                    display: 'block',
+                    maxWidth: '100%',
+                    width: scene === 'page'
+                      ? 'var(--bklog-exception-image-width, 440px)'
+                      : 'var(--bklog-exception-image-part-width, 220px)',
+                    height: scene === 'page'
+                      ? 'var(--bklog-exception-image-height, 200px)'
+                      : 'var(--bklog-exception-image-part-height, 100px)',
+                    objectFit: 'contain',
+                  },
+                }),
+              }
+            : {}),
+        },
       );
     };
   },
