@@ -55,7 +55,6 @@ from . import (
     uptime_check,
     unify_query,
     vm_short_link,
-    vm_query,
     user_query,
 )
 
@@ -106,6 +105,5 @@ __all__ = [
     "uptime_check",
     "unify_query",
     "vm_short_link",
-    "vm_query",
     "user_query",
 ]
