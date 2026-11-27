@@ -139,6 +139,8 @@ export default defineComponent({
     const residentKeysReadyId = shallowRef('');
     /** 目标 tab 的常驻字段还没解析完时先挡住检索栏，避免空条件先挂上再回填 */
     const residentProjecting = shallowRef(false);
+    /** 视图配置失败时没能完成的投影所属的切换代数，配置恢复后据此补一次 */
+    let pendingProjectionSeq = 0;
     /** 调整常驻字段列表时，组件会先抛出值变化；用这份快照把「移除字段」和「清空值」分开 */
     let residentCacheBeforeFieldEdit: null | Record<string, IWhereItem> = null;
     const applicationList = shallowRef<IRumApplication[]>([]);
@@ -326,12 +328,19 @@ export default defineComponent({
       timezone => updateTimezone(timezone)
     );
 
-    /** 首次进入或视角配置刷新后，补齐当前 tab 的常驻字段，用户清空值时才知道该删哪个 key */
+    /** 首次进入或视角配置刷新后，补齐当前 tab 的常驻字段；失败恢复后再补一次投影 */
     watch(
       () => [viewConfigCtx.ready.value, store.mode, store.appName] as const,
-      ([ready]) => {
+      async ([ready]) => {
         if (!ready) return;
-        void resolveAllResidentKeys(modeChangeSeq);
+        const seq = modeChangeSeq;
+        const allKeys = await resolveAllResidentKeys(seq);
+        if (disposed || seq !== modeChangeSeq || pendingProjectionSeq !== seq) return;
+        // 失败期间 where 没有投影，检索栏不能以空条件挂上；这里按目标视角字段补一次
+        pendingProjectionSeq = 0;
+        projectModeQuery(allKeys);
+        residentProjecting.value = false;
+        queryCtx.handleQuery();
       }
     );
 
@@ -449,8 +458,15 @@ export default defineComponent({
       return allKeys;
     }
 
+    /** 按目标视角的可检索字段与常驻字段回填检索条件 */
+    function projectModeQuery(allKeys: string[]) {
+      queryCtx.where.value = queryCtx.projectWhere(viewConfigCtx.retrievalFields.value.map(field => field.name));
+      queryCtx.commonWhere.value = queryCtx.projectResidentWhere(appliedResidentKeys(allKeys));
+    }
+
     function invalidateResidentProjection() {
       modeChangeSeq += 1;
+      pendingProjectionSeq = 0;
       residentProjecting.value = false;
     }
 
@@ -475,6 +491,8 @@ export default defineComponent({
      */
     async function handleModeChange(mode: RumModeType, shouldQuery = true) {
       const seq = ++modeChangeSeq;
+      // 新的切换接管投影：上一次配置失败留下的待补状态作废，共用缓存保持不动
+      pendingProjectionSeq = 0;
       // 切走前把当前 tab 的检索条件写回共用缓存；上一次切换未完成时 where 正等待回填，不能拿空值覆盖缓存
       if (!residentProjecting.value) {
         queryCtx.saveWhereValueCache(viewConfigCtx.retrievalFields.value.map(field => field.name));
@@ -489,12 +507,17 @@ export default defineComponent({
       try {
         const allKeys = await resolveAllResidentKeys(seq);
         if (disposed || seq !== modeChangeSeq) return false;
-        queryCtx.where.value = queryCtx.projectWhere(viewConfigCtx.retrievalFields.value.map(field => field.name));
-        queryCtx.commonWhere.value = queryCtx.projectResidentWhere(appliedResidentKeys(allKeys));
+        // 视图配置失败时字段集合不可信，project 只会把 where 写成空数组；等配置恢复后再补一次
+        if (!viewConfigCtx.ready.value) {
+          pendingProjectionSeq = seq;
+          return false;
+        }
+        projectModeQuery(allKeys);
         if (shouldQuery) queryCtx.handleQuery();
         return true;
       } finally {
-        if (seq === modeChangeSeq) residentProjecting.value = false;
+        // 失败挂起时保持拦截，避免下次切换把这份空 where 当成用户清空写回缓存
+        if (seq === modeChangeSeq && pendingProjectionSeq !== seq) residentProjecting.value = false;
       }
     }
 
@@ -709,11 +732,46 @@ export default defineComponent({
       queryCtx.setUrlParams();
     }
 
-    /** 总趋势图框选 / 复位：与头部时间选择器一致写入时间范围并同步 URL，避免刷新后回到旧区间 */
+    /** 趋势图框选前的区间，用于复位；null 表示没有待复位区间 */
+    let trendRestoreRange: TimeRangeType = null;
+    /** 趋势图上一次框选写入的区间，用于区分自身写入与外部改动 */
+    let trendZoomedRange: TimeRangeType = null;
+    /** 是否展示趋势图复位按钮；趋势图随 configLoading 重建时不清 */
+    const showTrendRestore = shallowRef(false);
+
+    function clearTrendRestore() {
+      trendRestoreRange = null;
+      trendZoomedRange = null;
+      showTrendRestore.value = false;
+    }
+
+    /** 总趋势图框选：先缓存框选前区间供复位，再与头部时间选择器一致写入时间范围并同步 URL */
     function handleTrendDataZoomChange(value: TimeRangeType) {
+      trendRestoreRange = [...store.timeRange];
+      trendZoomedRange = value;
+      showTrendRestore.value = true;
       store.timeRange = value;
       queryCtx.setUrlParams();
     }
+
+    /** 总趋势图复位：回到框选前区间，与框选共用同一写回链路 */
+    function handleTrendRestore() {
+      const restoreRange = trendRestoreRange;
+      if (!restoreRange) return;
+      clearTrendRestore();
+      store.timeRange = restoreRange;
+      queryCtx.setUrlParams();
+    }
+
+    /** 头部时间选择器、URL 初始化和收藏等外部入口改写 timeRange 后，旧区间已失效 */
+    watch(
+      () => store.timeRange,
+      value => {
+        if (!showTrendRestore.value) return;
+        if (JSON.stringify(value) === JSON.stringify(trendZoomedRange)) return;
+        clearTrendRestore();
+      }
+    );
 
     function handleCreateApp() {
       const url = location.href.replace(location.hash, '#/apm/home');
@@ -799,6 +857,7 @@ export default defineComponent({
       queryCtx,
       residentSettingOnlyId,
       resetSignal,
+      showTrendRestore,
       spanTypeCtx,
       tableCtx,
       thumbtackList,
@@ -820,6 +879,7 @@ export default defineComponent({
       handleSpanTypeChange,
       handleThumbtackChange,
       handleTrendDataZoomChange,
+      handleTrendRestore,
       handleCountDrillDown,
       handleCreateApp,
       tagValueDisplayFormatter,
@@ -969,7 +1029,9 @@ export default defineComponent({
                           <RumTrendChart
                             v-slots={{ headerExtra: this.isSpanMode ? undefined : ellipsisModeNode }}
                             commonParams={queryCtx.commonParams.value}
+                            showRestore={this.showTrendRestore}
                             onDataZoomChange={this.handleTrendDataZoomChange}
+                            onRestore={this.handleTrendRestore}
                           />
                         )}
                         <RumExploreView
