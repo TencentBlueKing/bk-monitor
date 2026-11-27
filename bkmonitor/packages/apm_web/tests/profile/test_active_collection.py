@@ -87,6 +87,7 @@ from apm_web.profile.diagrams import get_diagrammer
 from apm_web.profile.diagrams.tree_converter import TreeConverter
 from apm_web.profile.doris.converter import DorisProfileConverter
 from apm_web.profile.views import ProfileQueryViewSet
+from apm_web.tasks import check_active_profiling_lag
 from bkmonitor.iam.drf import ViewBusinessPermission
 
 PROCESS_PREVIEW_REQUEST = {
@@ -219,13 +220,20 @@ def _patch_profile(mocker, profile):
     mocker.patch.object(ProfileDataSource.objects, "filter", return_value=mocker.Mock(first=lambda: profile))
 
 
-def test_meta_config_enabled_when_profile_data_id_exists(mocker):
+@pytest.fixture
+def lag_check(mocker):
+    return mocker.patch("apm_web.profile.active_collection.resources.check_active_profiling_lag.delay")
+
+
+def test_meta_config_enabled_when_profile_data_id_exists(mocker, lag_check):
     _patch_profile(mocker, mocker.Mock(bk_data_id=1001))
     event_group = mocker.patch("core.drf_resource.api.metadata.single_query_event_group")
 
     result = ActiveProfilingMetaConfigResource().request({"bk_biz_id": 2})
 
     assert result == {**META_CONFIG, "enabled": True}
+    # 页面打开时异步判定预计算是否落后，后续列表查询直接读结论
+    lag_check.assert_called_once_with(2)
     # 事件分组与 Profiling 数据源由 enable 一起创建，开通状态只看 Profiling 数据源
     event_group.assert_not_called()
     # parsing 只用于展示主机行，不提供筛选；后台 MySQL 能按 unknown 筛选
@@ -239,11 +247,29 @@ def test_meta_config_enabled_when_profile_data_id_exists(mocker):
 
 
 @pytest.mark.parametrize("bk_data_id", [None, -1])
-def test_meta_config_disabled_until_profile_data_id_exists(mocker, bk_data_id):
+def test_meta_config_disabled_until_profile_data_id_exists(mocker, lag_check, bk_data_id):
     profile = None if bk_data_id is None else mocker.Mock(bk_data_id=bk_data_id)
     _patch_profile(mocker, profile)
 
     assert ActiveProfilingMetaConfigResource().request({"bk_biz_id": 2})["enabled"] is False
+    # 没开通就没有事件分组，不用判定
+    lag_check.assert_not_called()
+
+
+def test_meta_config_returns_when_lag_check_dispatch_fails(mocker, lag_check):
+    _patch_profile(mocker, mocker.Mock(bk_data_id=1001))
+    lag_check.side_effect = ConnectionError("broker unavailable")
+
+    # 页面依赖本接口打开，判定投递失败不影响返回
+    assert ActiveProfilingMetaConfigResource().request({"bk_biz_id": 2})["enabled"] is True
+
+
+def test_check_lag_task_delegates_to_backend_apm(mocker):
+    check = mocker.patch("core.drf_resource.api.apm_api.check_active_profiling_lag")
+
+    check_active_profiling_lag(2)
+
+    check.assert_called_once_with(bk_biz_id=2)
 
 
 def test_enable_delegates_to_backend_apm(mocker):

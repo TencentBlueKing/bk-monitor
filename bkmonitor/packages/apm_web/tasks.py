@@ -144,6 +144,12 @@ def update_application_config(bk_biz_id, app_name, config):
 
 
 @shared_task(ignore_result=True)
+def check_active_profiling_lag(bk_biz_id):
+    """打开主动 Profiling 页面时异步判定预计算是否落后，后台把结论写入缓存，列表查询直接读取，不再同步查 ES"""
+    api.apm_api.check_active_profiling_lag(bk_biz_id=bk_biz_id)
+
+
+@shared_task(ignore_result=True)
 def refresh_application():
     logger.info("[REFRESH_APPLICATION] task start")
 

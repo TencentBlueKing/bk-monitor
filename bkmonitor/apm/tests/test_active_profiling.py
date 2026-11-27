@@ -32,6 +32,7 @@ from apm.models import ActiveProfilingExecution, ActiveProfilingHostExecution, A
 from apm.resources import (
     ACTIVE_PROFILING_QUERY_HANDLERS,
     CancelActiveProfilingExecutionResource,
+    CheckActiveProfilingLagResource,
     DeleteActiveProfilingTaskResource,
     EditActiveProfilingTaskResource,
     EnableActiveProfilingResource,
@@ -264,17 +265,17 @@ def event_es(mocker):
         ]
         return matched[query_body["offset"] : query_body["offset"] + query_body["limit"]]
 
-    # 预计算是否落后的探测默认没落后；判定按业务缓存在进程内，用例前后都清掉
+    # 预计算是否落后的探测默认没落后；判定结论按业务存在共享缓存，用例前后都清掉
     latest_planned = mocker.patch.object(
         ActiveProfilingEventQueryHandler, "query_latest_planned_execution", return_value=None
     )
-    caches["locmem"].clear()
+    caches["default"].clear()
     yield SimpleNamespace(
         events=events,
         query=mocker.patch("bkmonitor.data_source.unify_query.builder.QueryHelper.query", side_effect=query),
         latest_planned=latest_planned,
     )
-    caches["locmem"].clear()
+    caches["default"].clear()
 
 
 @pytest.fixture
@@ -3224,9 +3225,15 @@ def test_reconcile_checks_running_hosts_before_unknown_at(query_rows, event_es):
 LAG_CHECK_RANGE = (NOW_MS - 24 * 3600 * 1000, NOW_MS - 5 * 60 * 1000)
 
 
-def lagging_event_es(event_es):
+def check_lag():
+    """页面打开时 SaaS 异步调用的落后判定，结论写入共享缓存，之后的列表请求读取"""
+    return CheckActiveProfilingLagResource().request({"bk_biz_id": 2})
+
+
+def lagging_event_es(event_es, check=True):
     """预计算停摆：ES 里 5 分钟前已上报的最新一次计划执行（PLANNED_AT），执行表里没有。
-    执行表里最新一次计划执行是 RECENT_AT 的 cron，落后区间从它往前一个运行窗口算起，这次执行也取自 ES"""
+    执行表里最新一次计划执行是 RECENT_AT 的 cron，落后区间从它往前一个运行窗口算起，这次执行也取自 ES。
+    check 为 True 时先做一次落后判定，模拟页面已打开、结论已写入缓存"""
     event_es.latest_planned.return_value = ("cron", PLANNED_AT, 77)
     recent_cron = {"task_id": 12, "scheduled_at": RECENT_AT}
     event_es.events.extend(
@@ -3240,6 +3247,8 @@ def lagging_event_es(event_es):
             ),
         ]
     )
+    if check:
+        assert check_lag() == {"lagging": True}
     return event_es
 
 
@@ -3300,7 +3309,7 @@ def test_lists_merge_lagging_planned_executions_from_es(query_rows, event_es, fa
     ]
     # 总行数为两路之和，切换前后口径一致
     assert (hosts["total"], executions["total"]) == (9, 5)
-    # 只比最新一次计划执行，判定按业务缓存，翻页、换筛选都用同一个结论
+    # 只比最新一次计划执行；列表请求只读页面打开时写入的结论，不再查 ES 判定
     event_es.latest_planned.assert_called_once_with(*LAG_CHECK_RANGE)
     assert fallback_signals.counted() == [
         ("query_hosts", "switch", "lagging"),
@@ -3450,16 +3459,17 @@ def test_lagging_merge_filters_by_overridden_status_and_task_name(query_rows, ev
 
 @pytest.mark.django_db(databases="__all__")
 def test_lagging_keeps_mysql_when_query_excludes_lag_gap(query_rows, event_es, fallback_signals):
-    lagging_event_es(event_es)
+    lagging_event_es(event_es, check=False)
 
-    # 只筛立即执行：落后的只有计划执行，不用查 ES，连落后探测都不做
+    # 只筛立即执行：落后的只有计划执行，不用查 ES，连落后结论都不读
     immediate = QueryActiveProfilingHostsResource().request(
         {**TIME_RANGE, "filters": {"schedule_types": ["immediate"]}}
     )
     assert (host_keys(immediate["data"]), immediate["total"]) == ([(MID_AT, 459), (OLD_AT, 458), (OLD_AT, 456)], 3)
     event_es.latest_planned.assert_not_called()
 
-    # 查询范围在落后区间（RECENT_AT 往前一个运行窗口）之前：只读 MySQL
+    # 已判定落后，查询范围在落后区间（RECENT_AT 往前一个运行窗口）之前：只读 MySQL
+    check_lag()
     before_gap = {**TIME_RANGE, "end_time": MID_AT}
     assert host_keys(QueryActiveProfilingHostsResource().request(before_gap)["data"]) == [
         (MID_AT, 459),
@@ -3586,8 +3596,10 @@ def test_topk_keeps_all_mysql_candidates_when_lagging_es_fails(query_rows, event
 @pytest.mark.django_db(databases="__all__")
 def test_lists_stay_on_mysql_when_latest_planned_execution_written(query_rows, event_es, fallback_signals):
     event_es.latest_planned.return_value = ("cron", RECENT_AT, 12)
+    assert check_lag() == {"lagging": False}
 
     assert host_keys(query_hosts()) == [(RECENT_AT, 457), (RECENT_AT, 456), (MID_AT, 459), (OLD_AT, 458), (OLD_AT, 456)]
+    event_es.latest_planned.assert_called_once()
     assert fallback_signals.counted() == []
 
 
@@ -3596,7 +3608,7 @@ def test_lagging_keeps_mysql_for_queries_es_does_not_support(query_rows, event_e
     event_es.latest_planned.return_value = ("cron", PLANNED_AT, 77)
     event_es.events.extend(planned_execution_events())
 
-    # ES 不支持按 unknown 筛选、带关键字的候选，仍查 MySQL 并补上终态
+    # ES 不支持按 unknown 筛选、带关键字的候选，仍查 MySQL 并补上终态，连落后结论都不读
     assert host_keys(query_hosts(status=["unknown"])) == [(MID_AT, 459)]
     topk = QueryActiveProfilingTopKResource().request({**TIME_RANGE, "field": "task_name", "keyword": "legacy"})
     assert [item["value"] for item in topk] == ["go-cpu-legacy"]
@@ -3608,11 +3620,42 @@ def test_lagging_keeps_mysql_for_queries_es_does_not_support(query_rows, event_e
 def test_lag_check_failure_keeps_mysql_and_is_cached(query_rows, event_es, fallback_signals):
     event_es.latest_planned.side_effect = RuntimeError("unify-query unavailable")
 
-    # 探测失败按没落后处理，结论同样缓存，后续请求不再重试
+    # 判定失败按没落后处理，结论同样缓存
+    assert check_lag() == {"lagging": False}
     assert len(query_hosts()) == 5
     assert len(ListActiveProfilingExecutionsResource().request(TIME_RANGE)["data"]) == 3
     event_es.latest_planned.assert_called_once()
     assert fallback_signals.counted() == []
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_lists_read_mysql_without_lag_conclusion(query_rows, event_es, fallback_signals):
+    lagging_event_es(event_es, check=False)
+
+    # 页面刚打开、异步判定还没写入结论：按没落后只读 MySQL，列表请求不同步查 ES 判定
+    assert host_keys(query_hosts()) == [(RECENT_AT, 457), (RECENT_AT, 456), (MID_AT, 459), (OLD_AT, 458), (OLD_AT, 456)]
+    ListActiveProfilingExecutionsResource().request(TIME_RANGE)
+    QueryActiveProfilingTopKResource().request({**TIME_RANGE, "field": "task_name"})
+    event_es.latest_planned.assert_not_called()
+    assert fallback_signals.counted() == []
+
+    # 页面打开时触发的判定写入结论后，之后的请求合并落后区间内取自 ES 的计划执行
+    check_lag()
+    assert host_keys(query_hosts())[:2] == [(PLANNED_AT, 456), (PLANNED_AT, 457)]
+    assert fallback_signals.counted() == [("query_hosts", "switch", "lagging")]
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_lag_conclusion_is_kept_in_shared_cache_for_five_minutes(query_rows, event_es, mocker):
+    cache_set = mocker.spy(caches["default"], "set")
+    lagging_event_es(event_es)
+
+    # api 有上百个进程，进程内缓存几乎命中不了；结论存在共享缓存里，各进程读同一份
+    handler = ActiveProfilingExecutionQueryHandler(2)
+    key = handler.lag_cache_key(handler.bk_tenant_id, 2)
+    cache_set.assert_called_once_with(key, ("cron", PLANNED_AT, 77), 5 * 60)
+    caches["locmem"].clear()
+    assert host_keys(query_hosts())[:2] == [(PLANNED_AT, 456), (PLANNED_AT, 457)]
 
 
 def test_es_query_latest_planned_execution(host_query_apis):

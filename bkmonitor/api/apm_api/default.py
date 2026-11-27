@@ -348,6 +348,15 @@ class EnableActiveProfilingResource(ApmAPIGWResource):
     method = "POST"
 
 
+class CheckActiveProfilingLagResource(ApmAPIGWResource):
+    """
+    判定主动 Profiling 预计算是否落后，结论写入缓存供列表查询读取
+    """
+
+    action = "/app/apm/profiling/check_active_profiling_lag/"
+    method = "POST"
+
+
 class QueryActiveProfilingHostsResource(ApmAPIGWResource):
     """
     查询主动 Profiling 已采数据

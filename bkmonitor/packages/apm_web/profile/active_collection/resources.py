@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import base64
 import json
+import logging
 import os
 from collections import defaultdict
 
@@ -56,10 +57,13 @@ from apm_web.profile.diagrams import get_diagrammer
 from apm_web.profile.diagrams.tree_converter import TreeConverter
 from apm_web.profile.doris.converter import DorisProfileConverter
 from apm_web.profile.resources import QueryServicesDetailResource
+from apm_web.tasks import check_active_profiling_lag
 from bkmonitor.utils.nodeman import host_queries
 from bkmonitor.utils.version import compare_versions
 from constants.apm import BUILTIN_PROFILING_APP_NAME
 from core.drf_resource import Resource, api, resource
+
+logger = logging.getLogger("apm")
 
 
 class ActiveProfilingMetaConfigResource(Resource):
@@ -68,7 +72,19 @@ class ActiveProfilingMetaConfigResource(Resource):
     RequestSerializer = MetaConfigRequestSerializer
 
     def perform_request(self, validated_request_data):
-        return {**META_CONFIG, "enabled": self._is_enabled(validated_request_data["bk_biz_id"])}
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        enabled = self._is_enabled(bk_biz_id)
+        if enabled:
+            self._check_lag_async(bk_biz_id)
+        return {**META_CONFIG, "enabled": enabled}
+
+    @staticmethod
+    def _check_lag_async(bk_biz_id):
+        """页面打开时异步判定预计算是否落后，列表查询直接读结论；页面依赖本接口打开，不等判定结果，投递失败也不影响"""
+        try:
+            check_active_profiling_lag.delay(bk_biz_id)
+        except Exception:  # pylint: disable=broad-except
+            logger.exception("[ActiveProfiling] trigger precalculate lag check failed, bk_biz_id->[%s]", bk_biz_id)
 
     @staticmethod
     def _is_enabled(bk_biz_id):

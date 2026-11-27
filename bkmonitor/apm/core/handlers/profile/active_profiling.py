@@ -773,14 +773,16 @@ class ActiveProfilingExecutionQueryHandler:
 
     @cached_property
     def _missing_planned_execution(self):
-        """预计算是否落后：Event ES 里 5 分钟前已上报的最新一次计划执行，执行表里没有，说明预计算没处理它，返回它的执行键；
-        没落后返回 None。只比最新一次，之前偶发漏掉的执行不影响判断；按业务缓存，期间翻页、换筛选都用同一个结论；
-        查询失败按没落后处理并同样缓存，避免每个请求都重试"""
-        cache = caches["locmem"]
-        cache_key = self.lag_cache_key(self.bk_tenant_id, self.bk_biz_id)
-        missing_execution = cache.get(cache_key, CACHE_MISS)
-        if missing_execution is not CACHE_MISS:
-            return missing_execution
+        """预计算是否落后：读共享缓存里按业务存的判定结论（check_precalculate_lag 写入），落后时为预计算没处理的那次执行的执行键，
+        没落后为 None。判定要查 Event ES，耗时取决于 ES 集群负载，不放在列表请求里：只在页面打开时异步判定，
+        列表请求期间翻页、换筛选都用同一个结论。结论过期或还没写入时按没落后处理、只读 MySQL，等下次打开页面再判定"""
+        missing_execution = caches["default"].get(self.lag_cache_key(self.bk_tenant_id, self.bk_biz_id), CACHE_MISS)
+        return None if missing_execution is CACHE_MISS else missing_execution
+
+    def check_precalculate_lag(self):
+        """判定预计算是否落后并写入共享缓存，返回判定结论：Event ES 里 5 分钟前已上报的最新一次计划执行，执行表里没有，
+        说明预计算没处理它，结论为它的执行键；没落后为 None。只比最新一次，之前偶发漏掉的执行不影响判断；
+        查询失败按没落后处理并同样缓存，避免反复重试"""
         missing_execution = None
         try:
             latest_execution = self._event_handler.query_latest_planned_execution(
@@ -795,7 +797,11 @@ class ActiveProfilingExecutionQueryHandler:
                     missing_execution = latest_execution
         except Exception:  # pylint: disable=broad-except
             logger.exception("[ActiveProfiling] check precalculate lag failed, bk_biz_id->[%s]", self.bk_biz_id)
-        cache.set(cache_key, missing_execution, ACTIVE_PROFILING_PRECALCULATE_LAG_CACHE_SEC)
+        caches["default"].set(
+            self.lag_cache_key(self.bk_tenant_id, self.bk_biz_id),
+            missing_execution,
+            ACTIVE_PROFILING_PRECALCULATE_LAG_CACHE_SEC,
+        )
         return missing_execution
 
     @staticmethod
