@@ -1,3 +1,18 @@
+import {
+  type ComponentPublicInstance,
+  type Ref,
+  computed,
+  defineComponent,
+  inject,
+  onBeforeMount,
+  shallowRef,
+  useTemplateRef,
+  watch,
+} from 'vue';
+
+import { commonPageSizeSet, convertDurationArray, copyText, tryURLDecodeParse } from 'monitor-common/utils';
+import { safeDecodeQueryString } from 'monitor-common/utils/alarm-center-router';
+import { supportsSpaceDirectoryPages } from 'monitor-common/utils/space-directory';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,20 +38,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import {
-  type ComponentPublicInstance,
-  type Ref,
-  computed,
-  defineComponent,
-  inject,
-  onBeforeMount,
-  shallowRef,
-  useTemplateRef,
-  watch,
-} from 'vue';
-
-import { commonPageSizeSet, convertDurationArray, copyText, tryURLDecodeParse } from 'monitor-common/utils';
-import { safeDecodeQueryString } from 'monitor-common/utils/alarm-center-router';
+import { resolveSelectedSpaces } from 'monitor-common/utils/space-selection';
 import FavoriteBox, {
   type IFavorite,
   type IFavoriteGroup,
@@ -86,6 +88,7 @@ import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 import { useAppStore } from '@/store/modules/app';
 
 import type { SelectOptions } from '@blueking/tdesign-ui/.';
+import type { ISpaceItem } from 'monitor-common/typings';
 
 const ALARM_CENTER_SHOW_FAVORITE = 'ALARM_CENTER_SHOW_FAVORITE';
 
@@ -193,10 +196,34 @@ export default defineComponent({
     /** 已选空间中未开启故障分析功能的 bizId 列表（与 enabledSpaces 取差集） */
     const unconnectedBizIds = computed(() => difference(alarmStore.bizIds, enabledSpaces.value));
 
+    // The incident onboarding view needs the exact count and names of its eligible spaces.
+    const incidentSpaces = shallowRef<ISpaceItem[]>([]);
+    watch(
+      () => [alarmStore.alarmType, alarmStore.bizIds, appStore.bizList] as const,
+      async ([type, ids], _, onCleanup) => {
+        let active = true;
+        onCleanup(() => {
+          active = false;
+        });
+        incidentSpaces.value = [];
+        if (type !== AlarmType.INCIDENT || !ids?.length || !supportsSpaceDirectoryPages()) return;
+        try {
+          const spaces = isVirtualBiz.value
+            ? await window.loadSpaceDirectory()
+            : await resolveSelectedSpaces(ids, appStore.bizList);
+          if (active) incidentSpaces.value = spaces;
+        } catch {
+          // Preserve the incident results if optional onboarding information is unavailable.
+        }
+      },
+      { immediate: true }
+    );
+
     /** 排除无权限空间后的业务列表 */
     const authorizedBizList = computed(() => {
-      if (!appStore.noAuthBizIds.length) return appStore.bizList;
-      return appStore.bizList.filter(({ bk_biz_id }) => !appStore.noAuthBizIds.includes(bk_biz_id));
+      const spaces = supportsSpaceDirectoryPages() ? incidentSpaces.value : appStore.bizList;
+      if (!appStore.noAuthBizIds.length) return spaces;
+      return spaces.filter(({ bk_biz_id }) => !appStore.noAuthBizIds.includes(bk_biz_id));
     });
 
     /** 将 bizList 转换为 SpaceInfo[]，可按 bizId 过滤（已排除无权限空间） */
@@ -797,7 +824,10 @@ export default defineComponent({
      * @param {IssueItem} item - Issue 行数据
      * @param {string} defaultTab - issues详情侧弹 - 告警详情区域内容 - 默认选中的 Tab 页签名
      */
-    const handleIssuesShowDetail = (item: IssueItem, defaultTab?: AlarmCenterPanelTabType) => {
+    const handleIssuesShowDetail = (
+      item: Pick<IssueItem, 'bk_biz_id' | 'id'>,
+      defaultTab?: AlarmCenterPanelTabType
+    ) => {
       alarmDetailDefaultTab.value = defaultTab || '';
       setActiveDetail(item.id, item.bk_biz_id);
       handleDetailShowChange(true);
@@ -1589,10 +1619,7 @@ export default defineComponent({
                 onShowDetail={(issueId: string) => {
                   const bizId = this.mergeSplitIssues[0]?.bk_biz_id;
                   if (bizId == null) return;
-                  this.handleIssuesShowDetail(
-                    { bk_biz_id: bizId, id: issueId } as IssueItem,
-                    ALARM_CENTER_PANEL_TAB_MAP.LOG
-                  );
+                  this.handleIssuesShowDetail({ bk_biz_id: bizId, id: issueId }, ALARM_CENTER_PANEL_TAB_MAP.LOG);
                 }}
                 onSplitSuccess={(memberIssueIds: string[]) => {
                   this.alarmStore.refreshImmediate += 1;

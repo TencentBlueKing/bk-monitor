@@ -1,3 +1,21 @@
+import {
+  type ComponentPublicInstance,
+  computed,
+  ref as deepRef,
+  defineComponent,
+  inject,
+  onMounted,
+  onUnmounted,
+  shallowRef,
+  useTemplateRef,
+  watch,
+} from 'vue';
+
+import { Message } from 'bkui-vue';
+import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
+import { listTraceViewConfig, traceGenerateQueryString } from 'monitor-api/modules/apm_trace';
+import { updateFavorite } from 'monitor-api/modules/model';
+import { copyText, random } from 'monitor-common/utils';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,24 +41,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import {
-  type ComponentPublicInstance,
-  computed,
-  ref as deepRef,
-  defineComponent,
-  inject,
-  onMounted,
-  onUnmounted,
-  shallowRef,
-  useTemplateRef,
-  watch,
-} from 'vue';
-
-import { Message } from 'bkui-vue';
-import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
-import { listTraceViewConfig, traceGenerateQueryString } from 'monitor-api/modules/apm_trace';
-import { updateFavorite } from 'monitor-api/modules/model';
-import { copyText, random } from 'monitor-common/utils';
+import { resolveSelectedSpaces } from 'monitor-common/utils/space-selection';
 import pinyin from 'tiny-pinyin';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -203,49 +204,36 @@ export default defineComponent({
     /** 打开跨业务详情前缓存的业务上下文，关闭时还原 */
     let cachedBizContext: null | { bizId: number; spaceUid?: string } = null;
 
-    const switchBizContextIfNeeded = (bizId?: number) => {
-      if (bizId == null || Number.isNaN(+bizId)) return;
-      const targetBizId = +bizId;
-      const currentBizId = +(window.bk_biz_id || window.cc_biz_id);
-      if (targetBizId === currentBizId) return;
-
-      cachedBizContext = {
-        bizId: currentBizId,
-        spaceUid: window.space_uid,
-      };
-      window.bk_biz_id = targetBizId;
-      window.cc_biz_id = targetBizId;
-      const space = window.space_list?.find(item => +item.bk_biz_id === targetBizId);
-      if (space?.space_uid) {
-        window.space_uid = `${space.space_uid}`;
-      }
-    };
-
+    let contextRevision = 0;
     const restoreBizContextIfNeeded = () => {
+      ++contextRevision;
       if (!cachedBizContext) return;
       window.bk_biz_id = cachedBizContext.bizId;
       window.cc_biz_id = cachedBizContext.bizId;
-      if (cachedBizContext.spaceUid != null) {
-        window.space_uid = cachedBizContext.spaceUid;
-      } else {
-        const space = window.space_list?.find(item => +item.bk_biz_id === cachedBizContext.bizId);
-        if (space?.space_uid) {
-          window.space_uid = `${space.space_uid}`;
-        }
-      }
+      window.space_uid = cachedBizContext.spaceUid;
       cachedBizContext = null;
     };
 
     /** 宿主通过 bridgeProps.slideDetail 打开 Trace 详情侧边窗 */
     watch(
       () => bridgeProps?.slideDetail as null | { appName?: string; bizId?: number; traceId?: string },
-      val => {
-        if (!val?.traceId) {
-          showSlideDetail.value = null;
-          return;
+      async val => {
+        restoreBizContextIfNeeded();
+        showSlideDetail.value = null;
+        if (!val?.traceId) return;
+        const revision = contextRevision;
+        const currentBizId = Number(window.bk_biz_id || window.cc_biz_id);
+        if (val.bizId != null && Number(val.bizId) !== currentBizId) {
+          const [space] = await resolveSelectedSpaces([val.bizId], window.space_list || []).catch(() => []);
+          if (disposed || revision !== contextRevision) return;
+          if (!space?.space_uid) {
+            Message({ theme: 'error', message: t('空间权限检查失败，请重试') });
+            return;
+          }
+          cachedBizContext = { bizId: currentBizId, spaceUid: window.space_uid };
+          window.bk_biz_id = window.cc_biz_id = Number(val.bizId);
+          window.space_uid = space.space_uid;
         }
-        // 仅切换业务上下文；appName 经 slideDetail 传给侧栏，不改 store，避免触发表格/图表重新请求
-        switchBizContextIfNeeded(val.bizId);
         showSlideDetail.value = {
           type: 'trace',
           id: val.traceId,
@@ -682,6 +670,7 @@ export default defineComponent({
 
     onUnmounted(() => {
       disposed = true;
+      restoreBizContextIfNeeded();
       viewConfigRequest += 1;
       queryRequest += 1;
       axiosController.abort();

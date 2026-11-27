@@ -56,10 +56,12 @@ import {
   LANGUAGE_COOKIE_KEY,
   tryURLDecodeParse,
 } from 'monitor-common/utils';
+import { supportsSpaceDirectoryPages } from 'monitor-common/utils/space-directory';
+import { getAuthorizedSpaceContext, resolveSelectedSpaces } from 'monitor-common/utils/space-selection';
 import { random } from 'monitor-common/utils/utils';
 // 20231205 代码还原，先保留原有部分
 import SpaceSelect from 'monitor-pc/components/space-select/space-select';
-import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 import { destroyTimezone, getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
 import * as eventAuth from 'monitor-pc/pages/event-center/authority-map';
 import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
@@ -348,7 +350,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   commonFilterData: ICommonTreeItem[] = INIT_COMMON_FILTER_DATA;
   commonFilterLoading = true;
   /* 默认事件范围为近24小时 */
-  timeRange: TimeRangeType = ['now-7d', 'now'] || DEFAULT_TIME_RANGE;
+  timeRange: TimeRangeType = ['now-7d', 'now'];
   /* 时区 */
   timezone: string = getDefaultTimezone();
   refreshInterval = 5 * 60 * 1000;
@@ -571,7 +573,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   async handleDefaultParamsChange(v: Record<string, any>) {
     if (this.isSplitEventPanel) {
       this.routeStateKeyList = [];
-      Object.keys(v).forEach(key => (this[key] = v[key]));
+      Object.assign(this, v);
       await Promise.all([this.handleGetFilterData(), this.handleGetTableData(true)]);
       this.handleRefreshChange(this.refreshInterval);
     }
@@ -627,9 +629,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         vm[key] = params[key];
       });
       if (vm.bizIds?.length) {
-        vm.showPermissionTips = vm.bizIds
-          .filter(id => ![authorityBizId, hasDataBizId].includes(+id))
-          .some(id => !window.space_list.some(item => item.id === id));
+        const ids = vm.bizIds.filter(id => ![authorityBizId, hasDataBizId].includes(+id));
+        const known = await resolveSelectedSpaces(ids, vm.$store.getters.bizList, true).catch(() => null);
+        vm.showPermissionTips = !!known && ids.some(id => !known.some(item => item.id === +id));
       }
       if (params?.promql?.length) {
         const queryData = await promqlToQueryConfig({
@@ -936,7 +938,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       needMessage: false,
     })
       .then(res => {
-        !onlyOverview && (this.filterInputStatus = 'success');
+        if (!onlyOverview) this.filterInputStatus = 'success';
         return res.data || {};
       })
       .catch(({ error_details, message, code }) => {
@@ -1011,7 +1013,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       code,
     } = await searchAction(params, { needRes: true, needMessage: false })
       .then(res => {
-        !onlyOverview && (this.filterInputStatus = 'success');
+        if (!onlyOverview) this.filterInputStatus = 'success';
         return res.data || {};
       })
       .catch(({ error_details, message, code }) => {
@@ -1077,7 +1079,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       code,
     } = await incidentOverview(this.handleGetSearchParams(onlyOverview), { needRes: true, needMessage: false })
       .then(res => {
-        !onlyOverview && (this.filterInputStatus = 'success');
+        if (!onlyOverview) this.filterInputStatus = 'success';
         return res.data || {};
       })
       .catch(({ code }) => {
@@ -1136,7 +1138,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       }
     )
       .then(res => {
-        !onlyOverview && (this.filterInputStatus = 'success');
+        if (!onlyOverview) this.filterInputStatus = 'success';
         return res.data || {};
       })
       .catch(({ error_details, message, code }) => {
@@ -1564,18 +1566,25 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           if (this.bizIds?.some(id => [authorityBizId, hasDataBizId].includes(id))) {
             this.noDataString = !greyed_spaces?.length
               ? 'incidentRenderAssistant'
-              : this.$t('你当前有 {0} 个空间权限，暂无您负责的故障', [window.space_list.length]);
+              : supportsSpaceDirectoryPages()
+                ? this.$t('暂无您负责的故障')
+                : this.$t('你当前有 {0} 个空间权限，暂无您负责的故障', [window.space_list.length]);
             this.incidentEmptyData = {
-              text: String(window.space_list.length),
-              path: '你当前有 {count} 个空间权限，暂未开启灰度, 请联系 {link}',
+              text: supportsSpaceDirectoryPages() ? '' : String(window.space_list.length),
+              path: supportsSpaceDirectoryPages()
+                ? '暂未开启灰度, 请联系 {link}'
+                : '你当前有 {count} 个空间权限，暂未开启灰度, 请联系 {link}',
             };
           } else {
             const diffBizIds = difference(this.bizIds, greyed_spaces);
             if (diffBizIds?.length) {
               const intersectionBizIds = intersection(this.bizIds, greyed_spaces);
-              const spaces = this.$store.getters.bizList
-                .filter(({ bk_biz_id }) => diffBizIds.includes(bk_biz_id))
-                .map(({ name, space_id }) => `${name} (#${space_id})`);
+              const selected = await resolveSelectedSpaces(diffBizIds, this.$store.getters.bizList).catch(() => []);
+              const byId = new Map(selected.map(space => [Number(space.bk_biz_id), space]));
+              const spaces = diffBizIds.map(id => {
+                const row = byId.get(+id);
+                return row ? `${row.text} (#${row.space_id})` : String(id);
+              });
               this.incidentEmptyData = {
                 text: spaces.join(','),
                 path: '{count} 空间未开启故障分析功能，请联系 {link}',
@@ -1586,7 +1595,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           }
         } else {
           if (!this.bizIds?.some(id => [authorityBizId, hasDataBizId].includes(id))) {
-            this.noDataString = this.$t('你当前有 {0} 个业务权限，暂无告警事件', [window.space_list.length]);
+            this.noDataString = supportsSpaceDirectoryPages()
+              ? this.$t('暂无告警事件')
+              : this.$t('你当前有 {0} 个业务权限，暂无告警事件', [window.space_list.length]);
           } else {
             this.noDataString = '';
           }
@@ -1668,29 +1679,26 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       if (item !== this[key]) {
         if (typeof this[key] === 'object') {
           if (Array.isArray(this[key]) && this[key].length === 0) {
-            return false;
+            return;
           }
           if (Object.keys(this[key]).length === 0) {
-            return false;
+            return;
           }
           if (!Array.isArray(this[key])) {
             newData[key] = JSON.stringify(this[key]);
             return;
           }
           if (key === 'activeFilter' && this[key].id === 'alert') {
-            return false;
+            return;
           }
         }
         newData[key] = this[key];
       }
       if (['from', 'to'].includes(key)) {
-        key === 'from' && ([newData[key]] = this.timeRange);
-        // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
-        key === 'to' && ([, newData[key]] = this.timeRange);
+        newData[key] = this.timeRange[key === 'from' ? 0 : 1];
       } else if (key === 'timezone') {
         newData[key] = this.timezone;
       }
-      return false;
     });
     return newData;
   }
@@ -2449,7 +2457,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       bizList = this.allowedBizList.filter(item => item.noAuth).map(item => item.id);
     }
     if (!bizList?.length) return;
+    const contextBiz = await getAuthorizedSpaceContext(this.$store.getters.bizList);
     const applyObj = await checkAllowed({
+      ...(contextBiz != null ? { bk_biz_id: contextBiz } : {}),
       action_ids: [
         'view_business_v2',
         'manage_event_v2',
@@ -2816,6 +2826,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
                 needIncidentOption={this.isIncident}
                 spaceList={this.$store.getters.bizList}
                 value={this.bizIds}
+                remote
                 onApplyAuth={this.handleCheckAllowedByIds}
                 onChange={this.handleBizIdsChange}
               />

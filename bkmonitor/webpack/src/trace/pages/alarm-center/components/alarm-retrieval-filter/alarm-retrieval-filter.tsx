@@ -227,6 +227,7 @@ export default defineComponent({
                   needIncidentOption={this.needIncidentOption}
                   spaceList={this.bizList}
                   value={this.bizIds}
+                  remote
                   onApplyAuth={this.handleCheckAllowedByIds}
                   onChange={this.handleBizIdsChange}
                   onChangeChoiceType={this.handleChangeChoiceType}
