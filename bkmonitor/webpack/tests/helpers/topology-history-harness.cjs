@@ -59,7 +59,9 @@ function timelineHarness(response) {
   const timeline = useTopoTimeline(state, { topoRawDataCache: { value: cache }, findEdges: (es, e) => es.find(x => identity(x) === identity(e)), clearRefreshTimeout() {}, handleChangeRefleshTime() {} }, { getGraph: () => graph }, () => {});
   return { timeline, nodes, edges, combos, cache, state };
 }
-function renderGraphHarness() {
+function renderGraphHarness(timelineCache = { diff: [], complete: { nodes: [], edges: [], combos: [] } }) {
+  const cache = structuredClone(timelineCache);
+  history.prepareHistoryFrames(cache.diff ?? []);
   const source = ts.createSourceFile(
     'use-topo-graph.ts',
     fs.readFileSync(path.join(base, 'composables/use-topo-graph.ts'), 'utf8'),
@@ -85,6 +87,7 @@ function renderGraphHarness() {
     let visible = true;
     return {
       model: { ...model },
+      _cfg: { visible: true },
       getModel() {
         return this.model;
       },
@@ -93,9 +96,11 @@ function renderGraphHarness() {
       },
       show() {
         visible = true;
+        this._cfg.visible = true;
       },
       hide() {
         visible = false;
+        this._cfg.visible = false;
       },
       getEdges() {
         return edgeItems.filter(edge => edge.model.source === this.model.id || edge.model.target === this.model.id);
@@ -111,6 +116,10 @@ function renderGraphHarness() {
       for (const item of [...nodeItems, ...edgeItems, ...comboItems]) items.set(item.model.id, item);
     },
     render() {},
+    get(key) {
+      // 测试桩中 Graph 始终未销毁；版本号校验已覆盖卸载场景，此处仅满足接口契约
+      return key === 'destroyed' ? false : undefined;
+    },
     findById(id) {
       return items.get(id);
     },
@@ -123,11 +132,21 @@ function renderGraphHarness() {
     getCombos() {
       return comboItems;
     },
+    showItem(item) {
+      item?.show?.();
+    },
+    hideItem(item) {
+      item?.hide?.();
+    },
+    updateItem(item, model) {
+      item.model = { ...item.model, ...model };
+    },
     setItemState(item, state) {
       if (state === 'running') item?.show?.();
     },
   };
   const ref = value => ({ value });
+  const initialTimelinePosition = Math.max(0, (cache.diff?.length ?? 1) - 1);
   const timelineState = {
     isPlay: ref(false),
     refreshTime: ref(-1),
@@ -135,13 +154,13 @@ function renderGraphHarness() {
     resourceNodeId: ref(''),
     showResourceGraph: ref(false),
     showServiceOverview: ref(false),
-    timelinePosition: ref(0),
+    timelinePosition: ref(initialTimelinePosition),
   };
   const { useTopoTimeline } = load('composables/use-topo-timeline.ts');
   const timeline = useTopoTimeline(
     timelineState,
     {
-      topoRawDataCache: ref({ diff: [] }),
+      topoRawDataCache: ref(cache),
       findEdges: () => undefined,
       clearRefreshTimeout() {},
       handleChangeRefleshTime() {},
@@ -161,12 +180,12 @@ function renderGraphHarness() {
     resourceNodeId: ref(''),
     rootComboMovePoint: ref({ x: null, y: null }),
     resizeCacheCallback: ref(null),
-    timelinePosition: ref(0),
+    timelinePosition: ref(initialTimelinePosition),
     tooltipCompRef: ref({}),
     zoomValue: ref(1),
   };
   const topoData = {
-    topoRawDataCache: ref({ complete: { nodes: [], edges: [], combos: [] } }),
+    topoRawDataCache: ref(cache),
     resolveLayout: async data => ({ data, layouted: null }),
     moveToCenterIfNeeded() {},
   };
@@ -185,6 +204,8 @@ function renderGraphHarness() {
     't',
     'localStorage',
     'setTimeout',
+    'renderVersion',
+    'toFrontEdgeTimer',
     `${code}; return renderGraph;`
   )(
     () => graph,
@@ -195,7 +216,9 @@ function renderGraphHarness() {
     timeline,
     value => value,
     { getItem: () => null },
-    () => {}
+    () => {},
+    0,
+    null
   );
   return { renderGraph, nodes: () => nodeItems, edges: () => edgeItems, combos: () => comboItems };
 }

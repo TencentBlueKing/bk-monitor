@@ -120,17 +120,49 @@ test('nested combo playback does not recursively restore a deleted node', () => 
   assert.equal(h.nodes.find(item => item.model.id === 'later-pod').isVisible(), true);
   assert.equal(h.combos.find(item => item.model.id === '1').isVisible(), true);
 });
-test('automatic refresh redraws an existing graph with the latest topology', async () => {
+test('automatic refresh passes complete topology data to the redraw callback', async () => {
   const currentNode = { ...service, entity: { ...service.entity, is_root: true, entity_id: 'service' } };
+  const nestedNode = { ...pod, comboId: '0', subComboId: '1' };
   const response = {
-    latest: { nodes: [currentNode], edges: [], combos: [{ id: '0' }] },
-    complete: { nodes: [currentNode], edges: [], combos: [{ id: '0' }], sub_combos: [] },
-    diff: [frame([currentNode])],
+    latest: { nodes: [currentNode, nestedNode], edges: [], combos: [{ id: '0' }] },
+    complete: {
+      nodes: [currentNode, nestedNode],
+      edges: [],
+      combos: [{ id: '0' }],
+      sub_combos: [{ id: '1', comboId: '0' }],
+    },
+    diff: [frame([currentNode, nestedNode]), frame([{ ...nestedNode, is_deleted: true }])],
   };
   const h = await autoRefreshHarness(response);
+  const renderData = h.renders[0].renderData;
   assert.equal(h.renders.length, 1);
   assert.equal(h.renders[0].renderComplete, true);
-  assert.equal(h.data.topoRawData.value.nodes[0].id, 'service');
+  assert.equal(renderData, h.data.topoRawDataCache.value.complete);
+  assert.equal(renderData.sub_combos.length, 1);
+  assert.equal(renderData.nodes.find(item => item.id === 'pod').comboId, 'ComboId_0');
+  assert.equal(renderData.nodes.find(item => item.id === 'pod').subComboId, 'ComboId_1');
+});
+test('automatic redraw reapplies the current historical frame after layout', async () => {
+  const current = { id: 'service', comboId: 'root', subComboId: '', entity: { is_root: true, entity_id: 'service' } };
+  const deleted = { id: 'pod', comboId: 'root', subComboId: 'nested' };
+  const complete = {
+    nodes: [current, deleted],
+    edges: [],
+    combos: [
+      { id: 'root' },
+      { id: 'nested', parentId: 'root', entity: { entity_id: 'nested' } },
+    ],
+    sub_combos: [{ id: 'nested', comboId: 'root' }],
+  };
+  const h = renderGraphHarness({
+    complete,
+    diff: [frame([current, deleted]), frame([{ ...deleted, is_deleted: true }])],
+  });
+  await h.renderGraph(complete, true);
+  assert.equal(h.nodes().find(item => item.model.id === 'service').isVisible(), true);
+  assert.equal(h.nodes().find(item => item.model.id === 'pod').isVisible(), false);
+  assert.equal(h.combos().find(item => item.model.id === 'nested').isVisible(), false);
+  assert.equal(h.combos().find(item => item.model.id === 'root').isVisible(), true);
 });
 // Production archives stay local; run the same assertions on every independently rendered frame.
 if (process.env.TOPOLOGY_ARCHIVE_DIR) test('private stored history: latest and all historical categories match saved frames', () => {

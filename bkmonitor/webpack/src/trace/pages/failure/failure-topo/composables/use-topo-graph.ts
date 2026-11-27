@@ -206,6 +206,15 @@ export function useTopoGraph(
   /** 获取当前 Graph 实例（undefined 表示尚未初始化） */
   const getGraph = () => state.graphInstanceRef.value;
 
+  /**
+   * 渲染版本号：每次 renderGraph 入口自增，cleanupGraph 时再次自增。
+   * 用于在异步布局完成、延迟回调执行前校验当前渲染是否仍然有效，
+   * 避免组件卸载后访问已销毁 Graph，或后完成的旧渲染覆盖新渲染。
+   */
+  let renderVersion = 0;
+  /** toFrontAnomalyEdge 延迟定时器句柄，cleanupGraph 时显式清理，避免卸载后触发 */
+  let toFrontEdgeTimer: null | ReturnType<typeof setTimeout> = null;
+
   // ---------------------------------------------------------------------------
   // 渲染数据
   // ---------------------------------------------------------------------------
@@ -215,9 +224,13 @@ export function useTopoGraph(
     const graph = getGraph();
     if (!graph) return;
     clearEdgeIntervals();
+    /** 捕获当前渲染版本号；布局完成时若版本已过期或 Graph 已销毁，直接跳过，
+     *  避免自动刷新/聚合等并发场景下后完成的旧渲染覆盖新渲染，或卸载后访问已销毁实例。 */
+    const myVersion = ++renderVersion;
     return Promise.resolve()
       .then(() => topoData.resolveLayout(renderData))
       .then(resp => {
+        if (myVersion !== renderVersion || graph.get('destroyed')) return;
         // LayoutInput 与 G6 GraphData 字段对齐，断言后写入画布
         graph.data(resp.data as GraphData);
         graph.render();
@@ -240,23 +253,32 @@ export function useTopoGraph(
           state.graphRef.value!.clientWidth,
           state.graphRef.value!.clientHeight
         );
-        // biome-ignore lint/complexity/noForEach: <explanation>
+        // biome-ignore lint/complexity/noForEach: preserve existing graph item iteration
         renderData.nodes.forEach(node => {
           if (node.is_deleted) {
             const deleteNode = graph.findById(node.id) as INode;
             if (!deleteNode) return;
-            // biome-ignore lint/complexity/noForEach: <explanation>
-            deleteNode.getEdges().forEach(edge => edge.hide());
+            // biome-ignore lint/complexity/noForEach: preserve existing graph item iteration
+            deleteNode.getEdges().forEach(edge => {
+              edge.hide();
+            });
             deleteNode.hide();
           }
         });
         /** 节点删除态处理完后同步嵌套及顶层 combo 显隐，避免留下空层级框 */
         timeline.applyNestedComboVisibility();
         timeline.applyRootComboVisibility();
-        /** 布局渲染完将边置于顶层 */
-        setTimeout(interaction.toFrontAnomalyEdge, 500);
+        /** 重绘后按当前时间轴帧恢复节点、边和 Combo 显隐；init=true 避免位置未变化时提前返回 */
+        timeline.handleTimelineChange(state.timelinePosition.value, true, true);
+        /** 布局渲染完将边置于顶层；存句柄以便卸载时清理，执行前再校验版本，避免卸载后触发 */
+        if (toFrontEdgeTimer !== null) clearTimeout(toFrontEdgeTimer);
+        toFrontEdgeTimer = setTimeout(() => {
+          if (myVersion !== renderVersion) return;
+          interaction.toFrontAnomalyEdge();
+        }, 500);
       })
       .catch(() => {
+        if (myVersion !== renderVersion) return;
         state.errorData.value = { isError: true, isNoData: false, msg: t('图谱布局失败，请刷新重试') };
       });
   };
@@ -283,7 +305,7 @@ export function useTopoGraph(
     // getModel() 返回 G6 ModelConfig，业务层按 ITopoCombo 使用
     const combosList = graph.getCombos().map(combo => combo.getModel()) as ITopoCombo[];
     ElkjsUtils.setRootComboStyle(combosList, width, !(graphWidth - width > 450));
-    // biome-ignore lint/complexity/noForEach: <explanation>
+    // biome-ignore lint/complexity/noForEach: preserve existing graph item iteration
     graph.getCombos().forEach(combo => {
       if (!combo.getModel()?.parentId) {
         const com = combosList.find(c => c.id === combo.getID());
@@ -315,7 +337,7 @@ export function useTopoGraph(
     if (state.resourceNodeId.value) {
       const isNavSelectNode = interaction.navSelectNode.value.some(node => node.id === state.resourceNodeId.value);
       if (isNavSelectNode) {
-        // biome-ignore lint/complexity/noForEach: <explanation>
+        // biome-ignore lint/complexity/noForEach: preserve existing graph item iteration
         interaction.navSelectNode.value.forEach(node => {
           graph.setItemState(graph.findById(node.id), 'running', true);
         });
@@ -325,7 +347,7 @@ export function useTopoGraph(
       node && graph.setItemState(node, 'running', true);
     }
     if (!state.resourceEdgeId.value) {
-      // biome-ignore lint/complexity/noForEach: <explanation>
+      // biome-ignore lint/complexity/noForEach: preserve existing graph item iteration
       graph.getEdges().forEach(edge => {
         edge && graph.setItemState(edge, 'highlight', false);
       });
@@ -562,7 +584,7 @@ export function useTopoGraph(
       const { item } = event;
       graph.setAutoPaint(false);
       /** 根据边的关系设置节点状态 */
-      // biome-ignore lint/complexity/noForEach: <explanation>
+      // biome-ignore lint/complexity/noForEach: preserve existing graph item iteration
       graph.getEdges().forEach(edge => {
         if (edge.getSource() === item) {
           graph.setItemState(edge, 'dark', true);
@@ -574,7 +596,7 @@ export function useTopoGraph(
           graph.setItemState(edge, 'dark', false);
         }
       });
-      // biome-ignore lint/complexity/noForEach: <explanation>
+      // biome-ignore lint/complexity/noForEach: preserve existing graph item iteration
       graph.getNodes().forEach(node => {
         graph.clearItemStates(node, ['dark', 'highlight']);
         graph.setItemState(node, 'dark', true);
@@ -635,6 +657,11 @@ export function useTopoGraph(
 
   /** 清理 G6 资源（动画、resize 监听、Graph 实例），由主文件在 onUnmounted 中调用 */
   const cleanupGraph = () => {
+    /** 版本号自增，使在飞的 renderGraph Promise 完成后不再写入画布，避免卸载后访问已销毁 Graph */
+    renderVersion++;
+    /** 清理 toFrontAnomalyEdge 延迟回调，避免卸载后触发 */
+    if (toFrontEdgeTimer !== null) clearTimeout(toFrontEdgeTimer);
+    toFrontEdgeTimer = null;
     clearAllG6Animations();
     const graphEl = state.graphRef.value;
     graphEl && removeListener(graphEl as HTMLElement, onResize);
