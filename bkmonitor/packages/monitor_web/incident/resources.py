@@ -41,10 +41,12 @@ from bkmonitor.views import serializers
 from bkm_space.scope import MONITOR_SCOPE_QUERY_SENTINELS, bk_biz_id_to_scope_id, scope_id_to_bk_biz_id
 from constants.alert import EVENT_STATUS_DICT, EventStatus
 from constants.incident import (
+    BKFARA_NOTICE_SOURCE,
     IncidentAlertAggregateDimension,
     IncidentOperationClass,
     IncidentOperationType,
     IncidentStatus,
+    NOTICE_SOURCE_KEY,
 )
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
@@ -68,7 +70,7 @@ class IncidentBaseResource(Resource):
     故障相关资源基类
     """
 
-    BKFARA_NOTICE_SOURCE = "bkfara"
+    BKFARA_NOTICE_SOURCE = BKFARA_NOTICE_SOURCE
     REMOTE_INCIDENT_UPDATE_FIELDS = {
         "incident_id",
         "bk_biz_id",
@@ -90,7 +92,7 @@ class IncidentBaseResource(Resource):
 
     @classmethod
     def is_bkfara_incident(cls, incident: IncidentDocument) -> bool:
-        return cls.get_incident_extra_info(incident).get("notice_source") == cls.BKFARA_NOTICE_SOURCE
+        return cls.get_incident_extra_info(incident).get(NOTICE_SOURCE_KEY) == cls.BKFARA_NOTICE_SOURCE
 
     @classmethod
     def get_remote_incident_api(cls, incident: IncidentDocument):

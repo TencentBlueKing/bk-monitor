@@ -13,6 +13,15 @@ from django.utils.translation import gettext_lazy as _lazy
 from api.bkdata.default import UpdateIncidentDetail
 from constants.common import CustomEnum
 
+# Incident synchronization wire values; keep these stable across producer/consumer releases.
+NOTICE_SOURCE_KEY = "notice_source"
+BKFARA_NOTICE_SOURCE = "bkfara"
+ASSIGNEE_SOURCE_KEY = "assignee_source"
+CMDB_HOST_ASSIGNEE_SOURCE = "cmdb_host"
+HOST_OWNERSHIP_EVENT_ID_KEY = "host_ownership_event_id"
+HOST_OWNERSHIP_REVISION_KEY = "host_ownership_revision"
+
+
 INCIDENT_ATTRIBUTE_ALIAS_MAPPINGS = {
     field_name: field.label for field_name, field in UpdateIncidentDetail.RequestSerializer().get_fields().items()
 }
@@ -66,7 +75,8 @@ class IncidentLevel(CustomEnum):
         }
         return incident_level_map[self.value]
 
-incident_status_map = {status.value:status.alias for status in list(IncidentStatus)}
+
+incident_status_map = {status.value: status.alias for status in list(IncidentStatus)}
 INCIDENT_ATTRIBUTE_VALUE_ENUMS = {
     "status": IncidentStatus,
     "level": IncidentLevel,

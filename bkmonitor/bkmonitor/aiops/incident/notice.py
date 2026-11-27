@@ -9,21 +9,34 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import re
+from html import escape
 import time
 from datetime import datetime
 from urllib.parse import quote, urlencode
 
 import arrow
+from markupsafe import Markup
 from django.conf import settings
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.incident import IncidentDocument
+from bkmonitor.aiops.incident.delivery import dispatch_once, digest
+from bkmonitor.aiops.incident.ownership import normalize_host_owners
 from bkmonitor.utils.send import IncidentSender
 from constants.action import NoticeWay
 from constants.alert import EventStatus
-from constants.incident import IncidentStatus, IncidentLevel, IncidentOperationType
+from constants.incident import (
+    ASSIGNEE_SOURCE_KEY,
+    BKFARA_NOTICE_SOURCE,
+    CMDB_HOST_ASSIGNEE_SOURCE,
+    IncidentLevel,
+    IncidentOperationType,
+    IncidentStatus,
+    NOTICE_SOURCE_KEY,
+)
 from core.drf_resource import api
 from core.errors.alert import AlertNotFoundError
 
@@ -143,6 +156,15 @@ class IncidentNoticeHelper:
             else link_incident_name
         )
 
+        markdown = kwargs.get("notice_way") in getattr(settings, "MD_SUPPORTED_NOTICE_WAYS", [NoticeWay.WX_BOT])
+        if markdown:
+            incident_display_name = cls.escape_markdown_text(incident_display_name)
+            link_incident_display_name = cls.escape_markdown_text(link_incident_display_name)
+            incident_key_alias = cls.escape_markdown_text(incident_key_alias)
+            from_value = cls.escape_markdown_text(from_value)
+            to_value = cls.escape_markdown_text(to_value)
+            merge_alert_count = cls.escape_markdown_text(merge_alert_count) if merge_alert_count else None
+
         # 构建故障详情URL
         url = cls._get_incident_url(incident)
         link_incident_url = (
@@ -201,7 +223,8 @@ class IncidentNoticeHelper:
 
         context = {
             "title": title,
-            "subtitle": subtitle,
+            # Names and update values were escaped before composing trusted diagnostic links.
+            "subtitle": Markup(subtitle) if markdown else subtitle,
             "incident_name": incident_display_name or _("未命名故障"),
             "level": level,
             "begin_time": duration_info["duration_range"][0],
@@ -386,7 +409,7 @@ class IncidentNoticeHelper:
         extra_info = incident.extra_info or {}
         if hasattr(extra_info, "to_dict"):
             extra_info = extra_info.to_dict()
-        if extra_info.get("notice_source") != "bkfara":
+        if extra_info.get(NOTICE_SOURCE_KEY) != BKFARA_NOTICE_SOURCE:
             return ""
 
         scope_id = extra_info.get("scope_id")
@@ -407,7 +430,7 @@ class IncidentNoticeHelper:
             extra_info = extra_info.to_dict()
         scope_id = extra_info.get("scope_id")
         site_url = settings.BK_INCIDENT_SAAS_HOST.rstrip("/")
-        if extra_info.get("notice_source") != "bkfara" or not scope_id or not site_url:
+        if extra_info.get(NOTICE_SOURCE_KEY) != BKFARA_NOTICE_SOURCE or not scope_id or not site_url:
             return ""
 
         # 降噪配置属于空间，无需等待分析任务生成，也不能用监控业务 ID 推测空间。
@@ -459,6 +482,13 @@ class IncidentNoticeHelper:
             if not notice_way or not isinstance(channel_config, dict) or not channel_config.get("is_select"):
                 continue
             receivers = cls._resolve_config_receivers(incident, channel_config)
+            extra_info = getattr(incident, "extra_info", None) or {}
+            if (
+                extra_info.get(NOTICE_SOURCE_KEY) == BKFARA_NOTICE_SOURCE
+                and extra_info.get(ASSIGNEE_SOURCE_KEY) == CMDB_HOST_ASSIGNEE_SOURCE
+                and notice_way in {NoticeWay.QY_WEIXIN, NoticeWay.MAIL, NoticeWay.SMS, NoticeWay.VOICE}
+            ):
+                receivers = sorted(set(receivers) | set(normalize_host_owners(incident.assignees)))
             if receivers:
                 targets.append(
                     {
@@ -522,16 +552,37 @@ class IncidentNoticeHelper:
         configured_targets = cls._get_configured_notice_targets(incident, notice_config=notice_config)
         if configured_targets:
             for target in configured_targets:
-                result = cls._send_notice_by_way(
-                    incident=incident,
-                    notice_way=target["notice_way"],
-                    receivers=target["receivers"],
-                    title=title,
-                    operation_type=operation_type,
-                    **kwargs,
-                )
+
+                def send(receivers):
+                    return cls._send_notice_by_way(
+                        incident=incident,
+                        notice_way=target["notice_way"],
+                        receivers=receivers,
+                        title=title,
+                        operation_type=operation_type,
+                        **kwargs,
+                    )
+
+                event_key = kwargs.get("notice_event_key")
+                if event_key:
+                    # One operation can share an event with another; isolate their receipts.
+                    operation_key = digest(
+                        [event_key, getattr(operation_type, "value", operation_type), kwargs.get("incident_key")]
+                    )
+                    result = {}
+                    for receiver in target["receivers"]:
+                        result.update(
+                            dispatch_once(
+                                operation_key,
+                                target["notice_way"],
+                                receiver,
+                                lambda receiver=receiver: send([receiver]),
+                            )
+                        )
+                else:
+                    result = send(target["receivers"])
                 if result:
-                    all_results[target["notice_way"]] = result
+                    all_results.setdefault(target["notice_way"], {}).update(result)
             return all_results
 
         # 1. 发送企业微信群机器人通知
@@ -561,6 +612,21 @@ class IncidentNoticeHelper:
 
         return all_results
 
+    @staticmethod
+    def escape_markdown_text(value):
+        if isinstance(value, Markup):
+            return value
+        # The renderer recognizes Markup, so escaped text is not escaped a second time.
+        value = escape(str(value or ""))
+        return Markup(re.sub(r"([\\`*_{}\[\]()#+|>~])", r"\\\1", value))
+
+    @classmethod
+    def prepare_notice_context(cls, context, notice_way):
+        context["notice_way"] = notice_way
+        if notice_way in getattr(settings, "MD_SUPPORTED_NOTICE_WAYS", [NoticeWay.WX_BOT]):
+            for key in ("incident_reason", "assignees", "incident_name"):
+                context[key] = cls.escape_markdown_text(context.get(key))
+
     @classmethod
     def _send_wxwork_bot_notice(
         cls,
@@ -589,7 +655,10 @@ class IncidentNoticeHelper:
 
         try:
             # 构建通知上下文
-            context = cls.get_incident_context(incident, title, operation_type, **kwargs)
+            context = cls.get_incident_context(
+                incident, title, operation_type, **{**kwargs, "notice_way": NoticeWay.WX_BOT}
+            )
+            cls.prepare_notice_context(context, NoticeWay.WX_BOT)
 
             # 创建发送器
             sender = IncidentSender(
@@ -646,7 +715,7 @@ class IncidentNoticeHelper:
 
         try:
             # 构建通知上下文
-            context = cls.get_incident_context(incident, title, operation_type, **kwargs)
+            context = cls.get_incident_context(incident, title, operation_type, **{**kwargs, "notice_way": notice_way})
 
             # 根据通知方式选择模板
             if notice_way == NoticeWay.MAIL:
@@ -662,6 +731,7 @@ class IncidentNoticeHelper:
                 title_template = "notice/incident/markdown_title.jinja"
                 content_template = "notice/incident/markdown_content.jinja"
 
+            cls.prepare_notice_context(context, notice_way)
             # 创建发送器
             sender = IncidentSender(
                 context=context,
