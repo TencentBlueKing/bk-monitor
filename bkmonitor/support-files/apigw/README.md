@@ -16,7 +16,7 @@ bk_monitor
 
 #### 注意事项
 1. 为了尽可能减少未来的兼容性压力和管理成本，我们只开放必要的接口给外部使用。
-2. 内部接口的 isPublic 属性为 false，外部接口的 isPublic 属性为 true。
+2. 内部接口的 isPublic 属性为 false，外部接口的 isPublic 属性为 true。例外：显式开启 `oauth2PersonalClientEnabled` 的内部接口会被设为公开，否则用户无法在个人令牌授权范围中选择。
 3. 内部接口的 allowApplyPermission 属性为 false，外部接口的 allowApplyPermission 属性为 true。
 4. 内部接口的定义在 `/resources/internal` 目录下，外部接口的定义在 `/resources/external` 目录下。
 
@@ -115,6 +115,8 @@ python manage.py sync_apigw
 `oauth2PersonalClientEnabled: true`（API 网关 1.24 支持，未配置默认为 false），同时保留
 `userVerifiedRequired: true`。合并脚本保留该字段；修改后需要同步资源、生成版本并发布，
 本地 YAML 变化不代表线上已经生效。个人令牌只提供身份，不授予工具或资源权限。
+开启后合并脚本会把该接口设为公开（`isPublic: true`），用户可在文档中心查看并在个人令牌授权范围中选择；
+运维诊断、运营数据等不应对外的接口不要开启该字段。
 
 监控 middleware 使用现有 `ToolRegistry` 的后端方法与路径识别只读工具，不要求客户端添加
 MCP 来源 Header。命中工具必须具有已验证的网关用户与租户，再进入与 Unified 共用的执行逻辑。
