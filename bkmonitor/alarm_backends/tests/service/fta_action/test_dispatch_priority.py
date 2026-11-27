@@ -296,6 +296,34 @@ def test_legacy_itsm_requires_enabled_notice_to_use_rule_groups(notice_actions):
     assert manager.get_itsm_actions() == {42: []}
 
 
+@pytest.mark.parametrize("actions", [[], [action("notice", is_enabled=False)]])
+def test_empty_legacy_rule_keeps_strategy_notice_suppressed(actions):
+    empty = rule(1, 100, *actions, user_groups=[8])
+    manager = run_preview([[empty]])
+    assert [hit.rule_id for hit in manager.matched_rules] == [1]
+    assert manager.matched_rules[0].overrides_notice
+    assert not manager.get_notice_user_groups()
+    assert manager.matched_rule_info["matched_rules"][0]["action_types"] == []
+    assert "1" in manager.new_rule_snaps
+
+    only_default = run_preview([[empty]], assign_mode=[AssignMode.ONLY_NOTICE])
+    assert not only_default.matched_rules
+
+
+def test_empty_legacy_rule_allows_lower_actions_and_keeps_first_tier_attributes():
+    empty = rule(1, 100)
+    ai = rule(2, 90, action("ai_analysis", user_groups=[9]))
+    notice = rule(3, 80, action("notice"), user_groups=[8], alert_severity=1)
+    manager = run_preview([[empty], [ai], [notice]])
+    assert manager.get_notice_user_groups() == {8}
+    assert manager.matched_rule_info["dispatch_result"]["ai_analysis"] == {"user_groups": [9]}
+    assert manager.matched_rule_info["severity"] == manager.origin_severity
+
+    noise = run_preview([[empty], [rule(4, 90, action("noise"))]])
+    assert noise.matched_rule_info["dispatch_result"]["noise"]
+    assert noise.matched_group_info["group_id"] == 90
+
+
 def test_pure_ai_does_not_override_strategy_notice_or_claim_legacy_attributes():
     ai = rule(1, 30, action("ai_analysis", user_groups=[]), user_groups=[8])
     manager = run_preview([[ai]])

@@ -204,10 +204,14 @@ class AssignRuleMatch:
     def itsm_action(self):
         return self.actions.get(ActionPluginType.ITSM)
 
-    @property
-    def has_attributes(self):
-        # 旧分派的级别、标签沿用第一个命中层。只有新增动作的规则不抢占这层。
-        return bool(self.actions.keys() & LEGACY_ACTION_TYPES or self.alert_severity or self.additional_tags)
+    def uses_legacy_tier(self, *, noise_won=False):
+        # 旧空动作规则命中后仍接管默认通知。仅 AI 的规则不占用旧分派层。
+        return bool(
+            self.actions.keys() & LEGACY_ACTION_TYPES
+            or self.alert_severity
+            or self.additional_tags
+            or (not self.actions and not noise_won)
+        )
 
     @property
     def overrides_notice(self):
@@ -478,7 +482,7 @@ class AlertAssignMatchManager(AlertMatchContext):
                 possible = match.actions.keys() - resolved
                 if resolved & ORDINARY_ACTION_TYPES:
                     possible.discard(noise)
-                needed = noise not in resolved and (possible or (not attributes_resolved and match.has_attributes))
+                needed = noise not in resolved and (possible or (not attributes_resolved and match.uses_legacy_tier()))
                 if not (needed or explain):
                     continue
                 try:
@@ -504,7 +508,11 @@ class AlertAssignMatchManager(AlertMatchContext):
             matched_rules = []
             for hit in hits:
                 hit.matched_types = hit.actions.keys() & winners
-                hit.apply_attributes = not attributes_resolved and noise not in resolved and hit.has_attributes
+                hit.apply_attributes = (
+                    not attributes_resolved
+                    and noise not in resolved
+                    and hit.uses_legacy_tier(noise_won=noise in winners)
+                )
                 if hit.matched_types or hit.apply_attributes:
                     matched_rules.append(hit)
                 elif record_history:
@@ -569,7 +577,7 @@ class AlertAssignMatchManager(AlertMatchContext):
         additional_tags = []
         new_rule_snaps = {}
         ai_groups = None
-        noise = False
+        noise_rule = None
         for rule_obj in self.matched_rules:
             if rule_obj.apply_attributes:
                 additional_tags.extend(rule_obj.additional_tags)
@@ -587,10 +595,11 @@ class AlertAssignMatchManager(AlertMatchContext):
                     ai_groups = []
                 ai_action = rule_obj.actions[AssignActionType.AI_ANALYSIS]
                 ai_groups.extend(ai_action.get("user_groups", rule_obj.assign_rule.get("user_groups", [])))
-            noise |= AssignActionType.NOISE in rule_obj.matched_types
+            if noise_rule is None and AssignActionType.NOISE in rule_obj.matched_types:
+                noise_rule = rule_obj
             new_rule_snaps[str(rule_obj.rule_id)] = rule_obj.snapshot()
 
-        if noise or ai_groups is not None:
+        if noise_rule or ai_groups is not None:
             # 老规则通过追加标签触发 AI；显式动作裁决后由告警构造器统一写系统标签。
             additional_tags = [tag for tag in additional_tags if tag["key"] != AI_ANALYZE_TAG]
         self.matched_rule_info.update(
@@ -602,12 +611,12 @@ class AlertAssignMatchManager(AlertMatchContext):
                 },
                 "dispatch_result": {
                     "ai_analysis": None if ai_groups is None else {"user_groups": list(dict.fromkeys(ai_groups))},
-                    "noise": noise,
+                    "noise": noise_rule is not None,
                 },
                 "severity": min(all_severity, default=0),
                 "additional_tags": additional_tags,
-                # 历史消费者只接受一个规则组，保留最高生效组。
-                "group_info": self.matched_rules[0].assign_group(),
+                # 噪声流水引用实际标记噪声的组，其余情况保留最高生效组。
+                "group_info": (noise_rule or self.matched_rules[0]).assign_group(),
             }
         )
         # 重试和升级只继承生效规则。告警详情另存所有实际命中的配置。
