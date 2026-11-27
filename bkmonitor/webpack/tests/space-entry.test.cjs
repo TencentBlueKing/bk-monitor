@@ -322,12 +322,21 @@ function createHashRouter(h) {
   return router;
 }
 
-for (const path of ['/share?filter=critical', '/trace/alarm-center?filter=critical']) {
-  test('Back restores the complete public URL after denied navigation from ' + path, async () => {
+for (const [path, childQuery] of [
+  ['/share?filter=critical', ''],
+  ['/trace/alarm-center?filter=critical', ''],
+  ['/trace/alarm-center', '?from=now-7d&to=now&filterMode=ui&currentPage=2'],
+]) {
+  test('Back restores the complete public URL after denied navigation from ' + path + childQuery, async () => {
     const h = setup({ url: '?bizId=17#/event-center', response: basic(17, 'denied') });
     h.start(basic(17, 'denied'));
     const router = createHashRouter(h);
     await router.push(path);
+    if (childQuery) {
+      // Trace writes filters directly to browser history, without updating the host route.
+      h.window.history.replaceState(null, '', h.location.href + childQuery);
+      assert.equal(router.currentRoute.fullPath, path);
+    }
     const original = h.location.href;
     const length = h.window.history.length;
     await router.push('/settings').catch(() => {});
@@ -336,7 +345,7 @@ for (const path of ['/share?filter=critical', '/trace/alarm-center?filter=critic
     router.back();
     await flush();
     assert.equal(h.location.href, original);
-    assert.equal(router.currentRoute.fullPath, path);
+    assert.equal(router.currentRoute.fullPath, path + childQuery);
   });
 }
 
