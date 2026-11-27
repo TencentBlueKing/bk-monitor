@@ -155,6 +155,14 @@ export default defineComponent({
         return isShownNode;
       };
 
+      /**
+       * 按以下优先级依次比较，前一规则相同时才比较后一规则：
+       * 1. 当前选中项优先（仅单选）。
+       * 2. 包含选中子项的组优先（仅单选且 compareSelectedChild 为 true，用于根节点排序）。
+       * 3. 有数据项优先，无数据项沉底。
+       * 4. 同一数据状态内，收藏项优先（仅单选）。
+       * 所有规则均相同时保持原顺序；多选仅按是否有数据排序。
+       */
       const sortBySelectedAndData = (a: any, b: any, compareSelectedChild = false) => {
         if (isSingle) {
           const aIsSelected = isSelected(a);
@@ -176,6 +184,14 @@ export default defineComponent({
         const bHasNoData = hasNoDataTag(b);
         if (aHasNoData !== bHasNoData) {
           return aHasNoData ? 1 : -1;
+        }
+
+        if (isSingle) {
+          const aIsFavorite = !!a.is_favorite;
+          const bIsFavorite = !!b.is_favorite;
+          if (aIsFavorite !== bIsFavorite) {
+            return aIsFavorite ? -1 : 1;
+          }
         }
 
         return 0;
