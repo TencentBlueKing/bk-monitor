@@ -135,7 +135,6 @@ export default defineComponent({
       loading,
       exceptionData,
       disableEventAnalysis,
-      eventDataMessage,
       getMetricsData,
       getEventsData,
       transformEventData,
@@ -172,6 +171,10 @@ export default defineComponent({
     const DEFAULT_WINDOW_SIZE = 50;
     const DEFAULT_WINDOW_RATIO = 0.05;
     const MAX_DEFAULT_WINDOW_SIZE = 2000;
+    // 无可展示的曲线点时保留缩放区域的占位样式
+    const hasNoDataPoints = computed(() => timeAxis.value.length === 0);
+    // 数据点过少时隐藏缩放文本和滑块
+    const isSliderHidden = computed(() => timeAxis.value.length <= DEFAULT_WINDOW_SIZE);
     /**
      * 最小窗口（单位：点数）。
      * 注意：最小可操作宽度更多是“UI 命中问题”，我们会在 SCSS 里用最小像素宽度兜底；
@@ -640,7 +643,6 @@ export default defineComponent({
       exceptionData,
       nodeType,
       disableEventAnalysis,
-      eventDataMessage,
       handleException,
       handleShowPopover,
       handleCheckedAllChange,
@@ -651,6 +653,8 @@ export default defineComponent({
       timeAxis,
       sliderRange,
       dataWindowSize,
+      hasNoDataPoints,
+      isSliderHidden,
       handleChartDataZoom,
       handleChartInitWithSync,
       handleChartDestroy,
@@ -673,19 +677,7 @@ export default defineComponent({
       );
     }
     if (this.exceptionData.showException) {
-      return (
-        <div class='metric-view-exception'>
-          {this.handleException()}
-          {/* {this.isNodeView && this.eventDataMessage && <p>{this.eventDataMessage}</p>} */}
-          {this.isNodeView &&
-            this.allEventsData.map(event => (
-              <p key={JSON.stringify([event.event_source, event.event_level, event.event_name])}>
-                {event.event_name} · {event.event_source} · {event.event_level} · {this.t('事件数量')}：
-                {event.series[0].datapoints.length}
-              </p>
-            ))}
-        </div>
-      );
+      return <div class='metric-view-exception'>{this.handleException()}</div>;
     }
     return (
       <div class='metric-wrap'>
@@ -694,7 +686,7 @@ export default defineComponent({
           <div
             class='event-analyze'
             v-bk-tooltips={{
-              content: this.eventDataMessage || this.t('暂无关联的事件数据'),
+              content: this.t('暂无关联的事件数据'),
               disabled: this.allEventsData.length > 0 && !this.disableEventAnalysis,
               extCls: 'failure-topo-dark-tooltip',
             }}
@@ -707,7 +699,6 @@ export default defineComponent({
               onChange={this.handleChangeSwitch}
             />
             <span class='event-analyze_title'>{this.t('事件分析')}</span>
-            {this.eventDataMessage && <span>{this.eventDataMessage}</span>}
             <Popover
               extCls='event-analyze-popover'
               arrow={false}
@@ -804,48 +795,51 @@ export default defineComponent({
           </div>
         )}
         {/* 图表缩放 */}
-        <div class='metric-wrap-header'>
-          <div class={['metric-slider-wrap', { 'metric-slider-wrap--full-width': !this.isNodeView }]}>
-            <span>{this.t('缩放')}</span>
-            <div
-              ref={this.setTrackRef}
-              class='metric-slider'
-            >
-              {this.timeAxis.length > 0 && (
-                <div
-                  /**
-                   * 这里把“索引窗口”换算成百分比，用于驱动滑块的 left/width。
-                   * - 分母用 (len - 1) 是因为索引范围是 [0, len-1]
-                   * - dataWindowSize 用点数表达，因此 width 也用 (size-1)/(len-1)
-                   */
-                  style={{
-                    '--window-width': `${((this.dataWindowSize - 1) / Math.max(this.timeAxis.length - 1, 1)) * 100}%`,
-                    '--window-left': `${(this.sliderRange?.[0] / Math.max(this.timeAxis.length - 1, 1)) * 100}%`,
-                  }}
-                  class='metric-slider__window'
-                  onMousedown={(e: MouseEvent) => this.startDrag('bar', e)}
-                >
-                  {/* 滑块左把手 */}
+        {this.hasNoDataPoints && <div class='metric-wrap-header metric-wrap-header--no-data' />}
+        {!this.isSliderHidden && (
+          <div class='metric-wrap-header'>
+            <div class={['metric-slider-wrap', { 'metric-slider-wrap--full-width': !this.isNodeView }]}>
+              <span>{this.t('缩放')}</span>
+              <div
+                ref={this.setTrackRef}
+                class='metric-slider'
+              >
+                {this.timeAxis.length > 0 && (
                   <div
-                    class='metric-slider__handle metric-slider__handle--left'
-                    onMousedown={(e: MouseEvent) => {
-                      e.stopPropagation();
-                      this.startDrag('left', e);
+                    /**
+                     * 这里把“索引窗口”换算成百分比，用于驱动滑块的 left/width。
+                     * - 分母用 (len - 1) 是因为索引范围是 [0, len-1]
+                     * - dataWindowSize 用点数表达，因此 width 也用 (size-1)/(len-1)
+                     */
+                    style={{
+                      '--window-width': `${((this.dataWindowSize - 1) / Math.max(this.timeAxis.length - 1, 1)) * 100}%`,
+                      '--window-left': `${(this.sliderRange?.[0] / Math.max(this.timeAxis.length - 1, 1)) * 100}%`,
                     }}
-                  />
-                  {/* 滑块右把手 */}
-                  <div
-                    class='metric-slider__handle metric-slider__handle--right'
-                    onMousedown={(e: MouseEvent) => {
-                      e.stopPropagation();
-                      this.startDrag('right', e);
-                    }}
-                  />
-                </div>
-              )}
+                    class='metric-slider__window'
+                    onMousedown={(e: MouseEvent) => this.startDrag('bar', e)}
+                  >
+                    {/* 滑块左把手 */}
+                    <div
+                      class='metric-slider__handle metric-slider__handle--left'
+                      onMousedown={(e: MouseEvent) => {
+                        e.stopPropagation();
+                        this.startDrag('left', e);
+                      }}
+                    />
+                    {/* 滑块右把手 */}
+                    <div
+                      class='metric-slider__handle metric-slider__handle--right'
+                      onMousedown={(e: MouseEvent) => {
+                        e.stopPropagation();
+                        this.startDrag('right', e);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
         <div class='metric-wrap-main'>
           {/* 指标图表 */}
           {this.metricsData.length > 0 &&

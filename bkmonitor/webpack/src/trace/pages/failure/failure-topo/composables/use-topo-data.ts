@@ -43,19 +43,18 @@
 
 import { type Ref, ref as deepRef } from 'vue';
 
-import { useI18n } from 'vue-i18n';
-
 import { incidentTopology } from 'monitor-api/modules/incident';
 import { deepClone } from 'monitor-common/utils/utils.js';
+import { useI18n } from 'vue-i18n';
 
 import ElkjsUtils from '../graph/elkjs-utils';
+import formatTopoData, { type NodeArgs } from '../graph/format-topo-data';
 import { historyCombos, prepareHistoryFrames, validateTopology } from '../graph/topology-history';
 import { topologyEdgeId } from '../snapshot-analysis';
-import formatTopoData, { type NodeArgs } from '../graph/format-topo-data';
 
-import type { GraphAccess } from '../types/composable';
+import type { GraphAccess, RenderGraphAccess } from '../types/composable';
 import type { ErrorData, TopoRawDataCache } from '../types/g6';
-import type { IEdge, IEntity, ITopoCombo, ITopoData, ITopoNode } from '../types/topo';
+import type { IEdge, ITopoCombo, ITopoData, ITopoNode } from '../types/topo';
 import type { Graph } from '@antv/g6';
 
 // ============================================================================
@@ -141,15 +140,22 @@ export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
   // ---------------------------------------------------------------------------
 
   let _initGraphCallback: (() => void) | null = null;
+  let _renderGraphCallback: null | RenderGraphAccess['renderGraphCallback'] = null;
 
   /** 延迟注册 initGraph 回调，由主文件在定义 initGraph 后调用 */
   function registerInitGraphCallback(cb: () => void) {
     _initGraphCallback = cb;
   }
 
+  /** 注册数据刷新后的画布重绘回调，由主文件在定义 renderGraph 后调用 */
+  function registerRenderGraphCallback(cb: RenderGraphAccess['renderGraphCallback']) {
+    _renderGraphCallback = cb;
+  }
+
   /** 组件卸载时清空回调引用，释放闭包持有的大量 composable state */
   function cleanupData() {
     _initGraphCallback = null;
+    _renderGraphCallback = null;
   }
 
   // ---------------------------------------------------------------------------
@@ -163,16 +169,16 @@ export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
    */
   const formatResponseData = (data: FormatResponseInput) => {
     const { combos = [], nodes = [], sub_combos = [] } = data || {};
-    // biome-ignore lint/complexity/noForEach: <explanation>
-    nodes.forEach(node =>
+    // biome-ignore lint/complexity/noForEach: preserve mutation-oriented iteration
+    nodes.forEach(node => {
       Object.assign(node, {
         width: 90,
         height: 92,
         // getComboId 入参为 string，可选字段统一转字符串或空串
         comboId: ElkjsUtils.getComboId(node.comboId != null ? String(node.comboId) : ''),
         subComboId: ElkjsUtils.getComboId(node.subComboId != null ? String(node.subComboId) : ''),
-      })
-    );
+      });
+    });
     combos.forEach(formatComboOption);
     sub_combos.forEach(formatSubcomboOption);
   };
@@ -314,9 +320,7 @@ export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
       aggregate_cluster: aggregateCall.value,
       aggregate_version: aggregateVersion.value,
       only_diff: true,
-      start_time: isAutoRefresh && lastFrame
-        ? lastFrame.create_time + 1
-        : state.incidentId.value.substr(0, 10),
+      start_time: isAutoRefresh && lastFrame ? lastFrame.create_time + 1 : state.incidentId.value.substr(0, 10),
     };
     // 手动聚合时，才传 aggregate_config
     if (!autoAggregate.value) {
@@ -351,9 +355,12 @@ export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
           return;
         }
         state.errorData.value.isError = true;
-        state.errorData.value.msg = err.message === 'INVALID_TOPOLOGY_HISTORY'
-          ? t('图谱数据不完整，请刷新重试')
-          : err.data?.error_details ? err.data.error_details.overview : err.message;
+        state.errorData.value.msg =
+          err.message === 'INVALID_TOPOLOGY_HISTORY'
+            ? t('图谱数据不完整，请刷新重试')
+            : err.data?.error_details
+              ? err.data.error_details.overview
+              : err.message;
         state.errorData.value.isNoData = false;
       })
       .finally(() => {
@@ -367,12 +374,15 @@ export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
           }, state.refreshTime.value);
         }
       });
-    if (isAutoRefresh || !renderData) return;
+    if (!renderData) return;
     topoRawData.value = renderData as ITopoData;
     // 首次加载且 graph 尚未创建时，触发 initGraph（此时 topoRawData.value 已赋值）
     const existingGraph = graphAccess.getGraph();
     if (!existingGraph && _initGraphCallback) {
       _initGraphCallback();
+    } else if (isAutoRefresh && existingGraph && _renderGraphCallback) {
+      // 自动刷新需要同步重绘，否则缓存和画布会停留在刷新前的拓扑状态。
+      _renderGraphCallback(topoRawDataCache.value.complete, true);
     }
     const rootNode = topoRawData.value.nodes.find(node => node.entity.is_root);
     if (!state.resourceNodeId.value && rootNode) {
@@ -449,10 +459,12 @@ export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
       if (edge.source === nodeId || edge.target === nodeId) {
         result.push(processEdge(edge, nodes, isAggregated));
       }
-      edge.aggregated_edges?.forEach(child => checkAndProcess(child, true));
+      edge.aggregated_edges?.forEach(child => {
+        checkAndProcess(child, true);
+      });
     };
 
-    // biome-ignore lint/complexity/noForEach: <explanation>
+    // biome-ignore lint/complexity/noForEach: preserve mutation-oriented iteration
     edges.forEach(mainEdge => {
       checkAndProcess(mainEdge);
     });
@@ -488,6 +500,7 @@ export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
     // 数据获取
     getGraphData,
     registerInitGraphCallback,
+    registerRenderGraphCallback,
     cleanupData,
     // 刷新定时器
     handleChangeRefleshTime,

@@ -1,3 +1,4 @@
+const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
@@ -20,6 +21,7 @@ function load(file, imports = {}) {
   return module.exports;
 }
 const history = load('graph/topology-history.ts');
+const topologyEdgeId = load('snapshot-analysis.ts').topologyEdgeId;
 const utils = load('graph/elkjs-utils.ts').default;
 const format = load('graph/format-topo-data.ts').default;
 async function layout(response) {
@@ -46,7 +48,10 @@ function timelineHarness(response) {
   };
   const nodes = cache.complete.nodes.map(makeItem);
   const edges = cache.complete.edges.map(e => makeItem({ ...e, id: load('snapshot-analysis.ts').topologyEdgeId(e) }));
-  const combos = history.historyCombos(cache.complete, cache.latest).map(makeItem);
+  const combos = [
+    ...history.historyCombos(cache.complete, cache.latest),
+    ...(cache.complete.sub_combos ?? []).map(combo => ({ ...combo, parentId: combo.parentId ?? combo.comboId })),
+  ].map(makeItem);
   const graph = { getNodes: () => nodes, setItemState(item, state) { if (state === "show-animate") item.show(); }, findById: id => items.get(id), getEdges: () => edges, getCombos: () => combos, showItem: i => { i.show(); if (combos.includes(i)) nodes.filter(n => n.model.comboId === i.model.id).forEach(n => n.show()); }, hideItem: i => { i.hide(); if (combos.includes(i)) nodes.filter(n => n.model.comboId === i.model.id).forEach(n => n.hide()); }, updateItem: (i, m) => { i.model = { ...i.model, ...m }; } };
   const state = Object.fromEntries(['refreshTime', 'isPlay', 'showResourceGraph', 'showServiceOverview', 'timelinePosition'].map(k => [k, { value: false }]));
   const { useTopoTimeline } = load('composables/use-topo-timeline.ts');
@@ -54,4 +59,194 @@ function timelineHarness(response) {
   const timeline = useTopoTimeline(state, { topoRawDataCache: { value: cache }, findEdges: (es, e) => es.find(x => identity(x) === identity(e)), clearRefreshTimeout() {}, handleChangeRefleshTime() {} }, { getGraph: () => graph }, () => {});
   return { timeline, nodes, edges, combos, cache, state };
 }
-module.exports = { load, history, layout, timelineHarness };
+function renderGraphHarness(timelineCache = { diff: [], complete: { nodes: [], edges: [], combos: [] } }) {
+  const cache = structuredClone(timelineCache);
+  history.prepareHistoryFrames(cache.diff ?? []);
+  const source = ts.createSourceFile(
+    'use-topo-graph.ts',
+    fs.readFileSync(path.join(base, 'composables/use-topo-graph.ts'), 'utf8'),
+    ts.ScriptTarget.Latest,
+    true
+  );
+  let initializer;
+  function visit(node) {
+    if (ts.isVariableDeclaration(node) && node.name.getText(source) === 'renderGraph') initializer = node.initializer.getText(source);
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+  assert(initializer);
+  const code = ts.transpileModule(`const renderGraph = ${initializer};`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2020 },
+  }).outputText;
+
+  let nodeItems = [];
+  let edgeItems = [];
+  let comboItems = [];
+  const items = new Map();
+  const makeItem = model => {
+    let visible = true;
+    return {
+      model: { ...model },
+      _cfg: { visible: true },
+      getModel() {
+        return this.model;
+      },
+      isVisible() {
+        return visible;
+      },
+      show() {
+        visible = true;
+        this._cfg.visible = true;
+      },
+      hide() {
+        visible = false;
+        this._cfg.visible = false;
+      },
+      getEdges() {
+        return edgeItems.filter(edge => edge.model.source === this.model.id || edge.model.target === this.model.id);
+      },
+    };
+  };
+  const graph = {
+    data(data) {
+      nodeItems = (data.nodes ?? []).map(makeItem);
+      edgeItems = (data.edges ?? []).map(edge => makeItem({ ...edge, id: edge.id ?? topologyEdgeId(edge) }));
+      comboItems = (data.combos ?? []).map(makeItem);
+      items.clear();
+      for (const item of [...nodeItems, ...edgeItems, ...comboItems]) items.set(item.model.id, item);
+    },
+    render() {},
+    get(key) {
+      // 测试桩中 Graph 始终未销毁；版本号校验已覆盖卸载场景，此处仅满足接口契约
+      return key === 'destroyed' ? false : undefined;
+    },
+    findById(id) {
+      return items.get(id);
+    },
+    getNodes() {
+      return nodeItems;
+    },
+    getEdges() {
+      return edgeItems;
+    },
+    getCombos() {
+      return comboItems;
+    },
+    showItem(item) {
+      item?.show?.();
+    },
+    hideItem(item) {
+      item?.hide?.();
+    },
+    updateItem(item, model) {
+      item.model = { ...item.model, ...model };
+    },
+    setItemState(item, state) {
+      if (state === 'running') item?.show?.();
+    },
+  };
+  const ref = value => ({ value });
+  const initialTimelinePosition = Math.max(0, (cache.diff?.length ?? 1) - 1);
+  const timelineState = {
+    isPlay: ref(false),
+    refreshTime: ref(-1),
+    resizeCacheCallback: ref(null),
+    resourceNodeId: ref(''),
+    showResourceGraph: ref(false),
+    showServiceOverview: ref(false),
+    timelinePosition: ref(initialTimelinePosition),
+  };
+  const { useTopoTimeline } = load('composables/use-topo-timeline.ts');
+  const timeline = useTopoTimeline(
+    timelineState,
+    {
+      topoRawDataCache: ref(cache),
+      findEdges: () => undefined,
+      clearRefreshTimeout() {},
+      handleChangeRefleshTime() {},
+    },
+    { getGraph: () => graph },
+    () => {}
+  );
+  const state = {
+    errorData: ref({}),
+    graphInstanceRef: ref(graph),
+    graphRef: ref({ clientWidth: 100, clientHeight: 100 }),
+    g6TooltipRef: ref(undefined),
+    incidentDetailData: ref({}),
+    isPlay: ref(false),
+    isRenderComplete: ref(false),
+    resourceEdgeId: ref(''),
+    resourceNodeId: ref(''),
+    rootComboMovePoint: ref({ x: null, y: null }),
+    resizeCacheCallback: ref(null),
+    timelinePosition: ref(initialTimelinePosition),
+    tooltipCompRef: ref({}),
+    zoomValue: ref(1),
+  };
+  const topoData = {
+    topoRawDataCache: ref(cache),
+    resolveLayout: async data => ({ data, layouted: null }),
+    moveToCenterIfNeeded() {},
+  };
+  const interaction = {
+    setHighlightEdge() {},
+    handleZoomChange() {},
+    toFrontAnomalyEdge() {},
+  };
+  const renderGraph = new Function(
+    'getGraph',
+    'clearEdgeIntervals',
+    'topoData',
+    'state',
+    'interaction',
+    'timeline',
+    't',
+    'localStorage',
+    'setTimeout',
+    'renderVersion',
+    'toFrontEdgeTimer',
+    `${code}; return renderGraph;`
+  )(
+    () => graph,
+    () => {},
+    topoData,
+    state,
+    interaction,
+    timeline,
+    value => value,
+    { getItem: () => null },
+    () => {},
+    0,
+    null
+  );
+  return { renderGraph, nodes: () => nodeItems, edges: () => edgeItems, combos: () => comboItems };
+}
+
+async function autoRefreshHarness(response) {
+  const ref = value => ({ value });
+  const state = {
+    errorData: ref({}),
+    incidentId: ref('incident-id'),
+    isPlay: ref(false),
+    loading: ref(false),
+    nodeEntityId: ref(''),
+    nodeEntityName: ref(''),
+    refreshTime: ref(-1),
+    resourceNodeId: ref(''),
+    timelinePosition: ref(0),
+    wrapRef: ref({}),
+  };
+  const { useTopoData } = load('composables/use-topo-data.ts', {
+    'monitor-api/modules/incident': {
+      incidentTopology: async () => structuredClone(response),
+    },
+  });
+  const data = useTopoData(state, { getGraph: () => ({}) });
+  const renders = [];
+  data.registerRenderGraphCallback((renderData, renderComplete) => renders.push({ renderData, renderComplete }));
+  await data.getGraphData(true);
+  return { data, renders, state };
+}
+
+module.exports = { autoRefreshHarness, load, history, layout, renderGraphHarness, timelineHarness };

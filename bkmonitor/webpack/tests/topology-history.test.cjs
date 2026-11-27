@@ -54,8 +54,8 @@ test('layout rejection becomes a visible error instead of an unhandled blank can
   const code = ts.transpileModule(`const renderGraph = ${initializer};`, { compilerOptions: { target: ts.ScriptTarget.ES2020 } }).outputText;
   for (const sync of [true, false]) {
     const state = { errorData: { value: {} } };
-    const render = new Function('getGraph', 'clearEdgeIntervals', 'topoData', 'state', 't', `${code}; return renderGraph;`)(
-      () => ({}), () => {}, { resolveLayout() { if (sync) throw new Error('invalid'); return Promise.reject(new Error('invalid')); } }, state, x => x
+    const render = new Function('getGraph', 'clearEdgeIntervals', 'topoData', 'state', 't', 'renderVersion', 'toFrontEdgeTimer', `${code}; return renderGraph;`)(
+      () => ({}), () => {}, { resolveLayout() { if (sync) throw new Error('invalid'); return Promise.reject(new Error('invalid')); } }, state, x => x, 0, null
     );
     await render({ nodes: [], edges: [], combos: [] });
     assert.equal(state.errorData.value.isError, true);
