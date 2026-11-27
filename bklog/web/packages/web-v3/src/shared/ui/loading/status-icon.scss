@@ -1,12 +1,12 @@
-@use '@/shared/ui/loading/status-spinner' as *;
+@use './status-spinner' as *;
 
-.client-log-loading-icon {
+.bklog-status-loading-icon {
   display: inline-block;
   flex: none;
   vertical-align: middle;
   @include status-spinner();
 
-  &.is-compact {
+  &.is-segments {
     @include status-spinner-segments();
   }
 }

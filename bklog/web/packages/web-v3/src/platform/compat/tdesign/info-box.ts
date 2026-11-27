@@ -24,6 +24,18 @@ export const bkInfoBox = createInfoService((props, source) => {
         ]),
     });
   }
+  if (source.type === 'warning') {
+    const header = props.header;
+    return DialogPlugin({
+      ...props,
+      theme: 'default',
+      header: () =>
+        h('div', { class: 'bklog-info-box-heading' }, [
+          h('span', { class: 'bklog-info-box-warning', 'aria-hidden': 'true' }, '!'),
+          header ? h('div', null, [typeof header === 'function' ? header(h) : header]) : null,
+        ]),
+    });
+  }
   return DialogPlugin(props);
 }, t);
 export { bkInfoBox as InfoBox };

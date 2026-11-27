@@ -71,15 +71,8 @@ function setup(file, props = {}, options = {}) {
         onValueChange: (value) => (visible.value = value),
       };
     },
-    DialogPlugin: {
-      confirm: (config) => {
-        confirm = config;
-        return {
-          destroy() {
-            calls.push({ name: 'destroy' });
-          },
-        };
-      },
+    bkInfoBox: (config) => {
+      confirm = config;
     },
     TDesignMessage() {},
   });
@@ -112,7 +105,7 @@ test('favorite management uses native controls, explicit columns and Vue3 model 
   for (const file of ['favorite-manage-dialog.vue', 'batch-operation-menu.vue', 'favorite-detail.vue'])
     assert.doesNotMatch(
       source(file),
-      /<\/?bk-(dialog|table|table-column|form|form-item|input|select|option|popover)\b|hideHandler|clearError|bkInfoBox/,
+      /<\/?bk-(dialog|table|table-column|form|form-item|input|select|option|popover)\b|hideHandler|clearError/,
     );
   assert.match(source('favorite-manage-dialog.vue'), /COMPONENT_V_MODEL: false/);
   assert.match(source('favorite-manage-dialog.vue'), /@opened="\(\) => initData\(true\)"/);
@@ -281,13 +274,14 @@ test('manager edits preserve query settings and update local data only after req
     c.stop();
   }
 });
-test('single deletion is deferred until native confirmation and affects only selected id', async () => {
+test('single deletion is deferred until InfoBox confirmation and affects only selected id', async () => {
   const c = setup('favorite-manage-dialog.vue', { modelValue: false });
   try {
     await c.model.initData();
     c.model.handleDelete(c.model.searchResultFavorites.value[0]);
     assert.equal(c.calls.filter((x) => x.name === 'deleteFavorite').length, 0);
-    await c.confirm.onConfirm();
+    assert.equal(c.confirm.type, 'warning');
+    assert.equal(await c.confirm.confirmFn(), true);
     assert.deepEqual(c.calls.find((x) => x.name === 'deleteFavorite').request, { params: { favorite_id: 1 } });
     assert.deepEqual(
       c.model.allGroupList.value.map((x) => x.id),

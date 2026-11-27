@@ -38,6 +38,92 @@
   }
 }
 
+// InfoBox has its own centered layout, separate from form dialog footers.
+:root .bklog-info-box.t-dialog--default {
+  padding: calc(2 * var(--bklog-space-20)) calc(2 * var(--bklog-space-16)) calc(2 * var(--bklog-space-16));
+  text-align: center;
+
+  .t-dialog__header:not(.t-dialog__header--fullscreen) {
+    padding: 0;
+    justify-content: center;
+    color: var(--td-text-color-primary);
+  }
+
+  .t-dialog__header-content,
+  .bklog-info-box-heading,
+  .bklog-info-box-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--bklog-space-24);
+    width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .bklog-info-box-warning {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: calc(2 * var(--bklog-space-20) + var(--bklog-space-2));
+    height: calc(2 * var(--bklog-space-20) + var(--bklog-space-2));
+    border-radius: 50%;
+    color: var(--td-warning-color);
+    background: var(--td-warning-color-light);
+    font-size: calc(var(--bklog-space-24) + var(--bklog-space-4));
+    font-weight: 700;
+  }
+
+  :is(.t-dialog__body, .t-dialog__body__icon) {
+    padding: 0;
+    color: var(--td-text-color-secondary);
+    font-size: var(--bklog-font-action);
+    line-height: var(--bklog-line-height-action);
+  }
+
+  .t-dialog__header:has(.t-dialog__header-content:not(:empty)) + :is(.t-dialog__body, .t-dialog__body__icon):not(:empty) {
+    margin-block-start: var(--bklog-space-16);
+  }
+
+  .t-dialog__header:has(.bklog-info-box-warning) + .t-dialog__body:not(:empty) {
+    margin-block-start: var(--bklog-space-24);
+  }
+
+  .t-dialog__footer:not(.t-dialog__footer--fullscreen) {
+    width: auto;
+    min-height: 0;
+    margin: var(--bklog-space-24) 0 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: center;
+
+    > div {
+      display: flex;
+      flex-direction: row-reverse;
+      justify-content: center;
+      gap: var(--bklog-space-8);
+    }
+
+    .t-button {
+      min-width: calc(4 * var(--bklog-space-20) + var(--bklog-space-8));
+      height: var(--bklog-control-size-medium);
+      margin: 0;
+      padding-inline: var(--bklog-space-16);
+      border-radius: var(--bklog-standard-control-radius);
+      font-size: var(--bklog-font-action);
+    }
+
+    .t-button + .t-button {
+      margin: 0;
+    }
+  }
+
+  &:has(.bklog-info-box-warning) .t-dialog__footer {
+    margin-block-start: calc(2 * var(--bklog-space-16));
+  }
+}
+
 :root .bklog-info-box .bklog-info-box-details {
   row-gap: var(--bklog-space-8);
   padding: var(--bklog-space-12);

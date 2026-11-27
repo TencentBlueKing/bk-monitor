@@ -252,7 +252,7 @@ import { ServicesInstance } from '@/platform/services';
       },
       formatFilters() {
         const { etl_config: etlConfig } = this.globalsData;
-        const target = [];
+        const target = [{ text: this.$t('全部'), value: '' }];
         etlConfig?.forEach(data => {
           target.push({
             text: data.name,
@@ -532,6 +532,8 @@ import { ServicesInstance } from '@/platform/services';
       handleOperation(type) {
         if (type === 'clear-filter') {
           this.params.keyword = '';
+          this.params.etl_config = '';
+          this.isFilterSearch = false;
           clearTableFilter(this.$refs.cleanTable);
           this.search();
           return;

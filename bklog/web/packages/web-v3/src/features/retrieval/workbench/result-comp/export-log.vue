@@ -163,7 +163,10 @@
             v-if="selectFiledType === 'specify'"
             v-model:value="selectFiledList"
             :placeholder="$t('未选择则默认为全部字段')"
-            :popup-props="{ attach: '.async-export-dialog' }"
+            :popup-props="{
+              attach: '.async-export-dialog',
+              overlayInnerStyle: trigger => ({ width: `${trigger.offsetWidth}px` }),
+            }"
             multiple
             clearable
             filterable

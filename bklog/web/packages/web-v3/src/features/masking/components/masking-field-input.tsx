@@ -32,7 +32,8 @@ import { ServicesInstance } from '@/platform/services';
 
 import { Component, Prop, Emit, Vue } from 'vue-property-decorator';
 
-import { Tabs as Tab, TabPanel } from 'tdesign-vue-next';
+import { AddIcon, RefreshIcon } from 'tdesign-icons-vue-next';
+import { Tabs as Tab } from 'tdesign-vue-next';
 
 
 import MonacoEditor from '../../collection/access/components/step-add/monaco-editor.vue';
@@ -92,7 +93,7 @@ class MaskingFieldInput extends Vue {
   isAddNewPanel = false;
   /** 当前活跃的采样日志的元素 */
   get activeJsonValue() {
-    return this.jsonValueList[this.activeTab];
+    return this.jsonValueList[Number(this.activeTab)];
   }
   /** 获取所有输入框的json元素列表 */
   get getJsonParseList() {
@@ -169,7 +170,7 @@ class MaskingFieldInput extends Vue {
    */
   handleCreateRule(): Promise<void> {
     this.isShowCannotCreateRuleTips = !this.getJsonParseList.length;
-    this.isJSONStrError = this.activeJsonValue.isJsonError;
+    this.isJSONStrError = this.activeJsonValue?.isJsonError ?? false;
     this.emitCreateRule();
     return Promise.resolve();
   }
@@ -279,43 +280,27 @@ class MaskingFieldInput extends Vue {
             <span class='text'>{this.inputFix ? this.$t('取消钉住') : this.$t('钉住')}</span>
           </div>
         </div>
-        <Tab
-          v-slots={{
-            setting: () => (
-              <div
-                class='text-btn'
-                onClick={() => this.handleRefreshConfigStr(true, true)}
-              >
-                <i class='icon bk-icon icon-right-turn-line' />
-                <span class='text'>{this.$t('刷新')}</span>
-              </div>
-            ),
-            add: () => (
-              <div onClick={() => this.addPanel()}>
-                <div
-                  style='margin-left: 10px;'
-                  class='text-btn'
-                >
-                  <i class='icon bk-icon icon-plus push' />
-                  <span class='text'>{this.$t('新增采样')}</span>
-                </div>
-              </div>
-            ),
-          }}
-          class={{ 'hidden-input is-not-log': !this.jsonValueList.length }}
-          active={this.activeTab}
-          type='border-card'
-          closable
-          onClosePanel={this.closePanel}
-          onTabChange={this.tabChange}
-        >
-          {this.jsonValueList.map((panel, index) => (
-            <TabPanel
-              {...{ ...panel }}
-              key={`${index}-${panel}`}
+        <div class={['masking-sample-header', { 'is-empty': !this.jsonValueList.length }]}>
+          {this.jsonValueList.length > 0 ? (
+            <Tab
+              value={this.activeTab}
+              theme='card'
+              list={this.jsonValueList.map(panel => ({ value: panel.name, label: panel.label, removable: true }))}
+              onChange={value => this.tabChange(String(value))}
+              onRemove={({ index }) => this.closePanel(index)}
             />
-          ))}
-          {this.jsonValueList.length ? (
+          ) : (
+            <span class='no-data-tips'>{this.$t('暂无采样日志')}</span>
+          )}
+          <Button class='sample-add' size='small' variant='text' theme='primary' icon={() => <AddIcon />} onClick={() => this.addPanel()}>
+            {this.$t('新增采样')}
+          </Button>
+          <Button class='sample-refresh' size='small' variant='text' theme='primary' icon={() => <RefreshIcon />} onClick={() => this.handleRefreshConfigStr(true, true)}>
+            {this.$t('刷新')}
+          </Button>
+        </div>
+        {this.jsonValueList.length > 0 && (
+          <div class='masking-sample-content'>
             <div>
               <div
                 class='json-editor'
@@ -323,7 +308,8 @@ class MaskingFieldInput extends Vue {
               >
                 <MonacoEditor
                   height={this.collectHeight}
-                  v-model={this.activeJsonValue.jsonStr}
+                  value={this.activeJsonValue.jsonStr}
+                  onChange={(value: string) => (this.activeJsonValue.jsonStr = value)}
                   fontSize={14}
                   isShowProblemDrag={false}
                   isShowTopLabel={false}
@@ -340,12 +326,8 @@ class MaskingFieldInput extends Vue {
                 onMousedown={e => this.dragBegin(e, 'dragY')}
               />
             </div>
-          ) : (
-            <div class='no-data-tips'>
-              <span>{this.$t('暂无采样日志')}</span>
-            </div>
-          )}
-        </Tab>
+          </div>
+        )}
         <div class='sync-rule-box'>
           <Button
             disabled={!this.jsonValueList.length}

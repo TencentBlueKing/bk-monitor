@@ -67,6 +67,7 @@ import TableComponent from '../../common-comp/table-component';
 import ClusterFilter from '@/features/retrieval/workbench/search-result-panel/log-clustering/components/finger-tools/cluster-filter.tsx';
 import '@/features/retrieval/workbench/search-result-panel/log-clustering/components/finger-tools/cluster-filter.scss';
 import BklogPopover from '@/shared/ui/bklog-popover/index';
+import LoadingIcon from '@/shared/ui/loading/status-icon';
 import RowMoreMenu from './row-more-menu';
 import './table-list-v2.scss';
 
@@ -619,7 +620,13 @@ export default defineComponent({
      * @returns JSX 元素
      */
     const renderStatus = (row: ITableRowData) => {
-      return row.status ? <span class={`table-status ${row.status}`}>{row.status_name}</span> : <span>--</span>;
+      if (!row.status) return <span>--</span>;
+      return (
+        <span class={`table-status ${row.status}`}>
+          {['running', 'unknown'].includes(row.status) && <LoadingIcon variant='segments' size={14} />}
+          <span>{row.status_name}</span>
+        </span>
+      );
     };
 
     /**
@@ -948,7 +955,6 @@ export default defineComponent({
                   />
                 )}
                 {content}
-                {isUpdating && <span class='index-set-update-spinner' aria-hidden='true' />}
               </div>
             ),
           }}
@@ -989,7 +995,6 @@ export default defineComponent({
           onInputChange={value => { indexSetSearch.value = value; }}
           popupProps={{ attach: 'body', overlayClassName: 'managev2-index-set-checkbox-popover collection-index-set-picker', overlayInnerStyle: { minWidth: '240px' } }}
           options={indexSetOptionList.value.map(option => ({ value: option.index_set_id, label: option.index_set_name }))}
-          loading={isUpdating}
           multiple
           filterable
           value={draftSelectedIds}

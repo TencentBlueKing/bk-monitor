@@ -181,8 +181,8 @@ export default defineComponent({
     const handleDebug = async () => {
       try {
         await Promise.all([
-          (formRef.value as any)?.validateField('pattern'),
-          (formRef.value as any)?.validateField('sample'),
+          formRef.value?.validateField('pattern'),
+          formRef.value?.validateField('sample'),
         ]);
 
         debugLoading.value = true;

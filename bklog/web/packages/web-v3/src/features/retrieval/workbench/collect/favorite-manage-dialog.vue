@@ -237,7 +237,6 @@ import {
   Select as TSelect,
   Option as TOption,
   Table as TTable,
-  DialogPlugin,
 } from 'tdesign-vue-next';
 import type {
   FormInstanceFunctions,
@@ -249,9 +248,10 @@ import type {
 } from 'tdesign-vue-next';
 import type { FavoriteRecord, FavoriteGroup, FavoriteGroupId, FavoriteResponse } from './favorite.types';
 import { ServicesInstance } from '@/platform/services';
+import { bkInfoBox } from '@/platform/compat/tdesign/info-box';
 
 import { computed, ref, nextTick, watch, h, onBeforeUnmount } from 'vue';
-import { allocateOverlayZIndex, useDialogVisible, useOverlayZIndex } from '@/shared/global/overlay/index';
+import { useDialogVisible, useOverlayZIndex } from '@/shared/global/overlay/index';
 
 
 import useLocale from '@/shared/composables/use-locale';
@@ -565,13 +565,10 @@ const handleFavoriteSearch = () => {
 };
 /** 删除单个收藏 */
 const handleDelete = (row: FavoriteRecord) => {
-  const dialog = DialogPlugin.confirm({
-    zIndex: allocateOverlayZIndex('DIALOG'),
-    body: $t('当前收藏名为 {n}，确认是否删除？', { n: row.name }),
-    theme: 'warning',
-    onCancel: () => dialog.destroy(),
-    onClose: () => dialog.destroy(),
-    onConfirm: async () => {
+  bkInfoBox({
+    subTitle: $t('当前收藏名为 {n}，确认是否删除？', { n: row.name }),
+    type: 'warning',
+    confirmFn: async () => {
       const res = await ServicesInstance.favorite.deleteFavorite({
         params: { favorite_id: row.id },
       });
@@ -582,8 +579,8 @@ const handleDelete = (row: FavoriteRecord) => {
           curClickRow.value = null;
         }
         updateSearchResultFavorites();
-        dialog.destroy();
       }
+      return !!res.result;
     },
   });
 };

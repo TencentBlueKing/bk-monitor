@@ -25,6 +25,7 @@
  */
 
 import { renderCodeSampleSkeleton, renderFieldListSkeleton } from '@/shared/ui/loading/list-skeleton';
+import LoadingIcon from '@/shared/ui/loading/status-icon';
 import { ServicesInstance } from '@/platform/services';
 
 import { computed, defineComponent, ref, watch, nextTick, type PropType } from 'vue';
@@ -334,7 +335,7 @@ export default defineComponent({
               {/* 成功/失败状态显示圆形标识 */}
               {['success', 'failed'].includes(item.key) && <span class={`item-circle ${item.key}`} />}
               {/* 运行中状态显示加载动画 */}
-              {item.key === 'running' && <i class='running' />}
+              {item.key === 'running' && <LoadingIcon class='running' variant='segments' size={14} />}
               {item.label} （{item.count}）
             </span>
           ))}
@@ -379,7 +380,7 @@ export default defineComponent({
                                 onClick={() => handleItemClick(item)}
                               >
                                 {item.status === 'running' ? (
-                                  <i class='running' />
+                                  <LoadingIcon class='running' variant='segments' size={14} />
                                 ) : (
                                   <span class={`item-circle ${item.status}`} />
                                 )}

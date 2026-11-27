@@ -94,6 +94,7 @@
   </div>
 </template>
 <script>
+  import { markRaw } from 'vue';
   import { MessagePlugin } from 'tdesign-vue-next';
   import * as monaco from 'monaco-editor';
   const PLACEHOLDER_SELECTOR = '.monaco-placeholder';
@@ -289,7 +290,7 @@
           },
           this.options,
         );
-        this.editor = monaco.editor.create(this.$refs.editorRefs, options);
+        this.editor = markRaw(monaco.editor.create(this.$refs.editorRefs, options));
         this.$emit('editorDidMount', this.editor);
         this.editor.onContextMenu(event => this.$emit('contextMenu', event));
         this.editor.onDidBlurEditorWidget(() => this.$emit('blur', this.editor.getValue()));

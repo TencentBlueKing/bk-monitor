@@ -1,5 +1,3 @@
-@use '@/shared/ui/loading/status-spinner' as *;
-
 .collect-issued-slider-main {
     width: 100%;
     height: 100%;
@@ -64,12 +62,7 @@
         overflow-y: auto;
 
         .running {
-            display: inline-block;
-            width: 14px;
-            height: 14px;
-            @include status-spinner();
-            margin-right: 4px;
-            vertical-align: middle;
+            margin-inline-end: var(--bklog-space-4);
         }
 
         .item-circle {

@@ -75,7 +75,7 @@ export default defineComponent({
           class='upload-icon running'
           key='running'
         >
-          <LoadingIcon size={49} />
+          <LoadingIcon variant='segments' size={49} />
         </div>
         <div class='upload-title'>{t('日志上传中...')}</div>
         <div class='upload-desc'>{t('预计等待2-3分钟，窗口关闭后不会影响任务执行')}</div>

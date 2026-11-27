@@ -44,6 +44,7 @@ import {
   type DatePickerProps,
   type PopupProps,
 } from 'tdesign-vue-next';
+import forbiddenIllustration from '@/shared/assets/exception/403.svg';
 import BkSearchSelect from '@/shared/ui/bk-search-select';
 import BkTagInput from '@/shared/ui/bk-tag-input';
 import ManagementListLoading from '@/shared/ui/loading/management-list-loading';
@@ -466,13 +467,17 @@ const BkForm = defineComponent({
     formType: { type: String, default: 'horizontal' },
   },
   setup(props, { attrs, slots, expose }) {
-    const form = ref<{ validate: () => Promise<unknown>; clearValidate: () => void } | null>(null);
+    const form = ref<{ validate: (params?: { fields: string[] }) => Promise<unknown>; clearValidate: () => void } | null>(null);
     expose({
       async validate(callback?: (valid: boolean) => unknown) {
         const result = await form.value?.validate();
         const valid = result === true;
         callback?.(valid);
         return valid ? true : Promise.reject(result);
+      },
+      async validateField(field: string) {
+        const result = await form.value?.validate({ fields: [field] });
+        return result === true ? true : Promise.reject(result);
       },
       clearError() {
         form.value?.clearValidate();
@@ -985,7 +990,28 @@ const BkException = defineComponent({
           type: BK_EXCEPTION_TYPE[props.type] || 'empty',
           size: scene === 'page' ? 'large' : 'medium',
         },
-        { title: () => title },
+        {
+          title: () => title,
+          ...(props.type === '403'
+            ? {
+                image: () => h('img', {
+                  src: forbiddenIllustration,
+                  alt: '',
+                  style: {
+                    display: 'block',
+                    maxWidth: '100%',
+                    width: scene === 'page'
+                      ? 'var(--bklog-exception-image-width, 440px)'
+                      : 'var(--bklog-exception-image-part-width, 220px)',
+                    height: scene === 'page'
+                      ? 'var(--bklog-exception-image-height, 200px)'
+                      : 'var(--bklog-exception-image-part-height, 100px)',
+                    objectFit: 'contain',
+                  },
+                }),
+              }
+            : {}),
+        },
       );
     };
   },
