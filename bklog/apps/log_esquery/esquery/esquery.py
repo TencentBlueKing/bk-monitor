@@ -243,7 +243,7 @@ class EsQuery(object):
 
         result = client.scroll(indices, scroll_id, scroll)
 
-        return self.compatibility_result(result)
+        return result
 
     # 调用客户端执行dsl
     def dsl(self):

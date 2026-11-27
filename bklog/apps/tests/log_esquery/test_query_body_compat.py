@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
 
-from apps.log_esquery.utils.es_client import adapt_es_query_body
+from apps.log_esquery.utils.es_client import adapt_es_query_body, needs_es_query_body_adaptation
 
 
 class TestQueryBodyCompat(SimpleTestCase):
@@ -34,6 +34,87 @@ class TestQueryBodyCompat(SimpleTestCase):
                 self.assertEqual(adapted["query"], body["query"])
         self.assertEqual(body, original)
 
+    def test_composite_date_sources_follow_version_without_changing_other_sources(self):
+        sources = [
+            {
+                "day": {
+                    "date_histogram": {
+                        "field": "ts",
+                        "interval": "1d",
+                        "time_zone": "+08:00",
+                        "format": "yyyy-MM-dd",
+                        "order": "desc",
+                    }
+                }
+            },
+            {"minutes": {"date_histogram": {"field": "ts", "interval": "5m"}}},
+            {"milliseconds": {"date_histogram": {"field": "ts", "interval": 60000}}},
+            {"fixed": {"date_histogram": {"field": "ts", "fixed_interval": "1d"}}},
+            {"calendar": {"date_histogram": {"field": "ts", "calendar_interval": "1M"}}},
+            {"host": {"terms": {"field": "host", "order": "asc", "missing_bucket": True}}},
+            {"bytes": {"histogram": {"field": "bytes", "interval": 100}}},
+        ]
+        after = {next(iter(source)): 0 for source in sources}
+        after["host"] = "web-1"
+        for alias in ("aggs", "aggregations"):
+            body = {
+                "query": {"term": {"interval": "1d"}},
+                alias: {
+                    "group": {
+                        "filter": {"term": {"status": "ok"}},
+                        "aggs": {"pages": {"composite": {"size": 100, "after": after, "sources": sources}}},
+                    }
+                },
+            }
+            original = copy.deepcopy(body)
+            self.assertTrue(needs_es_query_body_adaptation(body))
+            for version in (None, "6.8.0", "7.1.0", "7.2.0", "8.19.19", "9.4.3"):
+                with self.subTest(alias=alias, version=version):
+                    modern = version in ("7.2.0", "8.19.19", "9.4.3")
+                    expected = copy.deepcopy(body)
+                    expected_sources = expected[alias]["group"]["aggs"]["pages"]["composite"]["sources"]
+                    intervals = (
+                        (
+                            ("calendar_interval", "1d"),
+                            ("fixed_interval", "5m"),
+                            ("fixed_interval", "60000ms"),
+                            ("fixed_interval", "1d"),
+                            ("calendar_interval", "1M"),
+                        )
+                        if modern
+                        else (
+                            ("interval", "1d"),
+                            ("interval", "5m"),
+                            ("interval", 60000),
+                            ("interval", "1d"),
+                            ("interval", "1M"),
+                        )
+                    )
+                    for source, (key, interval) in zip(expected_sources, intervals):
+                        histogram = next(iter(source.values()))["date_histogram"]
+                        histogram.pop("interval", None)
+                        histogram.pop("fixed_interval", None)
+                        histogram.pop("calendar_interval", None)
+                        histogram[key] = interval
+                    self.assertEqual(adapt_es_query_body(body, version), expected)
+                    self.assertEqual(body, original)
+
+    def test_composite_non_date_sources_skip_adaptation(self):
+        body = {
+            "aggs": {
+                "pages": {
+                    "composite": {
+                        "sources": [
+                            {"host": {"terms": {"field": "host", "order": "asc"}}},
+                            {"bytes": {"histogram": {"field": "bytes", "interval": 100}}},
+                        ]
+                    }
+                }
+            }
+        }
+        self.assertFalse(needs_es_query_body_adaptation(body))
+        self.assertEqual(adapt_es_query_body(body, "9.4.3"), body)
+
     def test_clients_adapt_shared_body_using_each_connection_version(self):
         intervals = {
             "hist": "5m",
@@ -47,6 +128,9 @@ class TestQueryBodyCompat(SimpleTestCase):
                 name: {"date_histogram": {"field": "ts", "interval": interval}} for name, interval in intervals.items()
             }
         }
+        body["aggs"]["pages"] = {
+            "composite": {"sources": [{"day": {"date_histogram": {"field": "ts", "interval": "1d"}}}]}
+        }
         original = copy.deepcopy(body)
         modern_aggs = {
             "hist": {"date_histogram": {"field": "ts", "fixed_interval": "5m"}},
@@ -54,6 +138,9 @@ class TestQueryBodyCompat(SimpleTestCase):
             "single_millisecond": {"date_histogram": {"field": "ts", "fixed_interval": "1ms"}},
             "second": {"date_histogram": {"field": "ts", "calendar_interval": "second"}},
             "single_second": {"date_histogram": {"field": "ts", "calendar_interval": "1s"}},
+            "pages": {
+                "composite": {"sources": [{"day": {"date_histogram": {"field": "ts", "calendar_interval": "1d"}}}]}
+            },
         }
         versions = (
             (None, False),

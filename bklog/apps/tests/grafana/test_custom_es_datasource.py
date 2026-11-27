@@ -198,12 +198,29 @@ class TestCustomESDataSource(SimpleTestCase):
         for body in (
             {"query": {"term": {"interval": "5m"}}},
             {"aggs": {"group": {"terms": {"field": "host", "order": {"_count": "desc"}}}}},
+            {"aggs": {"pages": {"composite": {"sources": [{"bytes": {"histogram": {"interval": 100}}}]}}}},
         ):
             with self.subTest(body=body), patch.object(BkDataCustomESDataSource, "get_es_version") as get_version:
                 BkDataCustomESDataSource(index_set_id=12).query(body)
                 self.assertEqual(self.sent_sql()["body"], body)
                 get_version.assert_not_called()
         self.meta.assert_not_called()
+
+    def test_composite_date_source_triggers_cached_version_probe(self):
+        body = {
+            "aggs": {
+                "pages": {"composite": {"sources": [{"day": {"date_histogram": {"field": "ts", "interval": "1d"}}}]}}
+            }
+        }
+        original = copy.deepcopy(body)
+        for _ in range(2):
+            BkDataCustomESDataSource(index_set_id=12).query(body)
+            self.assertEqual(
+                self.sent_sql()["body"]["aggs"]["pages"]["composite"]["sources"],
+                [{"day": {"date_histogram": {"field": "ts", "calendar_interval": "1d"}}}],
+            )
+        self.meta.assert_called_once_with({"result_table_id": "2_first", "no_request": True}, bk_tenant_id="tenant-a")
+        self.assertEqual(body, original)
 
     def test_mapping_preserves_existing_route_and_skips_probe(self):
         with patch.object(BkDataCustomESDataSource, "get_es_version") as get_version:

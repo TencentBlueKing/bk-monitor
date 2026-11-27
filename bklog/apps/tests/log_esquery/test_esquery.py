@@ -711,29 +711,34 @@ class TestEs8Es9Compat(TestCase):
             self.assertEqual(build_date_histogram_interval_params(cal, "6.8.0"), {"interval": cal})
         self.assertEqual(build_date_histogram_interval_params("10m", "7.1.9"), {"interval": "10m"})
 
-    @FakeRedis("apps.utils.cache.cache")
-    @patch(
-        "apps.log_esquery.esquery.client.QueryClientLog.QueryClientLog.mapping",
-        return_value=QUERY_MAPPING_RESULT_LOG,
-    )
-    @patch("apps.log_esquery.esquery.client.QueryClientLog.QueryClientLog.scroll")
-    def test_esquery_scroll_normalizes_dict_hits_total(self, mock_scroll, mock_mapping):
-        base_params = copy.deepcopy(SEARCH_DICT)
-        base_params.update({"scenario_id": Scenario.LOG, "scroll": "5m", "scroll_id": "scroll-1"})
+    @patch("apps.log_esquery.esquery.esquery.QueryClient")
+    def test_esquery_scroll_preserves_total_response(self, mock_client):
+        from apps.log_esquery.views.esquery_views import EsQueryViewSet
 
-        mock_scroll.return_value = {
-            "_scroll_id": "scroll-2",
-            "hits": {"total": {"value": 123, "relation": "eq"}, "hits": []},
-        }
-        res = EsQuery(copy.deepcopy(base_params)).scroll()
-        self.assertEqual(res["hits"]["total"], 123)
-
-        mock_scroll.return_value = {
-            "_scroll_id": "scroll-3",
-            "hits": {"total": {"value": 0, "relation": "eq"}, "hits": []},
-        }
-        res_zero = EsQuery(copy.deepcopy(base_params)).scroll()
-        self.assertEqual(res_zero["hits"]["total"], 0)
+        for scenario in (Scenario.LOG, Scenario.ES):
+            for total in (
+                {"value": 123, "relation": "eq"},
+                {"value": 10000, "relation": "gte"},
+                {"value": 0, "relation": "eq"},
+                123,
+                0,
+            ):
+                with self.subTest(scenario=scenario, total=total):
+                    params = {
+                        "indices": "2_bklog.test",
+                        "scenario_id": scenario,
+                        "storage_cluster_id": 77,
+                        "scroll": "5m",
+                        "scroll_id": "scroll-1",
+                    }
+                    expected = {"_scroll_id": "scroll-2", "hits": {"total": total, "hits": []}}
+                    client_result = copy.deepcopy(expected)
+                    mock_client.return_value.get_instance.return_value.scroll.return_value = client_result
+                    self.assertEqual(EsQuery(params).scroll(), expected)
+                    view = EsQueryViewSet()
+                    with patch.object(view, "params_valid", return_value=params):
+                        self.assertEqual(view.scroll(None).data, expected)
+                    self.assertEqual(client_result, expected)
 
     def test_query_client_template_add_analyzer_details_es8_es9_typeless(self):
         from apps.log_esquery.esquery.client.QueryClientTemplate import QueryClientTemplate

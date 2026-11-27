@@ -94,6 +94,16 @@ def _iter_es_aggregations(body: dict):
                 continue
             yield agg
             yield from _iter_es_aggregations(agg)
+            composite = agg.get("composite")
+            sources = composite.get("sources") if isinstance(composite, dict) else None
+            if not isinstance(sources, list):
+                continue
+            for source in sources:
+                if not isinstance(source, dict):
+                    continue
+                for definition in source.values():
+                    if isinstance(definition, dict) and isinstance(definition.get("date_histogram"), dict):
+                        yield definition
 
 
 def needs_es_query_body_adaptation(body: dict) -> bool:
