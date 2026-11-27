@@ -182,6 +182,19 @@ def test_in_process_cache_supports_the_same_bulk_lookup(monkeypatch):
     assert manager.matched_rule_info["dispatch_result"]["noise"]
 
 
+@pytest.mark.parametrize("notice_actions", [[], [action("notice", is_enabled=False)]])
+def test_legacy_itsm_requires_enabled_notice_to_use_rule_groups(notice_actions):
+    itsm = rule(1, 20, {"action_type": "itsm", "action_id": 42}, *notice_actions, user_groups=[1])
+    manager = run_preview([[itsm]])
+    assert manager.matched_rules[0].overrides_notice
+    assert not manager.get_notice_user_groups()
+    assert manager.get_itsm_actions() == {42: []}
+
+    manager = run_preview([[itsm], [rule(2, 10, action("notice"), user_groups=[2])]])
+    assert manager.get_notice_user_groups() == {2}
+    assert manager.get_itsm_actions() == {42: []}
+
+
 def test_pure_ai_does_not_override_strategy_notice_or_claim_legacy_attributes():
     ai = rule(1, 30, action("ai_analysis", user_groups=[]), user_groups=[8])
     manager = run_preview([[ai]])
