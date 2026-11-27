@@ -45,18 +45,6 @@
           </bk-tab>
           <div class="placeholder-box" />
         </div>
-        <!-- <bk-select
-          v-show="tool.active === 'default'"
-          class="biz-list-wrap"
-          v-model="DefaultCurBizIdList"
-          multiple
-          searchable
-          :clearable="false"
-          @change="handleChangeBizIdList"
-        >
-          <bk-option v-for="(option, index) in handleBizIdList" :key="index" :id="option.id" :name="option.text">
-          </bk-option>
-        </bk-select> -->
         <div class="chart-dashboard-container">
           <div class="left-panel">
             <div
@@ -224,6 +212,7 @@ import { buildInMetric, getPanelsByDashboard } from 'monitor-api/modules/report'
 import { deepClone } from 'monitor-common/utils/utils';
 
 import SpaceSelect from '../../../components/space-select/space-select';
+import { splitGraphId } from '../utils';
 import checkboxGroup from './checkboxGroup.vue';
 import { defaultRadioList } from './store';
 
@@ -274,13 +263,11 @@ export default class SelectChart extends Vue {
   // leftList: IChartListAllItem[] = []
   curBizId = `${window.cc_biz_id}`;
   DefaultCurBizIdList: string[] = [`${window.cc_biz_id}`];
-  bizIdList: any = [];
   leftActive: string = null;
   rightSelect: IGraphValueItem[] = [];
   allGrafanaListMap: any = [];
   allDefaultList: any = [];
   defaultRadioList: IDefaultRadioList[] = defaultRadioList;
-  radioMap: string[] = ['all', 'settings', 'notify'];
 
   // 拖拽数据状态记录
   DragData: any = {
@@ -307,16 +294,6 @@ export default class SelectChart extends Vue {
   //   }, []);
   //   return allList.filter(item => this.leftActive === item.fatherId && !/^-1/.test(item.key));
   // }
-
-  get handleBizIdList() {
-    return [
-      ...this.defaultRadioList,
-      ...this.bizIdList.map(item => ({
-        id: String(item.id),
-        text: item.text,
-      })),
-    ];
-  }
 
   // 限制最多选择图表数
   get isDisabled(): boolean {
@@ -350,10 +327,6 @@ export default class SelectChart extends Vue {
   async created() {
     this.isLoading = true;
     await Promise.all([this.getChartList(), this.getBuildInMetric()]).finally(() => (this.isLoading = false));
-    this.bizIdList = this.$store.getters.bizList.map(item => ({
-      id: String(item.id),
-      text: item.text,
-    }));
   }
 
   /**
@@ -376,7 +349,6 @@ export default class SelectChart extends Vue {
    * 获取图表列表数据
    */
   getChartList(needLoading = false) {
-    // const noPermission = !this.bizIdList.some(item => `${item.id}` === `${this.curBizId}`)
     if (+this.curBizId === -1) return;
     needLoading && (this.isLoading = true);
     return getDashboardList({ bk_biz_id: this.curBizId })
@@ -384,7 +356,9 @@ export default class SelectChart extends Vue {
         this.allGrafanaListMap = Array.isArray(list) ? list : list[this.curBizId] || [];
       })
       .catch(() => [])
-      .finally(() => (this.isLoading = false));
+      .finally(() => {
+        if (needLoading) this.isLoading = false;
+      });
   }
 
   /**
@@ -413,15 +387,16 @@ export default class SelectChart extends Vue {
    */
   handleSelectItem(item: IGraphValueItem) {
     if (this.selectedActive === item.id) return;
+    const { bizId, dashboardId } = splitGraphId(item.id);
+    if (!bizId) return;
     this.selectedActive = item.id;
-    const ids = item.id.split('-');
-    const isDefault = !(typeof +ids[0] === 'number' && this.bizIdList.find(item => item.id === ids[0]));
-    if (!isDefault && !this.bizIdList.find(item => item.id === ids[0])) return;
-
-    this.leftActive = ids[1];
+    const isDefault =
+      !Number.isInteger(Number(bizId)) || this.allDefaultList.some(dashboard => dashboard.uid === dashboardId);
+    this.leftActive = dashboardId;
     this.tool.active = isDefault ? 'default' : 'grafana';
 
-    this.tool.active === 'default' ? (this.DefaultCurBizIdList = ids[0].split(',')) : (this.curBizId = ids[0]);
+    if (isDefault) this.DefaultCurBizIdList = bizId.split(',');
+    else this.curBizId = bizId;
     this.rightSelect = deepClone(this.selectedList);
   }
 
@@ -482,17 +457,6 @@ export default class SelectChart extends Vue {
 
   handleChangeBizIdList(list) {
     this.DefaultCurBizIdList = list;
-    // const leng = list.length;
-    // const lastChild = list[leng - 1];
-    // const firstChild = list[0];
-    // const { radioMap } = this;
-    // const isAllRadio = list.every(item => radioMap.includes(item));
-    // if (radioMap.includes(lastChild)) {
-    //   this.DefaultCurBizIdList = [lastChild];
-    // }
-    // if (radioMap.includes(firstChild) && !isAllRadio && leng > 1) {
-    //   this.DefaultCurBizIdList = this.DefaultCurBizIdList.filter(item => !radioMap.includes(item));
-    // }
   }
 
   handleGraphBizid(v) {
@@ -505,9 +469,8 @@ export default class SelectChart extends Vue {
   }
 
   handleBelonging(item) {
-    const res = item.id.split('-');
-    const str = this.radioMap.includes(res[0]) ? this.defaultRadioList.find(item => item.id === res[0])?.title : res[0];
-    return str;
+    const { bizId } = splitGraphId(item.id);
+    return this.defaultRadioList.find(item => item.id === bizId)?.title || bizId;
   }
 
   /**
@@ -636,7 +599,7 @@ export default class SelectChart extends Vue {
           height: 100%;
 
           .biz-list-wrap {
-            margin: 0px 13px 4px 11px;
+            margin: 0 13px 4px 11px;
 
             .search-input {
               margin-top: 8px;
@@ -652,10 +615,10 @@ export default class SelectChart extends Vue {
               height: 32px;
               padding: 0 12px;
               overflow: hidden;
+              text-overflow: ellipsis;
               font-size: 12px;
               line-height: 32px;
               color: #63656e;
-              text-overflow: ellipsis;
               white-space: nowrap;
               cursor: pointer;
 
@@ -765,8 +728,8 @@ export default class SelectChart extends Vue {
             max-width: 300px;
             margin-left: 24px;
             overflow: hidden;
-            color: #979ba5;
             text-overflow: ellipsis;
+            color: #979ba5;
             white-space: nowrap;
           }
 
@@ -784,15 +747,16 @@ export default class SelectChart extends Vue {
             width: 162px;
             height: 20px;
             overflow: hidden;
+            text-overflow: ellipsis;
             font-size: 12px;
             line-height: 20px;
             color: #313238;
-            text-overflow: ellipsis;
             white-space: nowrap;
           }
 
           .icon-mc-close {
             display: flex;
+            visibility: hidden;
             align-items: center;
             justify-content: center;
             width: 24px;
@@ -801,7 +765,6 @@ export default class SelectChart extends Vue {
             font-size: 18px;
             color: #979ba5;
             cursor: pointer;
-            visibility: hidden;
           }
 
           &:hover {

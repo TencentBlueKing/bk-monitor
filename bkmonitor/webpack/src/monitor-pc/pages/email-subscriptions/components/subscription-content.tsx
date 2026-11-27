@@ -83,7 +83,6 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
   tableKey = null;
   curFromIndex = 0;
   sortEndReportContents = [];
-  bizIdListNameMap: { [propName: string]: string } = {};
   @Watch('contentType', { immediate: true })
   handleContentType(v) {
     if (v) {
@@ -117,16 +116,14 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
     return type;
   }
 
+  getBizName(id: string) {
+    return this.$store.getters.bizIdMap.get(+id)?.text.replace(`[${id}] `, '') || '--';
+  }
+
   @Debounce(300)
   @Emit('imgInputChange')
   handleInputChange(index, inputVal, isHeightInput = false) {
     return { index, inputVal, isHeightInput };
-  }
-
-  created() {
-    this.$store.getters.bizList.forEach(item => {
-      this.bizIdListNameMap[item.id] = String(item.text).replace(`[${item.id}] `, '');
-    });
   }
 
   mounted() {
@@ -240,6 +237,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
     const operateSlot = {
       default: props => [
         <bk-button
+          key='edit'
           class='mr10'
           theme='primary'
           text
@@ -248,6 +246,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
           {this.$t('button-编辑')}
         </bk-button>,
         <bk-button
+          key='delete'
           class='mr10'
           theme='primary'
           text
@@ -297,6 +296,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
     const operateSlot = {
       default: props => [
         <bk-button
+          key='edit'
           class='mr10'
           theme='primary'
           text
@@ -305,6 +305,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
           {this.$t('编辑')}
         </bk-button>,
         <bk-button
+          key='delete'
           class='mr10'
           theme='primary'
           text
@@ -336,7 +337,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
                 key={item.key}
                 width={item.width}
                 label={item.label}
-                scopedSlots={{ default: ({ row }) => this.bizIdListNameMap[row.curBizId] || '--' }}
+                scopedSlots={{ default: ({ row }) => this.getBizName(row.curBizId) }}
               />
             );
           }
