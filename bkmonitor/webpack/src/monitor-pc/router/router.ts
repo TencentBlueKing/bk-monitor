@@ -27,7 +27,7 @@
 
 import Vue from 'vue';
 
-import { canSwitchSpace } from 'monitor-common/utils/space-entry';
+import { getSpaceSwitchAccess, showSpaceAccessError } from 'monitor-common/utils/space-entry';
 import {
   getBizRouteHref,
   isAlarmCenterRouteHash,
@@ -127,22 +127,38 @@ const BIZ_ENTRY_ALLOW_ROUTES = new Set([
 const hasBizInSpaceList = (bizId: number) =>
   (store.getters.bizList || []).some(item => Number(item.bk_biz_id) === bizId || Number(item.id) === bizId);
 
-router.beforeEach(async (to, from, next) => {
-  store.commit('app/SET_PADDING_ROUTE', to);
-  const urlBizId = parseBizId(getUrlParam('bizId'));
+const isBizEntryExempt = (to: Route) => {
   const routeHash = `#${to.fullPath}`;
-  const exempt =
+  return (
     BIZ_ENTRY_ALLOW_ROUTES.has(String(to.name)) ||
     isShareRouteHash(routeHash) ||
     isAlarmCenterRouteHash(routeHash) ||
-    window.__BK_WEWEB_DATA__?.token;
-  if (window.space_access && !exempt) {
-    if (!Number.isFinite(urlBizId) || urlBizId === 0 || urlBizId === -1) {
-      if (window.space_access !== 'allowed') return next({ name: 'no-business', replace: true });
-    } else if (!(await canSwitchSpace(urlBizId, routeHash))) {
-      return next(false);
-    }
+    window.__BK_WEWEB_DATA__?.token
+  );
+};
+
+const navigationAccess = new WeakMap<Route, Awaited<ReturnType<typeof getSpaceSwitchAccess>>>();
+router.beforeEach(async (to, _from, next) => {
+  if (window.space_access && !isBizEntryExempt(to)) {
+    const id = parseBizId(getUrlParam('bizId'));
+    const access =
+      Number.isFinite(id) && id !== 0 && id !== -1
+        ? await getSpaceSwitchAccess(id, `#${to.fullPath}`)
+        : window.space_access;
+    navigationAccess.set(to, access);
   }
+  // vue-router 在调用下一个守卫前会丢弃已被新导航取代的结果。
+  next();
+});
+
+router.beforeEach(async (to, from, next) => {
+  store.commit('app/SET_PADDING_ROUTE', to);
+  const access = navigationAccess.get(to);
+  if (access === 'denied' || access === 'not_found') return next({ name: 'no-business', replace: true });
+  if (access === 'error') showSpaceAccessError();
+  if (access === 'error' || access === 'stale') return next(false);
+  const urlBizId = parseBizId(getUrlParam('bizId'));
+  const exempt = isBizEntryExempt(to);
   if (
     !window.space_access &&
     (store.getters.bizList || []).length &&

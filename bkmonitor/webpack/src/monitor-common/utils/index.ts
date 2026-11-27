@@ -115,7 +115,7 @@ export const getBizRouteHref = (hashPath: string, bizId: null | number | string 
   return `${baseHref}?bizId=${parsedBizId}#${normalizedHashPath}`;
 };
 // 设置全局业务ID
-export const setGlobalBizId = () => {
+export const setGlobalBizId = (fallbackBizId = window.cc_biz_id) => {
   let bizId: number | string = parseBizId(getUrlParam('bizId'));
   if (bizId === -1) bizId = Number.NaN;
   const hasRouteHash = getUrlParam('routeHash');
@@ -194,11 +194,10 @@ export const setGlobalBizId = () => {
     const cachedBizId = parseBizId(localBizId);
     const cachedSpace = bizList.find(item => +item.bk_biz_id === cachedBizId);
     const recentBizId = !spaceUid && cachedSpace && !cachedSpace.is_demo ? cachedBizId : '';
-    const backendBizId = window.cc_biz_id;
-    const backendEchoesDemoCache = Boolean(cachedSpace?.is_demo) && +backendBizId === cachedBizId;
+    const fallbackIsDemoCache = Boolean(cachedSpace?.is_demo) && +fallbackBizId === cachedBizId;
     const nonDemoBizId = bizList.find(item => !item.is_demo)?.bk_biz_id;
     const newBizId =
-      recentBizId || defaultBizId || spaceItem?.bk_biz_id || (backendEchoesDemoCache ? nonDemoBizId : backendBizId);
+      recentBizId || defaultBizId || spaceItem?.bk_biz_id || (fallbackIsDemoCache ? nonDemoBizId : fallbackBizId);
     if ((isSpecialAlarmCenterEntry || isCanAllIn) && !bizList.length) {
       bizId = newBizId && newBizId !== -1 ? newBizId : 0;
     } else if (spaceUid) {

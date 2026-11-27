@@ -64,7 +64,11 @@ const targetBizId = (value: null | number | string | undefined) => {
   return Number.isFinite(id) && id !== 0 && id !== -1 ? id : undefined;
 };
 
-export function getBasicSpaceContext(bizId = targetBizId(getUrlParam('bizId')), spaceUid = getUrlParam('space_uid')) {
+export function getBasicSpaceContext(
+  bizId = targetBizId(getUrlParam('bizId')),
+  spaceUid = getUrlParam('space_uid'),
+  options: { needMessage?: boolean } = {}
+) {
   const preferred =
     !spaceUid && bizId == null ? (resolveEntryBizId(null) ?? targetBizId(process.env.defaultBizId)) : undefined;
   return enhancedContext(
@@ -75,7 +79,7 @@ export function getBasicSpaceContext(bizId = targetBizId(getUrlParam('bizId')), 
       bk_biz_id: spaceUid ? undefined : bizId,
       preferred_biz_id: preferred,
     },
-    { needBiz: false }
+    { needBiz: false, ...options }
   );
 }
 
@@ -97,16 +101,9 @@ export function initializeSpaceEntry(data: Record<string, any>) {
   const deferred = data.SPACE_LIST_STATE === 'deferred';
   const missingLegacyUid = !deferred && uid && !window.space_list.some(s => s.space_uid === uid);
   if (!deferred && !missingLegacyUid) {
-    const preferred = targetBizId(process.env.defaultBizId);
-    if (
-      preferred != null &&
-      !uid &&
-      !targetBizId(getUrlParam('bizId')) &&
-      window.space_list.some(s => s.bk_biz_id === preferred)
-    ) {
-      window.cc_biz_id = preferred;
-    }
-    return setGlobalBizId();
+    // 旧服务忽略 preferred_biz_id。交给旧入口选择并跳转，落地页按显式业务重新获取 basic。
+    const buildDefault = targetBizId(process.env.defaultBizId);
+    return setGlobalBizId(window.space_list.some(s => s.bk_biz_id === buildDefault) ? buildDefault : undefined);
   }
   const access: SpaceAccess = missingLegacyUid ? 'denied' : data.SPACE_ACCESS;
   const requested = uid ? undefined : targetBizId(getUrlParam('bizId'));
@@ -161,27 +158,39 @@ export function hydrateSpaceDirectory(update: DirectoryUpdate, host = window) {
 
 let switchRequest = 0;
 
+export async function canSwitchSpace(id: number, isCurrent = () => true): Promise<boolean> {
+  const access = await getSpaceSwitchAccess(id, location.hash, isCurrent);
+  if (!isCurrent()) return false;
+  if (access === 'error') showSpaceAccessError();
+  if (access === 'denied' || access === 'not_found') location.href = getBizRouteHref('/no-business', id);
+  return access === 'allowed';
+}
+
 /** 仅保存已核验的当前业务；切到另一业务时重新请求同一 basic。 */
-export async function canSwitchSpace(id: number, hash = location.hash): Promise<boolean> {
-  if (window.space_access == null || targetBizId(id) == null) return true;
+export async function getSpaceSwitchAccess(
+  id: number,
+  hash = location.hash,
+  isCurrent = () => true
+): Promise<'stale' | SpaceAccess> {
   const request = ++switchRequest;
+  if (window.space_access == null || targetBizId(id) == null) return 'allowed';
   if (id !== checkedBizId || checkedAccess !== 'allowed') {
-    const data = await getBasicSpaceContext(id, '').catch(() => null);
-    if (request !== switchRequest) return false;
+    const data = await getBasicSpaceContext(id, '', { needMessage: false }).catch(() => null);
+    if (request !== switchRequest || !isCurrent()) return 'stale';
     const access = !data
       ? 'error'
       : (data.SPACE_ACCESS ?? (data.SPACE_LIST.some(s => +s.bk_biz_id === id) ? 'allowed' : 'denied'));
     if (access === 'error') {
-      if (isPublicEntry(hash)) return true;
-      bkMessage({ theme: 'error', message: window.i18n.t('空间权限检查失败，请重试') });
-      return false;
+      return isPublicEntry(hash) ? 'allowed' : 'error';
     }
     checkedBizId = id;
     checkedAccess = access;
   }
-  if (checkedAccess === 'allowed' || isPublicEntry(hash)) return true;
-  location.href = getBizRouteHref('/no-business', id);
-  return false;
+  return isPublicEntry(hash) ? 'allowed' : checkedAccess;
+}
+
+export function showSpaceAccessError() {
+  bkMessage({ theme: 'error', message: window.i18n.t('空间权限检查失败，请重试') });
 }
 
 function loadSpaceDirectory(): Promise<ISpaceItem[]> {
