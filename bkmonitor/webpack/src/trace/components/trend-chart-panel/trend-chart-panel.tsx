@@ -86,6 +86,11 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 是否展示复位按钮 */
+    showRestore: {
+      type: Boolean,
+      default: false,
+    },
     defaultHeight: {
       type: Number,
       default: 166,
@@ -99,7 +104,7 @@ export default defineComponent({
       default: 360,
     },
   },
-  emits: ['dataZoomChange'],
+  emits: ['dataZoomChange', 'restore'],
   setup(props, { emit }) {
     const { t } = useI18n();
 
@@ -141,6 +146,9 @@ export default defineComponent({
       },
       handleDataZoomChange: (value: [number, number]) => {
         emit('dataZoomChange', value);
+      },
+      handleRestore: () => {
+        emit('restore');
       },
     };
   },
@@ -188,10 +196,12 @@ export default defineComponent({
                   panel={this.panel}
                   params={this.chartParams}
                   retainOnRefresh={true}
+                  showRestore={this.showRestore}
                   showTitle={false}
                   onDataZoomChange={this.handleDataZoomChange}
                   onDurationChange={this.handleDurationChange}
                   onLoadingChange={this.handleLoadingChange}
+                  onRestore={this.handleRestore}
                 />
               </div>
             ),

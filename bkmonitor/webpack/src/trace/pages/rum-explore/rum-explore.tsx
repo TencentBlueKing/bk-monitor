@@ -86,6 +86,7 @@ import { OVERVIEW_ISOLATED_LINK_FIELDS } from './detail/constants';
 import { getApplicationList } from './services/rum-application';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
+import type { TimeRangeType } from '../../components/time-range/utils';
 import type { ConditionChangeEvent } from '../trace-explore/typing';
 import type { IRumEventsTarget } from './composables/use-rum-events-drawer';
 import type {
@@ -458,6 +459,7 @@ export default defineComponent({
       queryCtx.where.value = [];
       queryCtx.commonWhere.value = [];
       queryCtx.clearResidentValueCache();
+      queryCtx.clearWhereValueCache();
       activeResidentKeys.value = [];
       residentKeysReadyId.value = '';
       setDefaultAppConfig(JSON.stringify(store.appName));
@@ -466,13 +468,17 @@ export default defineComponent({
 
     /**
      * 切换 Session / View / Span。
-     * 上方检索条件和语句清空；常驻筛选按三个 tab 共用缓存回填，目标 tab 没有的 key 不参与检索也不删除。
+     * 语句清空；UI 检索条件与常驻筛选按三个 tab 共用缓存回填，目标 tab 没有的 key 不参与检索也不删除。
      * @param mode 目标视角
      * @param shouldQuery 是否立即检索；下钻要先写上点击条件时传 false
      * @returns 是否仍是最后一次切换。连点时较早的一次返回 false，调用方不要再改条件
      */
     async function handleModeChange(mode: RumModeType, shouldQuery = true) {
       const seq = ++modeChangeSeq;
+      // 切走前把当前 tab 的检索条件写回共用缓存；上一次切换未完成时 where 正等待回填，不能拿空值覆盖缓存
+      if (!residentProjecting.value) {
+        queryCtx.saveWhereValueCache(viewConfigCtx.retrievalFields.value.map(field => field.name));
+      }
       // 常驻字段按视角异步取，先卸掉检索栏，等回填后再挂上，避免空值覆盖组件内部状态后填不回去
       residentProjecting.value = true;
       store.mode = mode;
@@ -483,6 +489,7 @@ export default defineComponent({
       try {
         const allKeys = await resolveAllResidentKeys(seq);
         if (disposed || seq !== modeChangeSeq) return false;
+        queryCtx.where.value = queryCtx.projectWhere(viewConfigCtx.retrievalFields.value.map(field => field.name));
         queryCtx.commonWhere.value = queryCtx.projectResidentWhere(appliedResidentKeys(allKeys));
         if (shouldQuery) queryCtx.handleQuery();
         return true;
@@ -569,6 +576,7 @@ export default defineComponent({
     function handleApplyFavorite(favorite: Parameters<typeof favoriteCtx.applyFavorite>[0]) {
       invalidateResidentProjection();
       queryCtx.clearResidentValueCache();
+      queryCtx.clearWhereValueCache();
       activeResidentKeys.value = [];
       residentKeysReadyId.value = '';
       residentCacheBeforeFieldEdit = null;
@@ -701,8 +709,8 @@ export default defineComponent({
       queryCtx.setUrlParams();
     }
 
-    /** 总趋势图框选：与头部时间选择器一致写入时间范围并同步 URL，避免刷新后回到旧区间 */
-    function handleTrendDataZoomChange(value: [number, number]) {
+    /** 总趋势图框选 / 复位：与头部时间选择器一致写入时间范围并同步 URL，避免刷新后回到旧区间 */
+    function handleTrendDataZoomChange(value: TimeRangeType) {
       store.timeRange = value;
       queryCtx.setUrlParams();
     }

@@ -29,7 +29,7 @@ import { type PropType, computed, defineComponent, onScopeDispose, shallowRef, w
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { useI18n } from 'vue-i18n';
 
-import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
+import { type TimeRangeType, handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import TrendChartPanel from '../../../../components/trend-chart-panel/trend-chart-panel';
 import { useRumExploreStore } from '../../../../store/modules/rum-explore';
 import { RUM_MODE_TAB_LIST, SPAN_TYPE_FIELD, SPAN_TYPE_META } from '../../constants';
@@ -59,7 +59,7 @@ export default defineComponent({
     },
   },
   emits: {
-    dataZoomChange: (_value: [number, number]) => true,
+    dataZoomChange: (_value: TimeRangeType) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -156,15 +156,49 @@ export default defineComponent({
           ? {
               color: item.color,
               itemStyle: { color: item.color },
+              areaStyle: {},
               lineStyle: { ...(item.lineStyle || {}), color: item.color },
             }
           : {}),
       }));
 
-    /** 框选区间交给页面写回时间范围，图表自身已在抛事件前复位 */
+    /** 框选前的时间范围，用于复位 */
+    let cacheTimeRange: TimeRangeType = null;
+    /** 上一次框选写入的时间范围，用于区分自身写入与外部（如头部时间选择器）改动 */
+    let zoomedTimeRange: TimeRangeType = null;
+    const showRestore = shallowRef(false);
+
+    function clearRestore() {
+      cacheTimeRange = null;
+      zoomedTimeRange = null;
+      showRestore.value = false;
+    }
+
+    /** 框选：先缓存当前时间范围供复位，再把区间交给页面写回，图表自身已在抛事件前复位 */
     const handleDataZoomChange = (value: [number, number]) => {
+      cacheTimeRange = [...store.timeRange];
+      zoomedTimeRange = value;
+      showRestore.value = true;
       emit('dataZoomChange', value);
     };
+
+    /** 复位：把框选前的时间范围交回页面，与框选共用同一写回链路 */
+    const handleRestore = () => {
+      if (!cacheTimeRange) return;
+      const restoreRange = cacheTimeRange;
+      clearRestore();
+      emit('dataZoomChange', restoreRange);
+    };
+
+    /** 头部时间选择器等外部入口改动时间范围后，缓存区间已失效，收起复位按钮 */
+    watch(
+      () => store.timeRange,
+      value => {
+        if (!showRestore.value) return;
+        if (JSON.stringify(value) === JSON.stringify(zoomedTimeRange)) return;
+        clearRestore();
+      }
+    );
 
     return {
       t,
@@ -173,9 +207,11 @@ export default defineComponent({
       params,
       total,
       totalLoading,
+      showRestore,
       formatterData,
       customSeries,
       handleDataZoomChange,
+      handleRestore,
     };
   },
   render() {
@@ -191,11 +227,13 @@ export default defineComponent({
         panel={this.panel}
         params={this.params}
         refreshImmediate={this.store.refreshImmediate}
+        showRestore={this.showRestore}
         timeRange={this.store.timeRange}
         timezone={this.store.timezone}
         title={this.t('总趋势')}
         total={this.total}
         onDataZoomChange={this.handleDataZoomChange}
+        onRestore={this.handleRestore}
       />
     );
   },
