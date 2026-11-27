@@ -41,7 +41,7 @@ from apps.log_esquery.exceptions import (
     EsException,
 )
 from apps.log_esquery.type_constants import type_mapping_dict
-from apps.log_esquery.utils.es_client import es_socket_ping, get_es_client
+from apps.log_esquery.utils.es_client import adapt_es_query_body, es_socket_ping, get_es_client
 from apps.utils.cache import cache_five_minute
 
 
@@ -54,6 +54,8 @@ class QueryClientEs(QueryClientTemplate):  # pylint: disable=invalid-name
 
     def query(self, index: str, body: Dict[str, Any], scroll=None, track_total_hits=False):
         self._build_connection(check_ping=False)
+
+        body = adapt_es_query_body(body, self.version)
 
         # 如果版本不是5.0且track_total_hits为True时
         if track_total_hits and not isinstance(self._client, Elasticsearch5):

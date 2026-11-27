@@ -20,14 +20,13 @@ the project delivered to anyone in the future.
 """
 
 import json
-from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
 from django.conf import settings
 
-from apps.api import BkDataQueryApi
-from apps.api.modules.utils import update_bkdata_auth_info
+from apps.api import BkDataMetaApi, BkDataQueryApi
+from apps.api.modules.utils import result_table_id_to_bk_biz_id, update_bkdata_auth_info
 from apps.constants import ApiTokenAuthType
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.models import FeatureToggle
@@ -37,8 +36,11 @@ from apps.log_esquery.esquery.client.QueryClient import QueryClient
 from apps.log_esquery.esquery.client.QueryClientBkData import QueryClientBkData
 from apps.log_esquery.esquery.client.QueryClientEs import QueryClientEs
 from apps.log_esquery.esquery.client.QueryClientLog import QueryClientLog
+from apps.log_esquery.utils.es_client import adapt_es_query_body, needs_es_query_body_adaptation, parse_es_version
 from apps.log_search.constants import DEFAULT_TIME_FIELD
-from apps.log_search.models import LogIndexSet, Scenario
+from apps.log_search.models import LogIndexSet, Scenario, Space
+from apps.utils.cache import cache_five_minute
+from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 from bk_dataview.grafana.provisioning import Datasource
 from bkm_space.utils import bk_biz_id_to_space_uid
@@ -158,52 +160,6 @@ class CustomIndexSetESDataSource:
             feature_toggle_obj.save()
 
 
-class ESBodyAdapter:
-    """该类用于兼容Grafana ES7的语法与日志检索的body查询语法"""
-
-    def __init__(self, body: dict[str, Any]):
-        self.body = body
-
-    @staticmethod
-    def adapt_interval(body: dict[str, Any] = None) -> dict[str, Any]:
-        """
-        data_histogram的时间间隔字段名为fixed_interval, 但是我们的接口是interval
-        """
-        new_dict = {}
-        for k, v in body.items():
-            if k == "date_histogram" and "fixed_interval" in v:
-                v["interval"] = v.pop("fixed_interval")
-            if isinstance(v, dict):
-                new_dict[k] = ESBodyAdapter.adapt_interval(v)
-            else:
-                new_dict[k] = v
-        return new_dict
-
-    @staticmethod
-    def adapt_aggs(body: dict[str, Any] = None):
-        """
-        聚合的时候, order的字段名为_key, 但是我们的接口是_term
-        """
-        if isinstance(body, dict):
-            for k, v in body.items():
-                if k == "aggs":
-                    for agg_key in v:
-                        if (
-                            "terms" in v[agg_key]
-                            and "order" in v[agg_key]["terms"]
-                            and "_key" in v[agg_key]["terms"]["order"]
-                        ):
-                            v[agg_key]["terms"]["order"] = {"_term": v[agg_key]["terms"]["order"]["_key"]}
-                ESBodyAdapter.adapt_aggs(v)
-
-    def adapt(self):
-        """适配Grafana ES请求"""
-        body = deepcopy(self.body)
-        body = self.adapt_interval(body=body)
-        self.adapt_aggs(body=body)
-        return body
-
-
 class CustomESDataSourceTemplate:
     """
     自定义ES数据源模板模板, 各个Scenario的数据源都继承这个模板
@@ -265,7 +221,6 @@ class CustomESDataSourceTemplate:
         return self.get_client().mapping(index=self.index)
 
     def query(self, body: dict[str, Any]):
-        body = ESBodyAdapter(body=body).adapt()
         return self._query(body=body)
 
     def _query(self, body: dict[str, Any]):
@@ -298,28 +253,53 @@ class ESCustomESDataSource(CustomESDataSourceTemplate):
 
 
 class BkDataCustomESDataSource(CustomESDataSourceTemplate):
-    def __init__(self, index_set_id: int):
-        super().__init__(index_set_id=index_set_id)
+    def get_es_version(self) -> str | None:
+        indexes = self.data.indexes
+        result_table_id = indexes[0].get("result_table_id") if indexes else None
+        if not result_table_id:
+            return None
+        try:
+            bk_biz_id = result_table_id_to_bk_biz_id(result_table_id)
+            bk_tenant_id = Space.get_tenant_id(bk_biz_id=bk_biz_id, is_need_default=False) if bk_biz_id else None
+            if not bk_tenant_id:
+                bk_tenant_id = Space.get_tenant_id(space_uid=self.data.space_uid)
+            return self._get_cached_es_version(result_table_id=result_table_id, bk_tenant_id=bk_tenant_id)["version"]
+        except Exception:  # pylint: disable=broad-except
+            logger.warning("[grafana] get BKDATA ES version failed, result_table_id=%s", result_table_id, exc_info=True)
+            return None
+
+    @staticmethod
+    @cache_five_minute("grafana_bkdata_es_version_{bk_tenant_id}_{result_table_id}", need_md5=True)
+    def _get_cached_es_version(result_table_id: str, bk_tenant_id: str) -> dict:
+        version = None
+        try:
+            storages = BkDataMetaApi.result_tables.storages(
+                {"result_table_id": result_table_id, "no_request": True},
+                bk_tenant_id=bk_tenant_id,
+            )
+            candidate = (((storages or {}).get("es") or {}).get("storage_cluster") or {}).get("version")
+            if isinstance(candidate, str) and parse_es_version(candidate) is not None:
+                version = candidate
+        except Exception:  # pylint: disable=broad-except
+            logger.warning(
+                "[grafana] query BKDATA ES version failed, result_table_id=%s", result_table_id, exc_info=True
+            )
+        # 失败结果同样缓存，避免异常期间每个面板都重复探测。
+        return {"version": version}
 
     def query_bkdata(self, body: dict[str, Any] = None) -> list[dict[str, Any]]:
-        """
-        封装查询bkdata
-        查询的时候传body, 不传body为获取mapping
-        """
         sql = {"index": self.index}
         if body:
             sql["body"] = body
         else:
             sql["mapping"] = True
-        params = {
-            "prefer_storage": "es",
-            "sql": json.dumps(sql),
-            "no_request": True,
-        }
+        params = {"prefer_storage": "es", "sql": json.dumps(sql), "no_request": True}
         update_bkdata_auth_info(params)
         return BkDataQueryApi.query(params, request_cookies=False)["list"]
 
     def _query(self, body: dict[str, Any]):
+        if needs_es_query_body_adaptation(body):
+            body = adapt_es_query_body(body, self.get_es_version())
         return self.query_bkdata(body=body)
 
     def _mapping(self):

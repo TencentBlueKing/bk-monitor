@@ -950,9 +950,11 @@ class StorageHandler:
         else:
             nodes = es_client.cat.nodes(format="json")
             for node in nodes:
-                if node.get("node.role", "").find("d") != -1:
+                node_role = node.get("node.role") or ""
+                # 兼容 ES7 通用数据节点(d) 与 ES8/9 data tier(h=data_hot, s=data_content, w=data_warm, c=data_cold, f=data_frozen)
+                if any(role in node_role for role in ("d", "h", "s")):
                     hot_node_num += 1
-                else:
+                elif any(role in node_role for role in ("w", "c", "f")):
                     warm_node_num += 1
         return hot_node_num, warm_node_num
 
@@ -1346,21 +1348,16 @@ class StorageHandler:
             nodes = data["nodes"]
             for node_key, node_info in nodes.items():
                 node = node_info["settings"]["node"]
-                attr = node_info["settings"]["node"]["attr"]
+                if not self._is_data_node(node_info, node):
+                    continue
+                attr = node.get("attr") or {}
                 additional_params = {
                     "id": node_key,
                     "name": node_info["name"],
                     "ip": node_info["ip"],
                     "host": node_info["host"],
                 }
-                result = self.flatten_json(attr, additional_params)
-                # 是否存在 data key
-                if "data" in node:
-                    if node["data"] == "true":
-                        datanode_list.extend(result)
-                # 不存在 data key 也添加
-                else:
-                    datanode_list.extend(result)
+                datanode_list.extend(self.flatten_json(attr, additional_params))
         except Exception as e:
             raise NodeSettingException(NodeSettingException.MESSAGE.format(error_info=e))
         else:
@@ -1371,6 +1368,21 @@ class StorageHandler:
                     continue  # 如果以黑名单前缀开头则跳过
                 filter_datanode_list.append(node)
         return filter_datanode_list
+
+    @staticmethod
+    def _is_data_node(node_info: dict, node_settings: dict) -> bool:
+        """判断节点是否承担数据节点角色（兼容 ES 5-7 node.data 与 ES 8/9 node.roles）。"""
+        # roles 在节点顶层是数组，在 settings 中是逗号分隔字符串
+        roles = node_info.get("roles")
+        if roles is None:
+            roles = node_settings.get("roles")
+        if roles is not None:
+            if isinstance(roles, str):
+                roles = [role.strip() for role in roles.split(",") if role.strip()]
+            return any(role == "data" or role.startswith("data_") for role in roles)
+        if "data" in node_settings:
+            return str(node_settings["data"]).lower() == "true"
+        return True
 
     @staticmethod
     def flatten_json(json_data, additional_params=None):
