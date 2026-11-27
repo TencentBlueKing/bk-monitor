@@ -137,19 +137,24 @@ class ListSpacesResource(Resource):
         spaces = perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, use_cache)
         return spaces if include_disabled_bkms else [space for space in spaces if not is_disabled_bkms_space(space)]
 
+    @staticmethod
+    def external_permissions(user):
+        return ExternalPermission.objects.filter(authorized_user=user, expire_time__gt=timezone.now())
+
     def perform_request(self, validated_request_data) -> list[dict]:
         request = get_request(peaceful=True)
         username = get_request_username()
         bk_tenant_id = validated_request_data["bk_tenant_id"]
 
         if request and getattr(request, "external_user", None):
-            spaces: list[dict] = SpaceApi.list_spaces_dict(bk_tenant_id=bk_tenant_id)
             external_biz_ids = (
-                ExternalPermission.objects.filter(authorized_user=request.external_user, expire_time__gt=timezone.now())
-                .values_list("bk_biz_id", flat=True)
-                .distinct()
+                self.external_permissions(request.external_user).values_list("bk_biz_id", flat=True).distinct()
             )
-            spaces = [space for space in spaces if space["bk_biz_id"] in external_biz_ids]
+            if hasattr(SpaceApi, "read_space_records"):
+                spaces = SpaceApi.read_space_records(bk_tenant_id, external_biz_ids)
+            else:
+                grants = set(external_biz_ids)
+                spaces = [s for s in SpaceApi.list_spaces_dict(bk_tenant_id=bk_tenant_id) if s["bk_biz_id"] in grants]
             if not validated_request_data["show_all"]:
                 spaces = [space for space in spaces if not is_disabled_bkms_space(space)]
         elif validated_request_data["show_all"]:
@@ -185,8 +190,9 @@ class ListSpacesResource(Resource):
             (SpaceFunction.UPTIMECHECK.value, lambda s: s["space_type_id"] == SpaceTypeEnum.BKCC.value),
             (
                 SpaceFunction.K8S.value,
-                lambda s: s["bk_biz_id"] > 0
-                or bool(s["space_type_id"] == SpaceTypeEnum.BKCI.value and s["space_code"]),
+                lambda s: (
+                    s["bk_biz_id"] > 0 or bool(s["space_type_id"] == SpaceTypeEnum.BKCI.value and s["space_code"])
+                ),
             ),
             (SpaceFunction.CI_BUILDER.value, lambda s: s["space_type_id"] == SpaceTypeEnum.BKCI.value),
             (SpaceFunction.PAAS_APP.value, lambda s: s["space_type_id"] == SpaceTypeEnum.BKSAAS.value),

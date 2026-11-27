@@ -12,10 +12,12 @@ from typing import Any
 
 from django.utils.decorators import method_decorator
 from django.views.decorators.gzip import gzip_page
+from rest_framework import serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
+from bkmonitor.utils.common_utils import fetch_biz_id_from_dict
 from common.context_processors import get_default_biz_id
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
@@ -31,11 +33,20 @@ class ContextViewSet(GenericViewSet):
     @method_decorator(gzip_page)
     def enhanced(self, request):
         params: dict[str, Any] = request.query_params.copy()
-        params["bk_biz_id"] = get_default_biz_id(request)
+        if params.get("context_type") == ContextType.BASIC.value and not serializers.BooleanField().run_validation(
+            params.get("include_space_list", True)
+        ):
+            # Keep an explicit URL target distinct from a previous session or cookie.
+            params["bk_biz_id"] = (fetch_biz_id_from_dict(params) or "0").rstrip("/")
+        else:
+            params["bk_biz_id"] = get_default_biz_id(request)
         # resource 感知不到 response，此处复用 resource.request，并在 response 设置 cookie
         get_context_result: dict[str, Any] = resource.commons.enhanced_get_context.request(params)
         response = Response(get_context_result["context"])
-        if get_context_result["context_type"] == ContextType.BASIC.value:
+        if (
+            get_context_result["context_type"] == ContextType.BASIC.value
+            and get_context_result["context"].get("SPACE_ACCESS", "allowed") == "allowed"
+        ):
             response.set_cookie("bk_biz_id", str(get_context_result["context"]["BK_BIZ_ID"]))
         return response
 
