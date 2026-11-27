@@ -254,6 +254,8 @@ export default defineComponent({
       hoverPopoverTools,
       isActive: (rowId, colKey) =>
         !!props.activeRowKey && props.activeRowKey === rowId && props.activeColKey === colKey,
+      // 复合列的分类排序直接产出请求排序，不再经过 TDesign 的列键转换。
+      onColumnSort: (order, field) => emit('sortChange', order ? `${order === 'desc' ? '-' : ''}${field}` : ''),
       onEventsCellClick: (row, colKey) => emit('eventsCellClick', { colKey, row }),
       onOpenDetail: row => emit('openDetail', row),
       onCountClick: payload => emit('countClick', payload),

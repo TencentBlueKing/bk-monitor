@@ -1,0 +1,117 @@
+.rum-column-sort {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  color: #c1cde5;
+  cursor: pointer;
+  background: none;
+  border: 0;
+
+  .sort-triangle {
+    fill: currentcolor;
+
+    &.is-active {
+      fill: #3974ff;
+    }
+  }
+}
+
+/* 弹层由 tippy 挂到 body：外观定在 tippy-box 上，双 theme token 提高特异性盖过 global 的 light 主题 */
+.tippy-box[data-theme~='light'][data-theme~='rum-column-sort-popover'] {
+  box-sizing: border-box;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #dde3f0;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgb(25 25 41 / 6%);
+}
+
+.rum-column-sort-menu {
+  box-sizing: border-box;
+  width: 128px;
+  padding-top: 4px;
+
+  .sort-menu-item {
+    box-sizing: border-box;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    height: 32px;
+    padding: 6px 12px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #49576b;
+    cursor: pointer;
+
+    &:hover {
+      background: #f5f7fa;
+    }
+  }
+
+  .sort-menu-radio {
+    position: relative;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    appearance: none;
+    cursor: pointer;
+    background: #fff;
+    border: 1px solid #7b8ba8;
+    border-radius: 100px;
+
+    &:checked {
+      border-color: #3974ff;
+
+      &::after {
+        position: absolute;
+        inset: 3px;
+        content: '';
+        background: #3974ff;
+        border-radius: 50%;
+      }
+    }
+  }
+
+  .sort-menu-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sort-menu-footer {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 12px;
+    background: #f7f9fc;
+    border-top: 1px solid #e6ebf5;
+  }
+
+  .sort-menu-button {
+    box-sizing: border-box;
+    min-width: 48px;
+    height: 26px;
+    padding: 2px 12px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #49576b;
+    text-align: center;
+    white-space: nowrap;
+    cursor: pointer;
+    background: #fff;
+    border: 1px solid #c1cde5;
+    border-radius: 4px;
+
+    &.is-active {
+      color: #3974ff;
+      border-color: #3974ff;
+    }
+  }
+}

@@ -32,6 +32,7 @@ import { buildRumColumnRenderer } from '../column-builder/column-renderer';
 import type { BaseTableColumn } from '../../../../trace-explore/components/trace-explore-table/typing';
 import type { FieldActions, IRumField, IRumSpanRecord, IRumTraceInfo, RumModeType } from '../../../typings';
 import type { FieldAnalysisSelection } from '../components/column-header/column-header';
+import type { RumSortOrder } from '../components/column-sort/column-sort';
 
 /** 列渲染器通过这些回调将用户操作交给表格。 */
 export interface RumColumnActions extends FieldActions {
@@ -39,6 +40,8 @@ export interface RumColumnActions extends FieldActions {
   getTraceInfo: (traceId: string) => IRumTraceInfo | undefined;
   /** 判断当前行和数组列是否对应已打开的抽屉。 */
   isActive: (rowId: string, fieldName: string) => boolean;
+  /** 复合列分类排序变更，order 为空表示取消排序。 */
+  onColumnSort: (order: RumSortOrder, field?: string) => void;
   /** 打开数组字段所属记录的抽屉。 */
   onEventsCellClick: (row: IRumSpanRecord, fieldName: string) => void;
   /** 打开表头分析并传递已解析的候选字段。 */
@@ -48,6 +51,25 @@ export interface RumColumnActions extends FieldActions {
   /** 用命中结果的业务和应用打开 Trace 详情。 */
   onOpenTraceDetail: (trace: IRumTraceInfo) => void;
 }
+
+/**
+ * @description 在复合列的分类候选里匹配当前请求排序，得到表头需要的分类字段与方向。
+ * @param candidates 复合列可分类排序的字段
+ * @param sort 当前请求排序，降序字段带减号前缀
+ * @returns 命中的分类字段与排序方向，未命中时为空
+ */
+const resolveCompositeSort = (candidates: IRumField[], sort: string | string[]) => {
+  const rules = Array.isArray(sort) ? sort : [sort];
+  for (const rule of rules) {
+    if (!rule) continue;
+    const descending = rule.startsWith('-');
+    const field = descending ? rule.slice(1) : rule;
+    if (candidates.some(item => item.name === field)) {
+      return { field, order: (descending ? 'desc' : 'asc') as RumSortOrder };
+    }
+  }
+  return { field: '', order: '' as RumSortOrder };
+};
 
 /**
  * @description 组装展示列及排序映射，保留表格列键和请求字段的各自语义。
@@ -83,11 +105,18 @@ export const useRumColumns = (
       const field = fields.get(column.colKey);
       const layout = resolveColumnLayout(field, fields);
       const sortField = layout.sortField;
-      const sortable = layout.sections ? !!sortField && isRumFieldSortable(sortField) : column.sorter;
+      // 复合列改由表头分类排序接管，关闭 TDesign 原生排序；没有分类候选时仍回退原生排序。
+      const sortable = layout.sections
+        ? !layout.analysisFields.length && !!sortField && isRumFieldSortable(sortField)
+        : column.sorter;
       if (sortable && sortField) sortFields.set(column.colKey, sortField.name);
+      const columnSort =
+        layout.sections && layout.analysisFields.length
+          ? resolveCompositeSort(layout.analysisFields, props.sort)
+          : undefined;
       return {
         ...column,
-        ...buildRumColumnRenderer(column, field, layout, mode, actions, ellipsisMode),
+        ...buildRumColumnRenderer(column, field, layout, mode, actions, ellipsisMode, columnSort),
         sorter: sortable,
       };
     });
@@ -104,8 +133,13 @@ export const useRumColumns = (
     rowKey,
     /** 供 CommonTable 渲染的列配置。 */
     columns: computed(() => resolved.value.columns),
-    /** 将请求字段换成表头列键，用于同步排序状态。 */
-    tableSort: computed(() => mapSortKeys(props.sort, resolved.value.sortColumns)),
+    /** 将请求字段换成表头列键，用于同步排序状态；复合列排序由表头接管，需剔除其请求字段。 */
+    tableSort: computed(() => {
+      const columnKeys = new Set(resolved.value.columns.map(column => column.colKey));
+      const isKnownRule = (rule: string) => columnKeys.has(rule.replace(/^-/, ''));
+      const mapped = mapSortKeys(props.sort, resolved.value.sortColumns);
+      return Array.isArray(mapped) ? mapped.filter(isKnownRule) : isKnownRule(mapped) ? mapped : '';
+    }),
     /** 将表头列键还原为列表请求使用的排序字段。 */
     toQuerySort: (sort: string | string[]) => mapSortKeys(sort, resolved.value.sortFields),
   };

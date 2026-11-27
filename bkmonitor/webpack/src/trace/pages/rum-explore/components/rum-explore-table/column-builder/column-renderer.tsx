@@ -43,6 +43,7 @@ import { hasFieldValue, resolveCompositeRows } from './column-layout';
 
 import type { BaseTableColumn } from '../../../../trace-explore/components/trace-explore-table/typing';
 import type { CompositeRow, CompositeValue, IRumField, IRumSpanRecord, RumModeType } from '../../../typings';
+import type { RumSortOrder } from '../components/column-sort/column-sort';
 import type { RumColumnActions } from '../hooks/use-rum-columns';
 import type { resolveColumnLayout } from './column-layout';
 import type { SlotReturnValue } from 'tdesign-vue-next';
@@ -55,6 +56,7 @@ import type { SlotReturnValue } from 'tdesign-vue-next';
  * @param mode 当前检索视角
  * @param actions 表格传入的业务交互
  * @param ellipsisMode 单元格文本省略方式
+ * @param columnSort 复合列的分类排序状态，非复合列不传
  * @returns 接入共享表格的列渲染属性
  */
 export const buildRumColumnRenderer = (
@@ -63,7 +65,8 @@ export const buildRumColumnRenderer = (
   layout: ReturnType<typeof resolveColumnLayout>,
   mode: RumModeType,
   actions: RumColumnActions,
-  ellipsisMode: RumEllipsisModeType
+  ellipsisMode: RumEllipsisModeType,
+  columnSort?: { field: string; order: RumSortOrder }
 ): Pick<BaseTableColumn, 'align' | 'cellRenderer' | 'title'> => {
   const fieldName = column.colKey;
   const isSpanName = fieldName === 'span_name';
@@ -77,7 +80,10 @@ export const buildRumColumnRenderer = (
           analysis={layout.analysisField && { field: layout.analysisField, candidates: layout.analysisFields }}
           colKey={fieldName}
           field={field}
+          sort={columnSort?.order}
+          sortField={columnSort?.field}
           onFieldAnalysis={actions.onFieldAnalysis}
+          onSortChange={actions.onColumnSort}
         />
       ) as unknown as SlotReturnValue,
     /**
