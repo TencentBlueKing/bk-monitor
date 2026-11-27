@@ -123,6 +123,19 @@ def test_complete_records_are_bounded_and_do_not_mutate_space_caches(monkeypatch
     assert not cache.mock_calls and space_api._space_transform == {-12: "bkci__keep"}
 
 
+def test_uid_record_lookup_matches_exact_tenant_type_and_id(mocker):
+    read = mocker.patch.object(InjectSpaceApi, "_read_space_rows", return_value=[])
+    for malformed in ("", "bkci", "__project", "bkci__"):
+        assert InjectSpaceApi.read_space_records("tenant", space_uid=malformed) == []
+    read.assert_not_called()
+    assert InjectSpaceApi.read_space_records("tenant", space_uid="bkci__project__A") == []
+    read.assert_called_once_with(
+        ["s.bk_tenant_id = BINARY %s", "s.space_type_id = BINARY %s", "s.space_id = BINARY %s"],
+        ["tenant", "bkci", "project__A"],
+        first=False,
+    )
+
+
 def test_gateway_and_backend_route_agree(monkeypatch, settings):
     from pathlib import Path
 

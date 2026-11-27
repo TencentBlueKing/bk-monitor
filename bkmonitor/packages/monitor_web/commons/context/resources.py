@@ -100,13 +100,12 @@ def resolve_basic_space(request, space_uid, bk_biz_id, preferred_biz_id, default
     """Resolve one available space. Only an implicit target may fall back to another space."""
     try:
         tenant = get_request_tenant_id()
+        uid_records = None
         if space_uid:
-            if "__" not in space_uid:
+            uid_records = SpaceApi.read_space_records(tenant, space_uid=space_uid)
+            if not uid_records:
                 return -1, [], "not_found"
-            detail = SpaceApi.get_space_detail(space_uid=space_uid)
-            if detail is None or detail.bk_tenant_id != tenant:
-                return -1, [], "not_found"
-            bk_biz_id = detail.bk_biz_id
+            bk_biz_id = uid_records[0]["bk_biz_id"]
             if bk_biz_id in (-1, 0):
                 return -1, [], "not_found"
 
@@ -121,7 +120,7 @@ def resolve_basic_space(request, space_uid, bk_biz_id, preferred_biz_id, default
             biz_id = space["bk_biz_id"]
             if external_user:
                 return grants.filter(bk_biz_id=biz_id).exists()
-            return permission.is_space_allowed(ActionEnum.VIEW_BUSINESS, biz_id)
+            return permission.is_space_allowed(ActionEnum.VIEW_BUSINESS, space)
 
         explicit = bk_biz_id not in (None, 0, -1)
         if explicit:
@@ -143,7 +142,7 @@ def resolve_basic_space(request, space_uid, bk_biz_id, preferred_biz_id, default
             if target in (0, -1) or target in seen:
                 continue
             seen.add(target)
-            records = SpaceApi.read_space_records(tenant, [target])
+            records = uid_records if uid_records is not None else SpaceApi.read_space_records(tenant, [target])
             if not records or is_disabled_bkms_space(records[0]):
                 if explicit:
                     return target, [], "not_found"

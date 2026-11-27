@@ -41,7 +41,7 @@ from bkmonitor.iam.action import MINI_ACTION_IDS, ActionEnum, ActionMeta, canoni
 from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 from iam_engine.exceptions import CreatorGrantFailed, PermissionDenied, ProviderError, ProviderUnavailable
 from bkmonitor.iam.handlers.grants import PermissionWriteResult, PermissionWriteTargetResult
-from bkmonitor.iam.resource import to_resource_instance
+from bkmonitor.iam.resource import DirectorySpaceInstance, to_resource_instance
 from bkmonitor.iam.backends.v3.client import V3Client
 from iam_engine.provider.requests import (
     ApplyURLRequest,
@@ -910,15 +910,23 @@ class Permission:
             logger.exception("[IAM Policy Query Error] failed to list authorized spaces")
             return []
 
-    def is_space_allowed(self, action, bk_biz_id: int, *, mode=None) -> bool:
+    def is_space_allowed(self, action, space: dict, *, mode=None) -> bool:
         """Point decision for a real space. Propagate an unavailable provider to the caller."""
+        if space["bk_tenant_id"] != self.bk_tenant_id:
+            return False
+        instance = DirectorySpaceInstance(
+            type="space",
+            id=str(space["bk_biz_id"]),
+            name=f"[{space['space_type_id']}] {space['space_name']}",
+            tenant_id=self.bk_tenant_id,
+        )
         with tracer.start_as_current_span("iam.space_admission", record_exception=False) as span:
             span.set_attribute("iam.space_count", 1)
             return self._is_allowed_request(
                 SharedRequest(
                     subject=FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id),
                     action_id=_to_business_action_id(action),
-                    resources=(FwResource(type="space", id=str(bk_biz_id)),),
+                    resources=(instance,),
                 ),
                 mode=mode,
             )
@@ -947,7 +955,7 @@ class Permission:
                 if not first:
                     return []
                 try:
-                    if self.is_space_allowed(action, first[0]["bk_biz_id"], mode=mode):
+                    if self.is_space_allowed(action, first[0], mode=mode):
                         return first
                 except ProviderUnavailable:
                     # An unavailable side of a union can still leave other confirmed grants.

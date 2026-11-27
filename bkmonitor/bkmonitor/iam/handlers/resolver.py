@@ -72,7 +72,10 @@ class MonitorResourceResolver(ResourceResolver):
     """
 
     def resolve(self, resource: ResourceInstance, *, tenant_id: str) -> ResourceInstance:
-        from bkmonitor.iam.resource import to_resource_instance
+        from bkmonitor.iam.resource import DirectorySpaceInstance, to_resource_instance
+
+        if isinstance(resource, DirectorySpaceInstance) and resource.tenant_id == tenant_id:
+            return resource
         resource = to_resource_instance(resource)
         rt_id = to_resource_type_id(resource.type)
         if rt_id in {ResourceTypes.APM_APPLICATION.id, ResourceTypes.RUM_APPLICATION.id} and resource.ancestor_chain:

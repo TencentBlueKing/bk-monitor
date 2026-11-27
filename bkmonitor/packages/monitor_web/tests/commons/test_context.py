@@ -65,19 +65,27 @@ def test_explicit_target_never_scans_or_falls_back(admission, target, access):
     permission.list_authorized_space_records.assert_not_called()
 
 
-@pytest.mark.parametrize("detail_tenant", [None, "other", "tenant"])
-def test_uid_uses_point_lookup_and_tenant(admission, detail_tenant):
+@pytest.mark.parametrize(
+    "status,exists,expected",
+    [("normal", True, "allowed"), ("disabled", True, "not_found"), ("normal", False, "not_found")],
+)
+def test_non_cmdb_uid_uses_tenant_directory_when_metadata_details_are_unavailable(admission, status, exists, expected):
     request, permission, records, detail = admission
-    detail.return_value = SimpleNamespace(bk_biz_id=-20, bk_tenant_id=detail_tenant) if detail_tenant else None
-    records.return_value = [{"bk_biz_id": -20, "space_type_id": "bkci", "space_id": "bkms-test", "status": "disabled"}]
+    detail.side_effect = RuntimeError("metadata details unavailable")
+    row = {"bk_biz_id": -20, "space_type_id": "bkci", "space_id": "bkms-test", "status": status}
+    records.return_value = [row] if exists else []
+    permission.is_space_allowed.return_value = True
     assert resources.resolve_basic_space(request, "bkci__bkms-test", 18, None, None) == (
-        -20 if detail_tenant == "tenant" else -1,
-        [],
-        "not_found",
+        -20 if exists else -1,
+        [row] if expected == "allowed" else [],
+        expected,
     )
-    detail.assert_called_once_with(space_uid="bkci__bkms-test")
-    assert records.call_count == (detail_tenant == "tenant")
-    permission.is_space_allowed.assert_not_called()
+    records.assert_called_once_with("tenant", space_uid="bkci__bkms-test")
+    detail.assert_not_called()
+    if expected == "allowed":
+        permission.is_space_allowed.assert_called_once_with(resources.ActionEnum.VIEW_BUSINESS, row)
+    else:
+        permission.is_space_allowed.assert_not_called()
     permission.list_authorized_space_records.assert_not_called()
 
 

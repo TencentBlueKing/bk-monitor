@@ -190,10 +190,19 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         return spaces
 
     @classmethod
-    def read_space_records(cls, bk_tenant_id: str, biz_ids=None, *, first_available=False) -> list[dict]:
+    def read_space_records(
+        cls, bk_tenant_id: str, biz_ids=None, *, space_uid: str | None = None, first_available=False
+    ) -> list[dict]:
         """Read tenant-scoped directory records. None selects the tenant, an empty ID set selects nothing."""
         conditions = ["s.bk_tenant_id = BINARY %s"]
         params = [bk_tenant_id]
+        if space_uid is not None:
+            space_type, _, space_id = space_uid.partition("__")
+            if not space_type or not space_id:
+                return []
+            # Preserve the case-sensitive UID match of the Python directory lookup.
+            conditions.extend(["s.space_type_id = BINARY %s", "s.space_id = BINARY %s"])
+            params.extend([space_type, space_id])
         if biz_ids is not None:
             cc_ids, other_ids = [], []
             for raw_id in biz_ids:
@@ -241,7 +250,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             )
         with tracer.start_as_current_span("space.read_records", record_exception=False) as span:
             span.set_attribute("space.first_available", first_available)
-            span.set_attribute("space.finite_ids", biz_ids is not None)
+            span.set_attribute("space.finite_ids", biz_ids is not None or space_uid is not None)
             rows = cls._read_space_rows(conditions, params, first=first_available)
             span.set_attribute("space.row_count", len(rows))
             return rows

@@ -568,7 +568,7 @@ class TestFilterSpaceListByAction:
         resolve = mocker.patch.object(permission.mode_router, "list_authorized_scope")
         resolve.return_value.scope = AuthorizedResourceScope.concrete("space", {"5"})
         records = permission.list_authorized_space_records(ActionEnum.VIEW_BUSINESS, first_available=True)
-        probe.assert_called_once_with(ActionEnum.VIEW_BUSINESS, 2, mode=AuthMode(mode))
+        probe.assert_called_once_with(ActionEnum.VIEW_BUSINESS, {"bk_biz_id": 2}, mode=AuthMode(mode))
         assert records == [{"bk_biz_id": 2 if allowed else 5}]
         if allowed:
             full.assert_not_called()
@@ -599,6 +599,9 @@ class TestFilterSpaceListByAction:
         from iam_engine.core.types import AuthResult
         from iam_engine.exceptions import ProviderUnavailable
 
+        from bkmonitor.iam.handlers.resolver import MonitorResourceResolver
+
+        row = {"bk_biz_id": -8, "bk_tenant_id": "tenant", "space_type_id": "bkci", "space_name": "Project"}
         _, provider = fake_permission
         permission = Permission(username="tester", bk_tenant_id="tenant")
         permission.skip_check = False
@@ -611,12 +614,21 @@ class TestFilterSpaceListByAction:
         directory = mocker.patch.object(provider, "list_authorized_resources")
         if outcome == "error":
             with pytest.raises(ProviderUnavailable):
-                permission.is_space_allowed(ActionEnum.VIEW_BUSINESS, -8)
+                permission.is_space_allowed(ActionEnum.VIEW_BUSINESS, row)
         else:
-            assert permission.is_space_allowed(ActionEnum.VIEW_BUSINESS, -8) is (outcome == "allow")
+            assert permission.is_space_allowed(ActionEnum.VIEW_BUSINESS, row) is (outcome == "allow")
         request = point.call_args.args[0]
         assert [(r.type, r.id) for r in request.resources] == [("space", "-8")]
         assert request.subject.tenant_id == "tenant"
+        metadata_detail = mocker.patch(
+            "bkmonitor.iam.permission.SpaceApi.get_space_detail", side_effect=RuntimeError("down")
+        )
+        (instance,) = request.resources
+        resolved = MonitorResourceResolver().resolve(instance, tenant_id=request.subject.tenant_id)
+        assert resolved.name == "[bkci] Project"
+        metadata_detail.assert_not_called()
+        assert not permission.is_space_allowed(ActionEnum.VIEW_BUSINESS, {**row, "bk_tenant_id": "other"})
+        point.assert_called_once()
         directory.assert_not_called()
 
     def test_all_granted(self, fake_permission):
