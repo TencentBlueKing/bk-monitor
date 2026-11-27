@@ -17,6 +17,10 @@ from bkmonitor.models import NO_DATA_TAG_DIMENSION
 from constants.apm import CachedEnum
 
 
+AI_ANALYZE_TAG = "is_ai_analyze"
+NOISE_TAG = "is_noise"
+
+
 class EventTargetType:
     EMPTY = ""
     HOST = "HOST"

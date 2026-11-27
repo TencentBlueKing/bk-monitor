@@ -35,6 +35,8 @@ def test_batch_create_keeps_all_authorized_alerts(
     alerts = {
         alert_id: SimpleNamespace(
             id=alert_id,
+            is_dispatch_noise=False,
+            latest_time=100,
             event=SimpleNamespace(bk_biz_id=biz_id),
             strategy_id=1,
             severity=1,
@@ -50,7 +52,6 @@ def test_batch_create_keeps_all_authorized_alerts(
             create_time=datetime.now(),
             is_parent_action=False,
             strategy={},
-            inputs={},
             **kwargs,
         )
         created_actions.append(action)

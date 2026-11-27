@@ -665,6 +665,15 @@ class AlertDetailResource(Resource):
         relation_info = self.get_relation_info(alert, False)
 
         result = AlertQueryHandler.clean_document(alert)
+        extra_info = result.get("extra_info") or {}
+        if "dispatch_evaluation" not in extra_info:
+            # 旧告警可从快照确认曾命中；没有快照无法区分未匹配、未执行或读取缺失。
+            historical_match = extra_info.get("matched_rule_info") or {}
+            status = "matched" if historical_match.get("rule_snaps") or historical_match.get("group_info") else "unknown"
+            if getattr(alert, "shield_end_close", False):
+                status = "not_executed"
+            extra_info["dispatch_evaluation"] = {"status": status, "evaluated_at": None}
+            result["extra_info"] = extra_info
         result["plugin_display_name"] = PluginTranslator().translate([result["plugin_id"]])[result["plugin_id"]]
         result["extend_info"] = resource.alert.alert_related_info(alerts=[alert]).get(alert_id, {})
         self.clean_graph_panel_where(graph_panel)

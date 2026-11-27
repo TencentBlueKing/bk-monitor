@@ -8,14 +8,16 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import re
 
+from django.db import router, transaction
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.models import AlertAssignGroup, AlertAssignRule
-from constants.action import GLOBAL_BIZ_ID, ActionPluginType, UserGroupType
+from constants.action import GLOBAL_BIZ_ID, ActionPluginType, AssignActionType, UserGroupType
 from constants.alert import AlertAssignSeverity
 from constants.strategy import DATALINK_SOURCE
 
@@ -91,13 +93,79 @@ class AssignActionSerializer(serializers.Serializer):
     action_id = serializers.IntegerField(label="套餐ID", required=False)
     is_enabled = serializers.BooleanField(label="是否生效", default=True)
 
+    def to_representation(self, instance):
+        # 扩展动作由规则序列化器统一投影为 dispatch_config，保留其专属字段。
+        if instance["action_type"] in (AssignActionType.AI_ANALYSIS, AssignActionType.NOISE):
+            return instance
+        return super().to_representation(instance)
+
+
+class AIAnalysisSerializer(serializers.Serializer):
+    # 省略时沿用本条分派规则的告警组，显式空列表表示不指定结果接收组。
+    user_groups = serializers.ListField(
+        label="分析结果通知组", child=serializers.IntegerField(min_value=1), required=False
+    )
+
+
+class DispatchConfigSerializer(serializers.Serializer):
+    ai_analysis = AIAnalysisSerializer(label="AI 分析", allow_null=True, default=None)
+    noise = serializers.BooleanField(label="标记为噪声", default=False)
+    noise_remark = serializers.CharField(label="噪声规则备注", required=False, allow_blank=True)
+
+
+def split_dispatch_actions(actions):
+    ordinary = []
+    dispatch = {"ai_analysis": None, "noise": False}
+    for action in actions:
+        action_type = action["action_type"]
+        if action_type == AssignActionType.AI_ANALYSIS:
+            if action.get("is_enabled"):
+                dispatch["ai_analysis"] = {"user_groups": action["user_groups"]} if "user_groups" in action else {}
+        elif action_type == AssignActionType.NOISE:
+            dispatch["noise"] = bool(action.get("is_enabled"))
+            if dispatch["noise"] and action.get("remark"):
+                dispatch["noise_remark"] = action["remark"]
+        else:
+            ordinary.append(action)
+    return ordinary, dispatch
+
+
+def normalize_rule_actions(rule, existing_actions=(), existing_user_groups=()):
+    """合并客户端显式提交的配置与已存规则，生成缓存和匹配器共用的 actions。"""
+    rule = rule.copy()
+    ordinary, dispatch = split_dispatch_actions(existing_actions)
+    if "actions" in rule:
+        # PATCH 会跳过嵌套字段的默认值，但替换整个动作列表时其启用默认值仍为 True。
+        ordinary = [{"is_enabled": True, **action} for action in rule["actions"]]
+    dispatch = rule.pop("dispatch_config", dispatch)
+    ai_analysis = dispatch.get("ai_analysis")
+    noise = dispatch.get("noise", False)
+    ordinary_enabled = any(action.get("is_enabled", True) for action in ordinary)
+    if noise and (ordinary_enabled or ai_analysis is not None):
+        raise ValidationError({"dispatch_config": _("噪声不能与其他处理方式同时启用")})
+    if not rule.get("user_groups", existing_user_groups) and (ordinary_enabled or (ai_analysis is None and not noise)):
+        raise ValidationError({"user_groups": _("请配置告警组")})
+
+    actions = list(ordinary)
+    if ai_analysis is not None:
+        actions.append({"action_type": AssignActionType.AI_ANALYSIS, "is_enabled": True, **ai_analysis})
+    if noise:
+        noise_action = {"action_type": AssignActionType.NOISE, "is_enabled": True}
+        if dispatch.get("noise_remark"):
+            noise_action["remark"] = dispatch["noise_remark"]
+        actions.append(noise_action)
+    rule.setdefault("user_groups", list(existing_user_groups))
+    rule["actions"] = actions
+    return rule
+
 
 class BaseAlertAssignRuleSlz(serializers.Serializer):
     id = serializers.IntegerField(label="主键ID", required=False)
     is_enabled = serializers.BooleanField(label="是否生效", required=False, default=False)
-    user_groups = serializers.ListField(label="告警组", child=serializers.IntegerField(), required=True, allow_empty=False)
+    user_groups = serializers.ListField(label="告警组", child=serializers.IntegerField(), required=False)
     conditions = serializers.ListField(label="分派条件", child=ConditionSerializer(), required=True, allow_empty=False)
     actions = serializers.ListField(label="分派动作", child=AssignActionSerializer(), required=False)
+    dispatch_config = DispatchConfigSerializer(label="分派处理配置", required=False)
     alert_severity = serializers.ChoiceField(
         label="告警级别",
         default=AlertAssignSeverity.KEEP,
@@ -126,10 +194,31 @@ class AssignRuleSlz(serializers.ModelSerializer, BaseAlertAssignRuleSlz):
             "user_groups",
             "conditions",
             "actions",
+            "dispatch_config",
             "alert_severity",
             "additional_tags",
             "user_type",
         )
+
+    def validate(self, attrs):
+        if self.instance is None:
+            return normalize_rule_actions(attrs)
+        normalize_rule_actions(attrs, self.instance.actions, self.instance.user_groups)
+        return attrs
+
+    def update(self, instance, validated_data):
+        # 旧客户端只更新普通动作，在持锁的最新配置上合并，保留同时提交的扩展配置。
+        with transaction.atomic(using=router.db_for_write(AlertAssignRule)):
+            instance = AlertAssignRule.objects.select_for_update().get(pk=instance.pk)
+            return super().update(
+                instance, normalize_rule_actions(validated_data, instance.actions, instance.user_groups)
+            )
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if not self.context.get("for_match"):
+            data["actions"], data["dispatch_config"] = split_dispatch_actions(data["actions"])
+        return data
 
     def validate_actions(self, value):
         for action in value:
@@ -246,6 +335,21 @@ class BatchAssignRulesSlz(serializers.Serializer):
                     raise ValidationError(detail=_("通知升级的用户组不能包含第一次接收告警的用户组"))
         return value
 
+    @staticmethod
+    def normalize_rules(rules, group_id, *, lock=False):
+        # 只需为省略旧/新动作字段的已有规则取回配置。按组批量读取，避免逐行查询。
+        rule_ids = [
+            rule["id"] for rule in rules if rule.get("id") and ("dispatch_config" not in rule or "actions" not in rule)
+        ]
+        queryset = AlertAssignRule.objects.filter(assign_group_id=group_id, id__in=rule_ids)
+        if lock:
+            queryset = queryset.select_for_update()
+        existing_actions = dict(queryset.values_list("id", "actions")) if rule_ids else {}
+        return [normalize_rule_actions(rule, existing_actions.get(rule.get("id"), ())) for rule in rules]
+
+    def validate(self, attrs):
+        return {**attrs, "rules": self.normalize_rules(attrs["rules"], attrs.get("assign_group_id"))}
+
 
 class BatchSaveAssignRulesSlz(BatchAssignRulesSlz):
     priority = serializers.IntegerField(label="优先级", required=True)
@@ -259,53 +363,54 @@ class BatchSaveAssignRulesSlz(BatchAssignRulesSlz):
             raise ValidationError(detail="Edit datalink builtin rules is forbidden")
         return value
 
+    def validate(self, attrs):
+        # 保留哪些字段由客户端显式提交，写入时用最新的规则配置再次合并。
+        super().validate(attrs)
+        return attrs
+
+    @staticmethod
+    def save_rules(group, rules):
+        new_rules = []
+        existed_rules = []
+        for rule in BatchAssignRulesSlz.normalize_rules(rules, group.id, lock=True):
+            rule_id = rule.pop("id", None)
+            rule["assign_group_id"] = group.id
+            rule["bk_biz_id"] = group.bk_biz_id
+            if rule_id:
+                existed_rules.append(rule_id)
+                AlertAssignRule.objects.filter(id=rule_id, assign_group_id=group.id).update(**rule)
+                continue
+            new_rules.append(AlertAssignRule(**rule))
+        group_rules = AlertAssignRule.objects.filter(assign_group_id=group.id)
+        aborted_rules = list(group_rules.exclude(id__in=existed_rules).values_list("id", flat=True))
+        if aborted_rules:
+            group_rules.filter(id__in=aborted_rules).delete()
+        AlertAssignRule.objects.bulk_create(new_rules)
+        return {
+            "bk_biz_id": group.bk_biz_id,
+            "assign_group_id": group.id,
+            "rules": list(group_rules.values_list("id", flat=True)),
+            "aborted_rules": aborted_rules,
+        }
+
     @staticmethod
     def save(validated_data):
         """
         保存分派告警组和规则
         """
-        new_rules = []
-        existed_rules = []
-        group_id = validated_data.get("assign_group_id")
-        if group_id:
-            group = AlertAssignGroup.objects.get(id=group_id)
-            group.name = validated_data["name"]
-            group.priority = validated_data["priority"]
-            group.hash = ""
-            group.snippet = ""
-            group.save()
-        else:
-            group = AlertAssignGroup.objects.create(
-                name=validated_data["name"],
-                priority=validated_data["priority"],
-                bk_biz_id=validated_data["bk_biz_id"],
-            )
-            group_id = group.id
-
-        for rule in validated_data["rules"]:
-            rule_id = rule.pop("id", None)
-            rule["assign_group_id"] = group_id
-            rule["bk_biz_id"] = group.bk_biz_id
-            if rule_id:
-                existed_rules.append(rule_id)
-                AlertAssignRule.objects.filter(id=rule_id, assign_group_id=group_id).update(**rule)
-                continue
-            new_rules.append(AlertAssignRule(**rule))
-        aborted_rules = list(
-            AlertAssignRule.objects.filter(assign_group_id=group_id)
-            .exclude(id__in=existed_rules)
-            .values_list("id", flat=True)
-        )
-        if aborted_rules:
-            # 删除掉已有的废弃的规则
-            AlertAssignRule.objects.filter(assign_group_id=group_id, id__in=aborted_rules).delete()
-
-        AlertAssignRule.objects.bulk_create(new_rules)
-
-        new_rules = AlertAssignRule.objects.filter(assign_group_id=group_id).values_list("id", flat=True)
-        return {
-            "bk_biz_id": validated_data["bk_biz_id"],
-            "assign_group_id": group_id,
-            "rules": list(new_rules),
-            "aborted_rules": aborted_rules,
-        }
+        with transaction.atomic(using=router.db_for_write(AlertAssignGroup)):
+            group_id = validated_data.get("assign_group_id")
+            if group_id:
+                group = AlertAssignGroup.objects.select_for_update().get(id=group_id)
+                group.name = validated_data["name"]
+                group.priority = validated_data["priority"]
+                group.hash = ""
+                group.snippet = ""
+                group.save()
+            else:
+                group = AlertAssignGroup.objects.create(
+                    name=validated_data["name"],
+                    priority=validated_data["priority"],
+                    bk_biz_id=validated_data["bk_biz_id"],
+                )
+            return BatchSaveAssignRulesSlz.save_rules(group, validated_data["rules"])

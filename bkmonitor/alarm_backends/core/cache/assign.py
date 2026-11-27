@@ -9,12 +9,14 @@ specific language governing permissions and limitations under the License.
 """
 
 from collections import defaultdict
+from itertools import chain
 
 from alarm_backends.core.cache.base import CacheManager
 from alarm_backends.core.cache.cmdb.business import BusinessManager
 from alarm_backends.core.cache.cmdb.dynamic_group import DynamicGroupManager
 from bkmonitor.models.fta.assign import AlertAssignGroup, AlertAssignRule
 from bkmonitor.utils import extended_json
+from bkmonitor.utils.common_utils import chunks
 from bkmonitor.utils.local import local
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.action import GLOBAL_BIZ_ID
@@ -55,38 +57,47 @@ class AssignCacheManager(CacheManager):
 
     @classmethod
     def get_assign_groups_by_priority(cls, bk_biz_id, priority):
-        """
-        按业务ID
-        :param priority: 优先级
-        :param bk_biz_id: 业务ID
-        """
-        cache_key = cls.PRIORITY_CACHE_KEY_TEMPLATE.format(bk_biz_id=bk_biz_id, priority=priority)
-        if cache_key not in local.assign_cache:
-            default_groups = cls.get_global_config(cls.PRIORITY_CACHE_KEY_TEMPLATE, priority=priority) or []
-            groups = cls.cache.get(cache_key)
-            if groups:
-                groups = set(extended_json.loads(groups) + default_groups)
-            else:
-                groups = set(default_groups)
-            local.assign_cache[cache_key] = groups
-        return local.assign_cache[cache_key]
+        return cls.get_groups_by_priorities(bk_biz_id, [priority])[priority]
 
     @classmethod
     def get_assign_rules_by_group(cls, bk_biz_id, group_id):
-        """
-        按规则组ID获取对应的分配规则
-        """
-        cache_key = cls.GROUP_CACHE_KEY_TEMPLATE.format(group_id=group_id, bk_biz_id=bk_biz_id)
-        if cache_key not in local.assign_cache:
-            rules = cls.get_global_config(cls.GROUP_CACHE_KEY_TEMPLATE, group_id=group_id) or []
-            # 如果是全平台有数据，表示当前group为全局的，直接返回
-            if not rules:
-                rules = cls.cache.get(cache_key) or []
-                if rules:
-                    rules = extended_json.loads(rules)
-            local.assign_cache[cache_key] = rules
+        return cls.get_rules_by_groups(bk_biz_id, [group_id])[group_id]
 
-        return local.assign_cache[cache_key]
+    @classmethod
+    def _read_scopes(cls, bk_biz_id, ids, template, field):
+        """同批复用业务和全局的原始值，冷数据沿用现有 Redis 键批取。"""
+        keys = {
+            item: tuple(template.format(bk_biz_id=scope, **{field: item}) for scope in (GLOBAL_BIZ_ID, bk_biz_id))
+            for item in ids
+        }
+        missing = {key for pair in keys.values() for key in pair if key not in local.assign_cache}
+        for batch in chunks(list(missing), 128):
+            for key, raw in zip(batch, cls.cache.mget(batch)):
+                local.assign_cache[key] = extended_json.loads(raw) if raw else []
+        return {
+            item: (local.assign_cache[global_key], local.assign_cache[biz_key])
+            for item, (global_key, biz_key) in keys.items()
+        }
+
+    @classmethod
+    def get_groups_by_priorities(cls, bk_biz_id, priorities):
+        scopes = cls._read_scopes(bk_biz_id, priorities, cls.PRIORITY_CACHE_KEY_TEMPLATE, "priority")
+        return {priority: set(global_ids).union(biz_ids) for priority, (global_ids, biz_ids) in scopes.items()}
+
+    @classmethod
+    def get_rules_by_groups(cls, bk_biz_id, group_ids):
+        scopes = cls._read_scopes(bk_biz_id, group_ids, cls.GROUP_CACHE_KEY_TEMPLATE, "group_id")
+        return {group: global_rules or biz_rules for group, (global_rules, biz_rules) in scopes.items()}
+
+    @classmethod
+    def iter_priority_rules(cls, bk_biz_id):
+        priorities = cls.get_assign_priority_by_biz_id(bk_biz_id)
+        # 先读最高层。需要继续裁决时再按批加载，限制每批层数及每次 MGET 的键数。
+        for batch in chain([priorities[:1]], chunks(priorities[1:], 32)):
+            groups = cls.get_groups_by_priorities(bk_biz_id, batch)
+            rules = cls.get_rules_by_groups(bk_biz_id, chain.from_iterable(groups.values()))
+            for priority in batch:
+                yield priority, [rule for group in groups[priority] for rule in rules[group]]
 
     @classmethod
     def get_global_config(cls, key_template, **kwargs):
@@ -116,9 +127,7 @@ class AssignCacheManager(CacheManager):
             if dynamic_group.get("bk_obj_id") == "host":
                 bk_host_ids.update(dynamic_group["bk_inst_ids"])
 
-        condition["field"] = "bk_host_id"
-        condition["value"] = list(bk_host_ids)
-        return condition
+        return {**condition, "field": "bk_host_id", "value": list(bk_host_ids)}
 
     @classmethod
     def refresh(cls):
@@ -149,13 +158,14 @@ class AssignCacheManager(CacheManager):
             group_base_info[group["id"]] = group
         group_rules = defaultdict(list)
         for rule in rules:
-            bk_tenant_id = bk_biz_id_to_bk_tenant_id(rule["bk_biz_id"])
             group_id = rule["assign_group_id"]
             rule["group_name"] = group_base_info[group_id]["name"]
-            # 动态分组转换，将动态分组转换成主机列表
-            conditions = []
-            for condition in rule["conditions"]:
-                conditions.append(cls.parse_dynamic_group(bk_tenant_id=bk_tenant_id, condition=condition))
+            if any(condition["field"] == "dynamic_group" for condition in rule["conditions"]):
+                bk_tenant_id = bk_biz_id_to_bk_tenant_id(rule["bk_biz_id"])
+                rule["configured_conditions"] = rule["conditions"]
+                rule["conditions"] = [
+                    cls.parse_dynamic_group(bk_tenant_id, condition) for condition in rule["conditions"]
+                ]
 
             group_rules[rule["assign_group_id"]].append(rule)
 

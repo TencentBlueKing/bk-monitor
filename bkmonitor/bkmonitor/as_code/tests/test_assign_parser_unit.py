@@ -5,6 +5,43 @@ import pytest
 from bkmonitor.as_code.parse_yaml import AssignGroupRuleParser
 
 
+@pytest.mark.parametrize(
+    ("dispatch", "exported_dispatch"),
+    [
+        (
+            {"ai_analysis": None, "noise": True, "noise_remark": "例行维护"},
+            {"ai_analysis": None, "noise": True, "noise_remark": "例行维护"},
+        ),
+        (
+            {"ai_analysis": {"user_groups": [1]}, "noise": False},
+            {"ai_analysis": {"user_groups": ["分析结果"]}, "noise": False},
+        ),
+        ({"ai_analysis": {"user_groups": []}, "noise": False}, {"ai_analysis": {"user_groups": []}, "noise": False}),
+        ({"ai_analysis": {}, "noise": False}, {"ai_analysis": {}, "noise": False}),
+    ],
+)
+def test_dispatch_config_as_code_roundtrip(dispatch, exported_dispatch):
+    parser = AssignGroupRuleParser(2, notice_group_ids={"分析结果": 1}, action_ids={})
+    config = {
+        "name": "测试",
+        "priority": 1,
+        "rules": [
+            {
+                "user_groups": [],
+                "actions": [],
+                "is_enabled": True,
+                "conditions": [{"field": "labels", "value": ["test"], "method": "eq"}],
+                "dispatch_config": deepcopy(dispatch),
+            }
+        ],
+    }
+    exported = parser.unparse(config)
+    assert exported["rules"][0]["dispatch_config"] == exported_dispatch
+    restored = parser.parse(parser.check(exported))["rules"][0]
+    assert not restored["actions"][0]["is_enabled"]
+    assert restored["dispatch_config"] == dispatch
+
+
 @pytest.mark.parametrize("rule_enabled", [True, False])
 @pytest.mark.parametrize("notice_enabled", [True, False])
 @pytest.mark.parametrize(

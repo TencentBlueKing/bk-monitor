@@ -23,6 +23,11 @@ class AssignMode:
     ASSIGN_MODE_CHOICE = [(BY_RULE, _lazy("分派")), (ONLY_NOTICE, _lazy("仅通知"))]
 
 
+class AssignActionType:
+    AI_ANALYSIS = "ai_analysis"
+    NOISE = "noise"
+
+
 class ActionPluginType:
     NOTICE = "notice"
     WEBHOOK = "webhook"

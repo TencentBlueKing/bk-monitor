@@ -183,6 +183,7 @@ class TestAlertDetailResource:
 
         assert result["graph_panel"] is None
         assert result["plugin_display_name"] == "Test Plugin"
+        assert result["extra_info"]["dispatch_evaluation"] == {"status": "unknown", "evaluated_at": None}
         assert related_info_calls == [{"alerts": [fake_alert]}]
         if expected_relation_data is None:
             assert result["relation_info"] == expected_relation_info

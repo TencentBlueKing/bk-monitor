@@ -19,6 +19,7 @@ from alarm_backends.core.context import ActionContext
 from alarm_backends.core.i18n import i18n
 from alarm_backends.service.fta_action.common import BaseActionProcessor
 from bkmonitor.models import ActionInstance, ActionStatus
+from constants.action import ActionSignal
 
 from .client import get_client
 
@@ -38,6 +39,8 @@ class ActionProcessor(BaseActionProcessor):
         i18n.set_biz(self.action.bk_biz_id)
         self.alerts = alerts
         self.context = ActionContext(self.action, alerts=self.alerts, use_alert_snap=True).get_dictionary()
+        if self.action.signal in (ActionSignal.MANUAL, ActionSignal.DEMO):
+            self.skip_pending_dispatch_noise()
 
     def _init_clients(self):
         """

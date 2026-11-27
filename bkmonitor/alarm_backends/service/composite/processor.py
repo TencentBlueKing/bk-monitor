@@ -674,7 +674,7 @@ class CompositeProcessor:
                             strategy_id=strategy_id, alert_id=self.alert.id, signal=check_signal
                         )
                     )
-                    if not (self.alert.is_handled or is_send_handle_signal):
+                    if not (self.alert.is_handled or is_send_handle_signal or self.alert.is_dispatch_noise):
                         # 如果没有处理过或者已经发送了处理信号，直接忽略
                         if int(time.time()) - self.alert.create_time >= settings.QOS_DROP_ACTION_WINDOW:
                             # 这类没有处理过的数据，一般有可能是因为QOS引起的，所以可以延迟一点再发送, 否则相同的周期内，会有重复的自增记录
@@ -683,7 +683,12 @@ class CompositeProcessor:
                 action = None
                 if signal:
                     # 推送动作信号
-                    if signal != ActionSignal.ABNORMAL and not strategy_id:
+                    noise_lifecycle = self.alert.is_dispatch_noise and signal in (
+                        ActionSignal.NO_DATA,
+                        ActionSignal.RECOVERED,
+                        ActionSignal.CLOSED,
+                    )
+                    if signal != ActionSignal.ABNORMAL and not strategy_id and not noise_lifecycle:
                         # 如果是第三方分派的情况下，忽略非异常信号的通知
                         logger.info(
                             "[composite ignore] alert(%s) signal(%s) source(%s), no strategy_id",

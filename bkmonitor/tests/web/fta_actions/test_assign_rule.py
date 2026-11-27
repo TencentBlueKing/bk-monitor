@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import urllib
 from unittest import skip
 
@@ -187,6 +188,7 @@ class TestAssignRuleResource(TestCase):
         batch_update_info = {
             "assign_group_id": instance.id,
             "bk_biz_id": 2,
+            "priority": 0,
             "rules": [
                 {
                     "user_groups": [1],
@@ -209,6 +211,8 @@ class TestAssignRuleResource(TestCase):
         r = BatchUpdateResource()
 
         data = r.request(request_data=batch_update_info)
+        instance.refresh_from_db()
+        self.assertEqual(instance.priority, 0)
         self.assertEqual(len(data["rules"]), 1)
         batch_update_info["rules"][0]["id"] = data["rules"][0]
         batch_update_info["rules"].append(
@@ -293,6 +297,56 @@ class TestAssignRuleResource(TestCase):
         self.assertEqual(response_alert["id"], alert.id)
         self.assertEqual(response_alert["origin_severity"], alert.severity)
         self.assertEqual(response_alert["severity"], 2)
+        self.assertNotIn("id", data[0]["rules"][0])
+        self.assertIn("notice", response_alert["action_types"])
+
+        # 两条未保存、同优先级的 AI 规则各自能看到预览，不能用缺省 id 作为同一个键。
+        ai_rule = {
+            **rule,
+            "actions": [],
+            "additional_tags": [],
+            "alert_severity": 0,
+            "dispatch_config": {"ai_analysis": {"user_groups": [1]}, "noise": False},
+        }
+        inherited_rule = {**ai_rule, "user_groups": [2], "dispatch_config": {"ai_analysis": {}}}
+        previews = match_r.request({**req_data, "rules": [ai_rule, inherited_rule]})[0]
+        self.assertEqual(previews["alerts_count"], 2)
+        for preview, config in zip(previews["rules"], [{"user_groups": [1]}, {}]):
+            self.assertNotIn("id", preview)
+            self.assertEqual(preview["actions"], [])
+            self.assertEqual(preview["dispatch_config"]["ai_analysis"], config)
+            self.assertEqual(len(preview["alerts"]), 1)
+            self.assertEqual(preview["alerts"][0]["dispatch_result"]["ai_analysis"], {"user_groups": [1, 2]})
+        new_group = match_r.request(
+            {**req_data, "assign_group_id": None, "group_name": "Draft", "priority": 2, "rules": [ai_rule, ai_rule]}
+        )[0]
+        self.assertIsNone(new_group["group_id"])
+        self.assertEqual(new_group["alerts_count"], 2)
+        self.assertEqual(match_r.request({**req_data, "exclude_groups": [assign_group.id]}), [])
+
+        # 低优先级的处置仍生效，低优先级的同类 AI 只返回抑制原因。
+        lower = AlertAssignGroup.objects.create(name="lower", bk_biz_id=2, priority=0)
+        lower_rules = [
+            {
+                **rule,
+                "actions": [{"action_type": "itsm", "action_id": 4444}],
+                "alert_severity": 0,
+                "additional_tags": [],
+            },
+            ai_rule,
+        ]
+        BatchUpdateResource().request({**req_data, "assign_group_id": lower.id, "priority": 0, "rules": lower_rules})
+        high, low = match_r.request({**req_data, "rules": [ai_rule]})
+        self.assertEqual((high["group_id"], high["alerts_count"]), (assign_group.id, 1))
+        self.assertEqual((low["group_id"], low["alerts_count"]), (lower.id, 1))
+        for preview in low["rules"]:
+            if preview["dispatch_config"]["ai_analysis"]:
+                self.assertEqual(preview["alerts"], [])
+                self.assertEqual(
+                    preview["suppressed_alerts"][0]["suppressed_actions"], {"ai_analysis": "higher_priority_same_type"}
+                )
+            else:
+                self.assertEqual(preview["alerts"][0]["action_types"], ["itsm"])
 
         r = BatchUpdateResource()
         data = r.request(request_data=req_data)

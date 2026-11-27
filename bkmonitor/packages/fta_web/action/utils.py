@@ -15,6 +15,7 @@ from django.utils import translation
 from django.utils.translation import gettext as _
 from jinja2 import DebugUndefined
 from jinja2.sandbox import SandboxedEnvironment as Environment
+from rest_framework.exceptions import ValidationError
 
 from bkmonitor.models import ActionPlugin
 from bkmonitor.utils.sms import format_sms_time, get_sms_template_mode, render_standard_sms
@@ -28,6 +29,11 @@ def filter_alerts_by_biz(alerts, bk_biz_id):
     """仅保留指定业务下的告警。"""
     bk_biz_id = str(bk_biz_id)
     return [alert for alert in alerts if str(getattr(getattr(alert, "event", None), "bk_biz_id", "")) == bk_biz_id]
+
+
+def validate_action_alerts(alerts):
+    if any(alert.is_dispatch_noise for alert in alerts):
+        raise ValidationError(_("所选告警包含已标记为噪声的告警，请移除后重试"))
 
 
 def parse_bk_plugin_deployed_info(data):

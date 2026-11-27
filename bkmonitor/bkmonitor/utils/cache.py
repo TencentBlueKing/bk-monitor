@@ -361,6 +361,9 @@ class InstanceCache:
         value = self.__get_raw(key)
         return value and value[0]
 
+    def mget(self, keys):
+        return [self.get(key) for key in keys]
+
     def delete(self, key):
         try:
             del self.__cache[key]
