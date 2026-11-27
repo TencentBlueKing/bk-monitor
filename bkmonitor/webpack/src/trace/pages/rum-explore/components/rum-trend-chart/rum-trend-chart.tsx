@@ -29,7 +29,7 @@ import { type PropType, computed, defineComponent, onScopeDispose, shallowRef, w
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { useI18n } from 'vue-i18n';
 
-import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
+import { type TimeRangeType, handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import TrendChartPanel from '../../../../components/trend-chart-panel/trend-chart-panel';
 import { useRumExploreStore } from '../../../../store/modules/rum-explore';
 import { RUM_MODE_TAB_LIST, SPAN_TYPE_FIELD, SPAN_TYPE_META } from '../../constants';
@@ -57,9 +57,15 @@ export default defineComponent({
       type: Object as PropType<IRumCommonParams>,
       required: true,
     },
+    /** 是否展示复位按钮，由页面维护，图表重建后仍保留 */
+    showRestore: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
-    dataZoomChange: (_value: [number, number]) => true,
+    dataZoomChange: (_value: TimeRangeType) => true,
+    restore: () => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -156,15 +162,19 @@ export default defineComponent({
           ? {
               color: item.color,
               itemStyle: { color: item.color },
+              areaStyle: {},
               lineStyle: { ...(item.lineStyle || {}), color: item.color },
             }
           : {}),
       }));
 
-    /** 框选区间交给页面写回时间范围，图表自身已在抛事件前复位 */
+    /** 框选：区间交给页面写回，框选前区间也由页面维护 */
     const handleDataZoomChange = (value: [number, number]) => {
       emit('dataZoomChange', value);
     };
+
+    /** 复位：回到哪个区间由页面决定，与框选共用同一写回链路 */
+    const handleRestore = () => emit('restore');
 
     return {
       t,
@@ -176,6 +186,7 @@ export default defineComponent({
       formatterData,
       customSeries,
       handleDataZoomChange,
+      handleRestore,
     };
   },
   render() {
@@ -191,11 +202,13 @@ export default defineComponent({
         panel={this.panel}
         params={this.params}
         refreshImmediate={this.store.refreshImmediate}
+        showRestore={this.showRestore}
         timeRange={this.store.timeRange}
         timezone={this.store.timezone}
         title={this.t('总趋势')}
         total={this.total}
         onDataZoomChange={this.handleDataZoomChange}
+        onRestore={this.handleRestore}
       />
     );
   },
