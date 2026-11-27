@@ -1,4 +1,5 @@
 {
+  "当前 PromQL 无法按本条告警的维度组合过滤": "This PromQL query cannot filter by this alert’s dimension combination.",
   "告警类型": "Alarm types",
   "告警时间": "Alarm time",
   "通知人": "Notify",

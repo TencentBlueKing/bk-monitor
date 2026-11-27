@@ -35,8 +35,17 @@ def can_push_down_alert_labels(expression: str, labels: dict) -> bool:
         return True
 
     def allows_filter(node) -> bool:
-        if isinstance(node, promql.AggregateExpr) and str(node.op) == "count_values":
-            return _label_name(node.param) not in labels
+        if isinstance(node, promql.AggregateExpr):
+            if str(node.op) == "count_values":
+                return _label_name(node.param) not in labels
+            if str(node.op) in {"topk", "bottomk"}:
+                # 只允许过滤整个排名分组，组内序列必须一起参与每个时刻的排名。
+                grouping = node.modifier
+                if grouping is None:
+                    return False
+                if grouping.type == promql.AggModifierType.By:
+                    return labels.keys() <= set(grouping.labels)
+                return labels.keys().isdisjoint(grouping.labels)
 
         if isinstance(node, promql.BinaryExpr) and node.modifier:
             modifier = node.modifier
