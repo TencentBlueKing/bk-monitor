@@ -223,7 +223,8 @@ test('single selection of a received-alert business cannot promote it to the mai
     isAutoSelectCurrentSpace: true,
   });
   f.open();
-  f.take('allowed').resolve(page([row(2)]));
+  f.take('allowed', { bk_biz_ids: '2' }).resolve(page([row(2)]));
+  f.take('allowed', { bk_biz_ids: undefined }).resolve(page([row(2)]));
   f.take('alert').resolve(page([alert(7)]));
   await tick();
   const received = f.state.pagination.data.find(item => item.id === 7);
@@ -240,13 +241,15 @@ test('single selection of a received-alert business cannot promote it to the mai
 test('reopening discards late pages; sentinel remains exclusive and type/search start new cursors', async () => {
   const f = fixture({ value: [2], spaceList: [{ ...row(2), id: 2 }], needAuthorityOption: true });
   f.open();
-  f.take('allowed').resolve(page());
+  f.take('allowed', { bk_biz_ids: '2' }).resolve(page([row(2)]));
+  f.take('allowed', { bk_biz_ids: undefined }).resolve(page());
   await tick();
   f.state.handleSearchInput('old');
   const stale = f.take('allowed', { query: 'old' });
   f.close();
   f.open();
-  f.take('allowed').resolve(page([row(7)], 'next'));
+  f.take('allowed', { bk_biz_ids: '2' }).resolve(page([row(2)]));
+  f.take('allowed', { bk_biz_ids: undefined }).resolve(page([row(7)], 'next'));
   await tick();
   f.state.handleSelectOption(f.state.pagination.data.find(item => item.id === 7));
   f.state.handleSearchType('bcs');
@@ -281,8 +284,9 @@ test('local subset and older services continue to use the consumer-supplied list
   }
 });
 
-test('retry recovers an incomplete page and reopening verifies the previous selected business again', async () => {
-  const f = fixture({ value: [7], hasAuthApply: true });
+test('retry verifies a selected business on reopen even when the parent still supplies its previous grant', async () => {
+  const f = fixture({ value: [7], hasAuthApply: true, spaceList: [{ ...row(7), id: 7 }] });
+  assert.equal(f.state.canMakeCurrent(7), false);
   f.take('allowed', { bk_biz_ids: '7' }).resolve(page([row(7)]));
   await tick();
   assert.equal(f.state.canMakeCurrent(7), true);

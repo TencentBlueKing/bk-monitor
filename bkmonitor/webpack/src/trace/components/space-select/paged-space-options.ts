@@ -74,9 +74,9 @@ export class PagedSpaceOptions {
     return Promise.allSettled([this.allowed.reset(query), ...(includeAlerts ? [this.alerts.reset(query)] : [])]);
   }
 
-  async resolveSelected(ids: number[], available: DirectoryOption[], includeAlerts: boolean) {
+  async resolveSelected(ids: number[], includeAlerts: boolean) {
     const generation = ++this.lookupGeneration;
-    this.retain(ids, available);
+    this.retain(ids);
     const missing = [...new Set(ids.filter(id => !this.references.has(id)))];
     try {
       for (let i = 0; i < missing.length; i += 100) {
@@ -102,17 +102,17 @@ export class PagedSpaceOptions {
   }
 
   /** Keep only explicitly selected/current IDs when the search or page changes. */
-  retain(ids: number[], available: DirectoryOption[]) {
+  retain(ids: number[]) {
     const references = new Map<number, DirectoryOption>();
     for (const id of ids) {
-      const item = this.selected(id, available);
+      const item = this.selected(id);
       if (item) references.set(id, item);
     }
     this.references = references;
   }
 
-  selected(id: number, available: DirectoryOption[]): DirectoryOption | undefined {
-    return this.order.get(id) ?? available.find(item => item.bk_biz_id === id) ?? this.references.get(id);
+  selected(id: number): DirectoryOption | undefined {
+    return this.order.get(id) ?? this.references.get(id);
   }
 
   updateRows() {

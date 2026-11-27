@@ -215,7 +215,7 @@ export default defineComponent({
       const rows = remote.rows;
       const refs = selectedIds(value).map<DirectoryOption>(
         id =>
-          remote.selected(id, props.spaceList) ?? {
+          remote.selected(id) ?? {
             bk_biz_id: id,
             id,
             is_demo: false,
@@ -236,7 +236,7 @@ export default defineComponent({
     async function resolveSelected(value: (number | string)[]) {
       const session = selectionSession;
       try {
-        const current = await remote.resolveSelected(selectedIds(value), props.spaceList, props.hasAuthApply);
+        const current = await remote.resolveSelected(selectedIds(value), props.hasAuthApply);
         if (current) {
           lookupError.value = false;
           initLocalSpaceList();
@@ -260,7 +260,7 @@ export default defineComponent({
     async function loadPage(first: boolean) {
       if (!isOpen.value || (!first && pageLoading.value)) return;
       const generation = first ? ++pageGeneration : pageGeneration;
-      remote.retain(selectedIds(localValue.value), props.spaceList);
+      remote.retain(selectedIds(localValue.value));
       pageLoading.value = true;
       if (first) pageError.value = false;
       const response = first
@@ -291,7 +291,7 @@ export default defineComponent({
       if (remote && isOpen.value) {
         searchValue.value = value;
         ++pageGeneration;
-        remote.retain(selectedIds(localValue.value), props.spaceList);
+        remote.retain(selectedIds(localValue.value));
         remote.clearPages();
         pageError.value = false;
         pageLoading.value = true;
@@ -521,7 +521,7 @@ export default defineComponent({
       controller?.abort?.();
       isOpen.value = false;
       if (props.remote && remote) {
-        remote.retain(selectedIds(localValue.value), props.spaceList);
+        remote.retain(selectedIds(localValue.value));
         closePages();
         localSpaceList.value = localSpaceList.value.filter(item => item.isSpecial || item.isCheck);
         setPaginationData(true);
@@ -552,7 +552,7 @@ export default defineComponent({
     }
 
     function canMakeCurrent(id: number) {
-      const record: DirectoryOption = remote.selected(id, props.spaceList);
+      const record: DirectoryOption = remote.selected(id);
       return Boolean(record && !record.noAuth);
     }
 
