@@ -42,6 +42,8 @@ def test_statistics_cache_and_search_use_same_visible_spaces(monkeypatch, extern
     monkeypatch.setattr(commons, "get_request", lambda **kwargs: request)
     monkeypatch.setattr(commons, "get_request_username", lambda: "tester")
     monkeypatch.setattr(commons.SpaceApi, "list_spaces_dict", Mock(return_value=spaces))
+    read_records = Mock(return_value=spaces)
+    monkeypatch.setattr(commons.SpaceApi, "read_space_records", read_records)
     external_permission = Mock()
     external_permission.return_value.values_list.return_value.distinct.return_value = [-101, -102, -103]
     monkeypatch.setattr(commons.ExternalPermission.objects, "filter", external_permission)
@@ -68,3 +70,6 @@ def test_statistics_cache_and_search_use_same_visible_spaces(monkeypatch, extern
     spaces[0]["status"] = "normal"
     assert module.StatisticsResource.get_space_data_by_cache()["allowed_biz_ids"] == {-101, -102, -103}
     assert module.StatisticsResource.get_space_data_by_api()["allowed_biz_ids"] == {-101, -102, -103}
+    if external:
+        read_records.assert_called_with("system", [-101, -102, -103])
+        commons.SpaceApi.list_spaces_dict.assert_not_called()

@@ -528,6 +528,28 @@ class TestFilterSpaceListByAction:
             {"bk_biz_id": 5, "space_name": "C"},
         ]
 
+    @pytest.mark.parametrize("both_healthy", [False, True])
+    def test_scope_status_keeps_confirmed_records_on_partial_union(self, mocker, both_healthy):
+        from types import SimpleNamespace
+
+        from iam_engine.core.config import AuthMode
+        from iam_engine.core.types import AuthorizedResourceScope
+
+        permission = Permission(username="tester", bk_tenant_id="tenant")
+        permission.skip_check = False
+        mocker.patch.object(permission.mode_provider, "get_mode", return_value=AuthMode.UNION)
+        read = mocker.patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list())
+        resolve = mocker.patch.object(permission.mode_router, "list_authorized_scope")
+        resolve.return_value.scope = AuthorizedResourceScope.concrete("space", {"3"})
+        resolve.return_value.provider_scopes = [SimpleNamespace(ok=True), SimpleNamespace(ok=both_healthy)]
+
+        assert permission.list_authorized_space_records_with_status(ActionEnum.VIEW_BUSINESS) == (
+            [{"bk_biz_id": 3, "space_name": "B"}],
+            both_healthy,
+        )
+        read.assert_called_once()
+        resolve.assert_called_once()
+
     @pytest.mark.parametrize("first", [True, False])
     def test_v4_finite_ids_read_only_matching_space_records(self, mocker, first):
         from iam_engine.core.config import AuthMode
