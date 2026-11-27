@@ -30,6 +30,7 @@ import { useI18n } from 'vue-i18n';
 import FieldTypeIcon from '../../../../../trace-explore/components/field-type-icon';
 import RumHoverInfo from '../../../../detail/components/hover-info/hover-info';
 import { useHoverInfo } from '../../../../detail/composables/use-hover-info';
+import RumColumnSort, { type RumSortOption, type RumSortOrder } from '../column-sort/column-sort';
 
 import type { IRumField } from '../../../../typings';
 
@@ -52,10 +53,16 @@ export default defineComponent({
     field: { type: Object as PropType<IRumField>, default: undefined },
     /** 列头分析入口的默认字段和候选，缺省时隐藏入口。 */
     analysis: { type: Object as PropType<FieldAnalysisSelection>, default: undefined },
+    /** 复合列当前的排序方向，未排序时为空串。 */
+    sort: { type: String as PropType<RumSortOrder>, default: '' },
+    /** 复合列当前生效排序的分类字段。 */
+    sortField: { type: String, default: '' },
   },
   emits: {
     /** 打开字段分析浮层，并用按钮作为定位锚点。 */
     fieldAnalysis: (_trigger: Element, _selection: FieldAnalysisSelection) => true,
+    /** 复合列分类排序变更：order 为方向，field 为选中的分类字段。 */
+    sortChange: (_order: RumSortOrder, _field?: string) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -63,6 +70,11 @@ export default defineComponent({
     const hoverInfoRef = useTemplateRef<HTMLDivElement>('hoverInfo');
     /** hover 字段说明时展示 hover-info 卡片，无 hover 数据的列头不加事件 */
     const { hoverBindings, hoverData } = useHoverInfo();
+    /** 复合列才有分类排序：候选与字段分析弹层的 tab 分类一致。 */
+    const sortOptions = computed<RumSortOption[]>(() => {
+      if (!props.field?.composite || !props.analysis) return [];
+      return props.analysis.candidates.map(item => ({ label: item.alias ?? item.name, value: item.name }));
+    });
 
     /** 打开分析浮层，避免点击同时触发表头排序。 */
     const handleAnalysis = (event: MouseEvent) => {
@@ -70,7 +82,12 @@ export default defineComponent({
       if (props.analysis) emit('fieldAnalysis', event.currentTarget as Element, props.analysis);
     };
 
-    return { t, label, hoverInfoRef, hoverBindings, hoverData, handleAnalysis };
+    /** 转发分类排序结果，由表格统一转成查询排序。 */
+    const handleSortChange = (order: RumSortOrder, field?: string) => {
+      emit('sortChange', order, field);
+    };
+
+    return { t, label, hoverInfoRef, hoverBindings, hoverData, sortOptions, handleAnalysis, handleSortChange };
   },
   render() {
     const hover = this.field?.hover;
@@ -108,6 +125,14 @@ export default defineComponent({
               aria-hidden='true'
             />
           </button>
+        )}
+        {!!this.sortOptions.length && (
+          <RumColumnSort
+            sort={this.sort}
+            sortField={this.sortField}
+            sortOptions={this.sortOptions}
+            onSortChange={this.handleSortChange}
+          />
         )}
         <div style='display: none'>
           <div ref='hoverInfo'>
