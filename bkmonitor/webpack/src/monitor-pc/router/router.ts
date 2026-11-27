@@ -155,9 +155,9 @@ router.beforeEach(async (to, from, next) => {
   store.commit('app/SET_PADDING_ROUTE', to);
   const access = navigationAccess.get(to);
   if (access === 'denied' || access === 'not_found') {
-    // 点击时地址仍是来源页；后退、前进时浏览器已移到目标条目，应替换这个失权条目。
-    const preserveSource =
-      isBizEntryExempt(from) && router.resolve(location.hash.slice(1)).route.fullPath === from.fullPath;
+    // 子应用可独立写入筛选条件。点击时保留可访问的来源页，后退或前进时替换已失权的目标条目。
+    const visibleRoute = router.resolve(location.hash.slice(1)).route;
+    const preserveSource = isBizEntryExempt(from) && isBizEntryExempt(visibleRoute);
     return next({ name: 'no-business', replace: !preserveSource });
   }
   if (access === 'error') showSpaceAccessError();
