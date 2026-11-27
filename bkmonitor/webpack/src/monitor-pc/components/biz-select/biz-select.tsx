@@ -101,6 +101,8 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   localValue: number = null;
 
   pages = new SpaceDirectoryPager();
+  selectedPageRow: ISpaceItem = null;
+  demoPageRow: ISpaceItem = null;
   searchVersion = 0;
   get paged() {
     return this.remote && supportsSpaceDirectoryPages();
@@ -117,6 +119,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     ).catch(() => false);
     if (changed) {
       this.bizListFilter = this.getBizListFilter();
+      if (!append && !this.keyword && !this.searchTypeId) this.demoPageRow = this.pages.items.find(row => row.is_demo);
       if (!append) this.resetHighlight(!this.keyword);
     }
     return changed;
@@ -198,7 +201,9 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   /** 当前选中的业务 */
   get curentBizItem() {
     return (
-      this.$store.getters.bizIdMap?.get?.(this.localValue) || this.bizList.find(item => item.id === this.localValue)
+      this.$store.getters.bizIdMap?.get?.(this.localValue) ||
+      this.bizList.find(item => item.id === this.localValue) ||
+      (this.selectedPageRow?.id === this.localValue ? this.selectedPageRow : undefined)
     );
   }
   /** 业务名 */
@@ -233,9 +238,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
 
   /**  */
   get demo() {
-    return (
-      this.bizList.find(item => item.is_demo) ?? (this.paged ? this.pages.items.find(item => item.is_demo) : undefined)
-    );
+    return this.bizList.find(item => item.is_demo) ?? (this.paged ? this.demoPageRow : undefined);
   }
 
   @Watch('value')
@@ -276,6 +279,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
 
   @Emit('change')
   handleBizChange(id: number) {
+    if (this.paged) this.selectedPageRow = this.pages.items.find(row => row.id === id) ?? this.demoPageRow;
     this.popoverRef.instance.hide();
     this.localValue = id;
     this.getFirstCodeBgColor();
@@ -470,6 +474,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     const react = this.$el.getBoundingClientRect();
     this.listWidth = react.width <= this.minWidth ? this.minWidth : react.width;
     this.showBizList = true;
+    this.demoPageRow = null;
     if (this.paged) void this.loadDirectory();
     setTimeout(() => {
       this.menuSearchInput.focus();

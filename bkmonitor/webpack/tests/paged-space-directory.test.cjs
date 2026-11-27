@@ -248,6 +248,24 @@ test('Vue2 resolves historical IDs through VIEW first, and only asks the alert s
   assert.deepEqual(c.localValue, before);
 });
 
+test('a partially resolved VIEW query preserves confirmed names and leaves unconfirmed IDs for retry', async () => {
+  const h = setup(), c = component('monitor-pc/components/space-select/space-select.tsx', h);
+  Object.assign(c, { remote: true, hasAuthApply: true, value: [31, 17], spaceList: [], localValue: [31, 17] });
+  const first = c.resolveSelection(c.localValue);
+  h.normal[0].resolve({ items: [space(17, 'confirmed')], next_cursor: null, partial: true });
+  await first;
+  assert.equal(c.selectionIncomplete, true);
+  assert.equal(c.selectedRows.find(row => row.id === 17).space_name, 'confirmed');
+  assert.deepEqual(c.localValue, [31, 17]);
+  assert.equal(h.alerts.length, 0);
+  const retry = c.resolveSelection(c.localValue);
+  assert.equal(h.normal[1].params.bk_biz_ids, '31');
+  h.normal[1].resolve({ items: [space(31, 'now visible')], next_cursor: null });
+  await retry;
+  assert.equal(c.selectionIncomplete, false);
+  assert.deepEqual(c.selectedRows.map(row => row.id), [17, 31]);
+});
+
 test('top bar honors remote pinyin matching even when returned rows contain no local pinyin', async () => {
   const h = setup(), c = component('monitor-pc/components/biz-select/biz-select.tsx', h);
   Object.assign(c, { remote: true, bizList: [], commonListIds: [], stickyList: [], showBizList: true, keyword: 'bj', searchTypeId: 'bcs' });

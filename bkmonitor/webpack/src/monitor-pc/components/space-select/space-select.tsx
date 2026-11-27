@@ -137,6 +137,7 @@ export default class SpaceSelect extends tsc<
   alertPages = new SpaceDirectoryPager(queryAlertSpaceDirectory);
   selectedRows: ISpaceItem[] = [];
   selectedRequest = 0;
+  selectionIncomplete = false;
 
   get paged() {
     return this.remote && supportsSpaceDirectoryPages();
@@ -145,6 +146,7 @@ export default class SpaceSelect extends tsc<
   async resolveSelection(value: number[]) {
     const request = ++this.selectedRequest;
     if (!this.paged) return;
+    this.selectionIncomplete = false;
     const selected = new Set(value);
     const known = new Map<number, ISpaceItem>();
     for (const row of [...this.selectedRows, ...this.alertPages.items, ...this.spaceList, ...this.pages.items]) {
@@ -156,15 +158,24 @@ export default class SpaceSelect extends tsc<
     for (let i = 0; i < missing.length; i += 100) {
       const ids = missing.slice(i, i + 100);
       const page = await querySpaceDirectory({ bkBizIds: ids, pageSize: 100 }).catch(() => null);
-      if (request !== this.selectedRequest || !page) return;
+      if (request !== this.selectedRequest) return;
+      if (!page) {
+        this.selectionIncomplete = true;
+        break;
+      }
       this.selectedRows.push(...page.items);
+      if (page.partial) {
+        this.selectionIncomplete = true;
+        continue;
+      }
       if (this.hasAuthApply) {
         const allowed = new Set(page.items.map(row => row.id));
         const remaining = ids.filter(id => !allowed.has(id));
         if (remaining.length) {
           const alerts = await queryAlertSpaceDirectory({ bkBizIds: remaining, pageSize: 100 }).catch(() => null);
-          if (request !== this.selectedRequest || !alerts) return;
-          this.selectedRows.push(...alerts.items);
+          if (request !== this.selectedRequest) return;
+          if (alerts) this.selectedRows.push(...alerts.items);
+          if (!alerts || alerts.partial) this.selectionIncomplete = true;
         }
       }
     }
@@ -1132,14 +1143,22 @@ export default class SpaceSelect extends tsc<
                   {this.$t('加载更多')}
                 </button>
               )}
-              {this.paged && (this.pages.failed || this.alertPages.failed || this.alertPages.partial) && (
-                <button
-                  type='button'
-                  onClick={() => this.loadDirectory()}
-                >
-                  {this.$t('部分空间未能确认，请重试')}
-                </button>
-              )}
+              {this.paged &&
+                (this.selectionIncomplete ||
+                  this.pages.failed ||
+                  this.pages.partial ||
+                  this.alertPages.failed ||
+                  this.alertPages.partial) && (
+                  <button
+                    type='button'
+                    onClick={() => {
+                      void this.resolveSelection(this.localValue);
+                      void this.loadDirectory();
+                    }}
+                  >
+                    {this.$t('部分空间未能确认，请重试')}
+                  </button>
+                )}
             </div>
           </div>
         </div>

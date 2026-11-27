@@ -292,7 +292,7 @@ export function querySpaceDirectory(options: SpaceDirectoryQuery = {}): Promise<
       if (!Array.isArray(data?.items) || !(data.next_cursor === null || typeof data.next_cursor === 'string')) {
         throw new Error('Invalid space directory page');
       }
-      return { items: data.items.map(normalizeRow), nextCursor: data.next_cursor };
+      return { items: data.items.map(normalizeRow), nextCursor: data.next_cursor, partial: data.partial === true };
     })
     .finally(() => pending.delete(key));
   pending.set(key, job);
