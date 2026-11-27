@@ -29,9 +29,11 @@ QUEUE_WAIT_RATIO = (
         ("sum by (pod)(sum without(pod)(metric))", {"pod": "api1"}, True),
         ("sum(metric)", {"pod": "api1"}, True),
         ('sum by (pod)(label_join(m, "pod", ".", "a", "b"))', {"pod": "api1"}, False),
-        ("topk(1, metric)", {"pod": "api1"}, True),
+        ("topk(1, metric)", {"pod": "api1"}, False),
         ("topk by (cluster)(1, metric)", {"cluster": "east"}, True),
-        ("topk by (cluster)(1, metric)", {"cluster": "east", "pod": "api1"}, True),
+        ("topk by (cluster)(1, metric)", {"cluster": "east", "pod": "api1"}, False),
+        ("bottomk without (pod)(1, metric)", {"cluster": "east"}, True),
+        ("bottomk without (pod)(1, metric)", {"pod": "api1"}, False),
         ("bottomk by (pod)(scalar(n), metric)", {"pod": "api1"}, False),
         ('label_replace(metric, "dst", "$1", "pod", "(.*)")', {"pod": "api1"}, True),
         ('label_replace(metric, "dst", "$1", "pod", "(.*)")', {"dst": "api1"}, False),
@@ -69,6 +71,12 @@ def test_push_down(expression, labels, expected):
     ("expr", "dimensions", "safe"),
     [
         (QUEUE_WAIT_RATIO, {"instance": "host1", "name": "queue1"}, True),
+        # 两个 pod 的值随 time() 交叉，告警所在 pod 只在部分时刻排名第一。
+        (
+            'topk(1, (up{pod="a"} * 0 + time()) or (up{pod="b"} * 0 + (240 - time())))',
+            {"pod": "a"},
+            False,
+        ),
         ('label_replace(m,"display","$1","version","(.*)")', {"version": "v2"}, True),
         ('label_replace(m,"version","$1","release","(.*)")', {"version": "v2"}, False),
     ],
@@ -129,8 +137,8 @@ def test_non_promql_graph_keeps_filters_and_series(mocker):
         (["pod", "missing"], "metric", None),
         (["pod", "__NO_DATA_DIMENSION__"], "metric", None),
         ([], "metric", None),
-        (["pod", "version"], "topk by (pod)(1, metric)", {"pod": "p", "version": "v2"}),
-        (["pod", "version"], "bottomk(1, metric)", {"pod": "p", "version": "v2"}),
+        (["pod", "version"], "topk by (pod)(1, metric)", None),
+        (["pod", "version"], "bottomk(1, metric)", None),
     ],
 )
 def test_alert_detail_visibility(mocker, fields, expression, expected):
