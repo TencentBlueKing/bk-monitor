@@ -85,7 +85,7 @@ resources/
 
 1. 根据接口是内部还是外部，设置 `isPublic` 和 `allowApplyPermission` 字段
 2. 根据接口是应用态还是用户态，设置 `userVerifiedRequired` 和 `appVerifiedRequired` 字段
-3. 如果 yaml 文件中没有 `tags` 字段，则将 yaml 文件名补充到 `tags` 字段。
+3. 如果 yaml 文件中没有 `tags` 字段，则将 yaml 文件名补充到 `tags` 字段；开启个人令牌的内部接口统一使用 `用户态接口`。
 
 ## 文档管理
 
@@ -115,7 +115,7 @@ python manage.py sync_apigw
 `oauth2PersonalClientEnabled: true`（API 网关 1.24 支持，未配置默认为 false），同时保留
 `userVerifiedRequired: true`。合并脚本保留该字段；修改后需要同步资源、生成版本并发布，
 本地 YAML 变化不代表线上已经生效。个人令牌只提供身份，不授予工具或资源权限。
-开启后合并脚本会把该接口设为公开（`isPublic: true`），用户可在文档中心查看并在个人令牌授权范围中选择；
+开启后合并脚本会把该接口设为公开（`isPublic: true`）并统一归入文档分组“用户态接口”，用户可在文档中心查看并在个人令牌授权范围中选择；
 运维诊断、运营数据等不应对外的接口不要开启该字段。
 
 监控 middleware 使用现有 `ToolRegistry` 的后端方法与路径识别只读工具，不要求客户端添加

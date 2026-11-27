@@ -4,6 +4,9 @@ from pathlib import Path
 
 import yaml
 
+# 开启个人令牌而公开的内部接口在文档中心统一归入该分组
+PERSONAL_TOKEN_TAG = "用户态接口"
+
 
 def check_unique_operation_ids(merged_data: dict):
     """校验合并后所有资源的 operationId 全局唯一。
@@ -73,10 +76,15 @@ def merge_resources(resources_dir: Path):
                         # 补充标签
                         method_data["tags"] = method_data.get("tags") or [file.name.split(".")[0]]
 
-                        # 设置public；开启个人令牌的接口须对用户可见，才能在授权范围中选择
-                        method_data["x-bk-apigateway-resource"]["isPublic"] = public_dir == "external" or bool(
+                        # 设置public；开启个人令牌的内部接口须对用户可见，才能在授权范围中选择
+                        personal_token_public = public_dir == "internal" and bool(
                             auth_config.get("oauth2PersonalClientEnabled")
                         )
+                        method_data["x-bk-apigateway-resource"]["isPublic"] = (
+                            public_dir == "external" or personal_token_public
+                        )
+                        if personal_token_public:
+                            method_data["tags"] = [PERSONAL_TOKEN_TAG]
                         method_data["x-bk-apigateway-resource"]["allowApplyPermission"] = True
 
                 merged_data.update(data)

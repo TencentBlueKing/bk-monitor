@@ -755,6 +755,7 @@ def test_personal_tokens_are_opted_in_and_survive_merge(tmp_path):
                     assert resource["isPublic"] is False
                 continue
             assert resource["isPublic"] is True
+            assert operation["tags"] == [merge_resources.PERSONAL_TOKEN_TAG]
             name = operation["operationId"]
             assert config["userVerifiedRequired"] is True
             assert config["appVerifiedRequired"] is False
