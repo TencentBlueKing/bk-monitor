@@ -1,3 +1,6 @@
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,9 +26,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
+import { resolveSelectedSpaces } from 'monitor-common/utils/space-selection';
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import { Sortable } from 'sortablejs';
 
@@ -116,8 +117,21 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
     return type;
   }
 
+  resolvedNames: Record<string, string> = {};
+
+  get reportSpaceIds() {
+    return (this.data.pullData || []).map(row => row.curBizId).filter(Boolean);
+  }
+
+  @Watch('reportSpaceIds', { immediate: true })
+  async resolveReportNames(ids: string[]) {
+    const rows = await resolveSelectedSpaces(ids, this.$store.getters.bizList).catch(() => []);
+    if (ids !== this.reportSpaceIds) return;
+    this.resolvedNames = Object.fromEntries(rows.map(row => [row.bk_biz_id, row.text]));
+  }
+
   getBizName(id: string) {
-    return this.$store.getters.bizIdMap.get(+id)?.text.replace(`[${id}] `, '') || '--';
+    return (this.$store.getters.bizIdMap.get(+id)?.text || this.resolvedNames?.[id])?.replace(`[${id}] `, '') || '--';
   }
 
   @Debounce(300)

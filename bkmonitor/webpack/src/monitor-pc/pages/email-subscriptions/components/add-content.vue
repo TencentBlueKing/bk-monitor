@@ -143,6 +143,7 @@
             </bk-select> -->
             <div class="biz-list-wrap">
               <space-select
+                remote
                 :value="[formData.curBizId]"
                 :space-list="$store.getters.bizList"
                 :need-authority-option="false"
@@ -397,6 +398,7 @@ export default class AddContent extends Vue {
 
     .form-wrap {
       box-sizing: border-box;
+
       // max-height: calc(100vh - 111px);
       padding: 24px 0;
       overflow-y: auto;
