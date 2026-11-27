@@ -59,6 +59,22 @@
     border-radius: 0;
   }
 
+  &:where(.is-clickable) {
+    .item-tags,
+    .collapse-tag-visible {
+      pointer-events: auto;
+      cursor: pointer;
+    }
+
+    &:has(.item-tags:hover),
+    &:has(.collapse-tag:hover) {
+      .item-tags,
+      .collapse-tag {
+        border-bottom-color: var(--collapse-array-underline-color, #4d4f56);
+      }
+    }
+  }
+
   // 有可见 [+N] 且本行渲染了值项时才补右内边距。
   // 特异性高于上面 hover 内的 .item-tags，必须放在其后（no-descending-specificity）
   .item-tags:has(+ .collapse-tag-visible):has(.collapse-array-value-item) {

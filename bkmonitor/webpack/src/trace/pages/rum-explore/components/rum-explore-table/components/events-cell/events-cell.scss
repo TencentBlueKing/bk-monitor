@@ -1,32 +1,12 @@
 .rum-array-col-trigger {
-  --rum-events-underline-color: #4d4f56;
-
   display: flex;
   align-items: center;
   width: 100%;
-  cursor: pointer;
+
+  // 标签和折叠标识的点击冒泡到这里，外层空白区域不参与命中。
+  pointer-events: none;
 
   &.is-active {
-    --rum-events-underline-color: #3a84ff;
-  }
-
-  &:has(.rum-collapse-array-col) {
-    pointer-events: none;
-
-    .item-tags,
-    .collapse-tag-visible {
-      pointer-events: auto;
-      cursor: pointer;
-    }
-  }
-
-  .rum-collapse-array-col {
-    &:has(.item-tags:hover),
-    &:has(.collapse-tag:hover) {
-      .item-tags,
-      .collapse-tag {
-        border-bottom-color: var(--rum-events-underline-color);
-      }
-    }
+    --collapse-array-underline-color: #3a84ff;
   }
 }

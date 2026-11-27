@@ -74,12 +74,12 @@ export default defineComponent({
         onClick={this.handleOpen}
       >
         <CollapseArrayCell
-          class='rum-collapse-array-col'
           column={this.column}
           minVisibleCount={1}
           renderCtx={this.ctx}
           rowId={this.ctx.getRowId?.(this.row)}
           values={this.values}
+          clickable
         />
       </div>
     );

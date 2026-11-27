@@ -3,6 +3,11 @@
   > .rum-field-text {
     min-width: 0;
 
+    &.rum-field-full-url {
+      font-family: Menlo, Monaco, Consolas, monospace;
+      font-weight: 400;
+    }
+
     /* 标签允许正文换行，由文本组件决定其他字段的省略方式。 */
     &--no-ellipsis {
       overflow: visible;
