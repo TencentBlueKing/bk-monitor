@@ -101,13 +101,10 @@ class AssignActionSerializer(serializers.Serializer):
 
 
 class AIAnalysisSerializer(serializers.Serializer):
-    user_groups = serializers.ListField(label="分析结果通知组", child=serializers.IntegerField(min_value=1))
-
-    def validate(self, attrs):
-        # PATCH 也会完整替换 ai_analysis，显式空列表表示无需配置接收组。
-        if "user_groups" not in attrs:
-            raise ValidationError({"user_groups": _("请指定分析结果通知组，可传空列表")})
-        return attrs
+    # 省略时沿用本条分派规则的告警组，显式空列表表示不指定结果接收组。
+    user_groups = serializers.ListField(
+        label="分析结果通知组", child=serializers.IntegerField(min_value=1), required=False
+    )
 
 
 class DispatchConfigSerializer(serializers.Serializer):
@@ -123,7 +120,7 @@ def split_dispatch_actions(actions):
         action_type = action["action_type"]
         if action_type == AssignActionType.AI_ANALYSIS:
             if action.get("is_enabled"):
-                dispatch["ai_analysis"] = {"user_groups": action["user_groups"]}
+                dispatch["ai_analysis"] = {"user_groups": action["user_groups"]} if "user_groups" in action else {}
         elif action_type == AssignActionType.NOISE:
             dispatch["noise"] = bool(action.get("is_enabled"))
             if dispatch["noise"] and action.get("remark"):

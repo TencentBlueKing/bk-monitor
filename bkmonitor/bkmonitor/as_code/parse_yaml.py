@@ -1264,7 +1264,7 @@ class AssignGroupRuleParser(BaseConfigParser):
             upgrade_config["is_enabled"] = upgrade_config.pop("enabled", False)
             rule["user_groups"] = self.get_notice_group_ids(rule["user_groups"])
             ai_analysis = rule.get("dispatch_config", {}).get("ai_analysis")
-            if ai_analysis is not None:
+            if ai_analysis:
                 ai_analysis["user_groups"] = self.get_notice_group_ids(ai_analysis["user_groups"])
             upgrade_config["user_groups"] = self.get_notice_group_ids(upgrade_config.get("user_groups", []))
             rule["is_enabled"] = rule["enabled"]
@@ -1303,7 +1303,7 @@ class AssignGroupRuleParser(BaseConfigParser):
             ai_analysis = dispatch.get("ai_analysis")
             if ai_analysis is not None or dispatch.get("noise"):
                 rule["dispatch_config"] = dispatch
-                if ai_analysis is not None:
+                if ai_analysis:
                     ai_analysis["user_groups"] = self.get_notice_group_names(ai_analysis["user_groups"])
                 # YAML 的历史默认值会开启通知，单独配置分析或噪声时须保留实际状态。
                 if not any(action["action_type"] == "notice" for action in rule.get("actions", [])):

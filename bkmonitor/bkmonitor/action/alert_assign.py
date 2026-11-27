@@ -542,7 +542,8 @@ class AlertAssignMatchManager(AlertMatchContext):
             if AssignActionType.AI_ANALYSIS in rule_obj.matched_types:
                 if ai_groups is None:
                     ai_groups = []
-                ai_groups.extend(rule_obj.actions[AssignActionType.AI_ANALYSIS].get("user_groups", []))
+                ai_action = rule_obj.actions[AssignActionType.AI_ANALYSIS]
+                ai_groups.extend(ai_action.get("user_groups", rule_obj.assign_rule.get("user_groups", [])))
             noise |= AssignActionType.NOISE in rule_obj.matched_types
             rule_snapshot = {key: value for key, value in rule_obj.assign_rule.items() if key != "alerts"}
             # 配置来自当前命中的规则；升级进度继承自同一条规则的告警快照。

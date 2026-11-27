@@ -204,6 +204,23 @@ def test_pure_ai_does_not_override_strategy_notice_or_claim_legacy_attributes():
     assert manager.matched_rule_info["severity"] == 1
 
 
+def test_ai_result_uses_groups_from_effective_ai_rules_only():
+    manager = run_preview(
+        [
+            [rule(1, 100, action("notice"), user_groups=[1])],
+            [
+                rule(2, 90, action("ai_analysis"), user_groups=[2, 3]),
+                rule(3, 90, action("ai_analysis", user_groups=[3, 4]), user_groups=[5]),
+                rule(4, 90, action("ai_analysis", user_groups=[]), user_groups=[6]),
+                rule(5, 90, action("ai_analysis")),
+            ],
+            [rule(6, 80, action("ai_analysis"), user_groups=[7])],
+        ]
+    )
+    assert manager.get_notice_user_groups() == {1}
+    assert manager.matched_rule_info["dispatch_result"]["ai_analysis"] == {"user_groups": [2, 3, 4]}
+
+
 def test_skips_disabled_or_unmatched_types_and_reuses_dynamic_groups(monkeypatch):
     condition = {"field": "dynamic_group", "method": "eq", "value": ["group"]}
     tiers = [

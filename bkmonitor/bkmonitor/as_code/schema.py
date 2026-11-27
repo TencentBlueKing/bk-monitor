@@ -361,7 +361,7 @@ AssignGroupRuleSchema = Schema(
                 ],
                 Optional("notice_enabled"): bool,
                 Optional("dispatch_config"): {
-                    Optional("ai_analysis"): Or(None, {"user_groups": [str]}),
+                    Optional("ai_analysis"): Or(None, {Optional("user_groups"): [str]}),
                     Optional("noise"): bool,
                     Optional("noise_remark"): str,
                 },

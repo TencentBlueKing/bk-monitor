@@ -159,7 +159,7 @@ def assign_rule_user_groups(user_groups, actions):
         if action["action_type"] == ActionPluginType.NOTICE:
             groups.update((action.get("upgrade_config") or {}).get("user_groups") or [])
         elif action["action_type"] == AssignActionType.AI_ANALYSIS:
-            groups.update(action["user_groups"])
+            groups.update(action.get("user_groups", []))
     return groups
 
 

@@ -62,10 +62,17 @@ def test_dispatch_config_storage_and_legacy_edits():
     assert AssignRuleSlz(instance).data["actions"] == []
     assert AssignRuleSlz(instance).data["dispatch_config"] == {"ai_analysis": {"user_groups": [7]}, "noise": False}
     assert AssignRuleSlz(instance, context={"for_match": True}).data["actions"] == instance.actions
-    incomplete_ai = AssignRuleSlz(instance, data={"dispatch_config": {"ai_analysis": {}}}, partial=True)
-    assert not incomplete_ai.is_valid()
     assert get_user_group_assign_rules([7], bk_biz_ids=[2]) == {7: [rule_id]}
     assert get_assign_rule_related_resource_dict([group.id]) == {"user_groups": [7], "action_ids": []}
+
+    inherit = AssignRuleSlz(instance, data={"user_groups": [8], "dispatch_config": {"ai_analysis": {}}}, partial=True)
+    inherit.is_valid(raise_exception=True)
+    inherit.save()
+    instance.refresh_from_db()
+    assert AssignRuleSlz(instance).data["dispatch_config"] == {"ai_analysis": {}, "noise": False}
+    assert instance.actions == [{"action_type": "ai_analysis", "is_enabled": True}]
+    assert get_user_group_assign_rules([7, 8], bk_biz_ids=[2]) == {8: [rule_id]}
+    assert get_assign_rule_related_resource_dict([group.id]) == {"user_groups": [8], "action_ids": []}
 
     # 旧客户端在新配置提交前已校验完成，真正保存时仍要保留最新的噪声备注。
     legacy_edit = resource.validate_request_data({**common, "priority": 1, "rules": [make_rule(id=rule_id)]})

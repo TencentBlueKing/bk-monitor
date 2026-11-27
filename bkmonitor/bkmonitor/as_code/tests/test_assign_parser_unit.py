@@ -17,6 +17,7 @@ from bkmonitor.as_code.parse_yaml import AssignGroupRuleParser
             {"ai_analysis": {"user_groups": ["分析结果"]}, "noise": False},
         ),
         ({"ai_analysis": {"user_groups": []}, "noise": False}, {"ai_analysis": {"user_groups": []}, "noise": False}),
+        ({"ai_analysis": {}, "noise": False}, {"ai_analysis": {}, "noise": False}),
     ],
 )
 def test_dispatch_config_as_code_roundtrip(dispatch, exported_dispatch):
