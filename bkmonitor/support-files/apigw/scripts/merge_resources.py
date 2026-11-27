@@ -32,6 +32,22 @@ def check_unique_operation_ids(merged_data: dict):
             seen[operation_id] = origin
 
 
+def check_openapi_schema_types(node, location: str = "$.paths"):
+    """校验合并后所有 Schema 的 type 为字符串。
+
+    resources.yaml 声明 OpenAPI 3.0.1，数组形式的 type（Draft7 / OpenAPI 3.1）会被网关以
+    `40002 校验失败` 拒绝；可空字段须写成 `nullable: true`。
+    """
+    if isinstance(node, dict):
+        if isinstance(node.get("type"), list):
+            raise ValueError(f"{location}: OpenAPI 3.0 schema type must be a string, got {node['type']}")
+        for key, value in node.items():
+            check_openapi_schema_types(value, f"{location}.{key}")
+    elif isinstance(node, list):
+        for index, value in enumerate(node):
+            check_openapi_schema_types(value, f"{location}[{index}]")
+
+
 def merge_resources(resources_dir: Path):
     """
     合并resources目录下的所有yaml文件，除了old目录
@@ -76,6 +92,7 @@ def merge_resources(resources_dir: Path):
 
     # 写入前校验 operationId 全局唯一，避免重复定义被带到部署时才由网关报错
     check_unique_operation_ids(merged_data)
+    check_openapi_schema_types(merged_data)
 
     # 生成合并后的资源
     resources = {

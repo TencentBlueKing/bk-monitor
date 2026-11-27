@@ -104,7 +104,7 @@ def build_user_api_paths(source_root: Path) -> dict:
                 operation["tags"] = [USER_API_TAG]
                 operation["summary"] = f"用户态-{source_operation.get('summary') or name}"
                 if name not in FACADE_OPERATIONS:
-                    schema = _normalize_public_schema(name, _extract_input_schema(source_operation))
+                    schema = _normalize_public_schema(name, _extract_input_schema(source_operation), draft7=False)
                     if name in CONFIRMATION_OPERATIONS:
                         schema.setdefault("properties", {})["confirm"] = {
                             "type": "boolean",

@@ -107,6 +107,7 @@ python manage.py sync_apigw
 
 1. 网关进行全量同步，会删除不存在于 `resources.yaml` 的接口。尽量不要在网关页面上手动添加接口，否则会被删除。
 2. grant_permissions进行授权是增量的，如果不是需要在蓝鲸部署时就进行授权，不需要加到这里，直接在网页上授权即可。
+3. `resources.yaml` 按 OpenAPI 3.0.1 校验，Schema 的 `type` 必须是字符串，可空字段使用 `nullable: true`，不能写成 `["string", "null"]`。合并脚本会提前拦截，否则网关返回 `40002 校验失败`，migrate Job 的 init 容器会失败。
 
 ## 用户态只读工具的认证与权限
 
