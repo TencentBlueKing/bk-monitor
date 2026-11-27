@@ -33,6 +33,13 @@ export interface CollectionCandidate {
 
 export type CollectionCandidateField = 'process_names' | 'process_pids' | 'target' | 'task_name';
 
+/** 表格列筛选候选项，由采集配置 meta 下发；未下发的列不展示筛选项 */
+export interface CollectionColumnFilterOptions {
+  collection_method?: string[];
+  collection_type?: string[];
+  execution_status?: string[];
+}
+
 export interface CollectionExecution extends CollectionExecutionKey {
   collection_method: CollectionMethod;
   collection_type: CollectionType;
@@ -88,6 +95,10 @@ export interface CollectionExecutionKey {
 }
 
 export interface CollectionHistoryFilters {
+  // 采集方式筛选，取值为 perf / golang / java
+  collection_method: string[];
+  // 采集类型筛选，取值与后端下发的 collection_type 一致
+  collection_type: string[];
   ips: string[];
   process_names: string[];
   process_pids: string[];

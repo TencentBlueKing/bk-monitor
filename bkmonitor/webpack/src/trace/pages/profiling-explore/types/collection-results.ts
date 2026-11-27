@@ -47,6 +47,8 @@ export interface CollectionResultParams {
   bk_biz_id: number;
   bk_host_id: number;
   finished_at: number;
+  // 多进程采集合并成一份产物，按 pid 查看单个进程；不传查看全部进程
+  pid?: number;
   scheduled_at: number;
   started_at: number;
   task_id?: number;

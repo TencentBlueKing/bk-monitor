@@ -104,10 +104,11 @@ export function executionResultRows(detail: CollectionExecutionDetail): Collecti
   }));
 }
 
-export function resultParams(row: CollectionHostResult, bizId: number): CollectionResultParams {
+export function resultParams(row: CollectionHostResult, bizId: number, pid?: number): CollectionResultParams {
   return {
     bk_biz_id: bizId,
     bk_host_id: row.bk_host_id,
+    ...(pid ? { pid } : {}),
     scheduled_at: row.scheduled_at,
     ...(row.task.schedule_type === 'immediate' ? {} : { task_id: row.task.task_id }),
     started_at: row.started_at,

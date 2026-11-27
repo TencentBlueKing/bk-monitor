@@ -25,7 +25,7 @@
  */
 import { formatUnitValue } from '../../rum-explore/utils';
 
-import type { CollectionPayload } from '../types/collection';
+import type { CollectionMethod, CollectionPayload, CollectionType } from '../types/collection';
 import type {
   CollectionExecution,
   CollectionExecutionColumn,
@@ -92,8 +92,18 @@ export const hostErrorTypeLabels: Record<string, string> = {
   collect_failed: '采集执行失败，详情见原始信息',
 };
 
-/** 请求体的筛选结构：task_id 只在按任务 ID 筛选时出现 */
-export type CollectionHistoryFiltersPayload = Omit<CollectionHistoryFilters, 'task_id'> & { task_id?: number };
+/**
+ * 请求体的筛选结构：采集方式与采集类型按后端字段名复数下发，
+ * task_id 只在按任务 ID 筛选时出现
+ */
+export type CollectionHistoryFiltersPayload = Omit<
+  CollectionHistoryFilters,
+  'collection_method' | 'collection_type' | 'task_id'
+> & {
+  collection_methods?: string[];
+  collection_types?: string[];
+  task_id?: number;
+};
 
 type ProcessFilters = Pick<CollectionHistoryFilters, 'process_names' | 'process_pids'>;
 
@@ -106,7 +116,17 @@ export function compareExecutionHostStatus(left: CollectionExecutionHost, right:
 
 export function createHistoryFilters(): CollectionHistoryFilters {
   // 默认不限任务：task_id 为空时按 task_name 关键词筛选
-  return { ips: [], task_id: null, task_name: '', process_names: [], process_pids: [], schedule_types: [], status: [] };
+  return {
+    collection_method: [],
+    collection_type: [],
+    ips: [],
+    task_id: null,
+    task_name: '',
+    process_names: [],
+    process_pids: [],
+    schedule_types: [],
+    status: [],
+  };
 }
 
 export function executionHostMessage(host: CollectionExecutionHost): string {
@@ -121,10 +141,16 @@ export function executionKey(value: CollectionExecutionKey): CollectionExecution
   };
 }
 
-// 接口不接受为空的 task_id，未按任务 ID 筛选时整个字段不传
+// 接口不接受为空的 task_id，未按任务 ID 筛选时整个字段不传；
+// 采集方式与采集类型在请求体中按后端字段名复数下发
 export function historyFiltersPayload(filters: CollectionHistoryFilters): CollectionHistoryFiltersPayload {
-  const { task_id: taskId, ...rest } = filters;
-  return taskId ? { ...rest, task_id: taskId } : rest;
+  const { collection_method: methods, collection_type: types, task_id: taskId, ...rest } = filters;
+  return {
+    ...rest,
+    collection_methods: methods,
+    collection_types: types,
+    ...(taskId ? { task_id: taskId } : {}),
+  };
 }
 
 // 状态列 hover 提示：只按 error_type 命中枚举取文案，未命中或未下发时为空
@@ -144,6 +170,10 @@ export function parseProcessSelection(values: string[]): ProcessFilters {
   return result;
 }
 
+// 从链接恢复筛选时只保留后端支持的采集方式与采集类型
+const restorableCollectionMethods: CollectionMethod[] = ['perf', 'golang', 'java'];
+const restorableCollectionTypes: CollectionType[] = ['go_cpu', 'go_heap', 'java_allocation', 'java_cpu', 'native_cpu'];
+
 export function restoreHistoryFilters(value?: Partial<CollectionHistoryFilters>): CollectionHistoryFilters {
   const strings = (items: unknown) =>
     Array.isArray(items) ? items.filter((item): item is string => typeof item === 'string') : [];
@@ -154,6 +184,12 @@ export function restoreHistoryFilters(value?: Partial<CollectionHistoryFilters>)
   const rawStatus = value?.status;
   const statuses = [...strings(rawStatus), ...(typeof rawStatus === 'string' ? [rawStatus] : [])];
   return {
+    collection_method: strings(value?.collection_method).filter(method =>
+      restorableCollectionMethods.includes(method as CollectionMethod)
+    ),
+    collection_type: strings(value?.collection_type).filter(type =>
+      restorableCollectionTypes.includes(type as CollectionType)
+    ),
     ips: strings(value?.ips),
     task_id: taskId,
     // 任务 ID 与任务名互斥，按 ID 精确定位时不再保留名称关键词

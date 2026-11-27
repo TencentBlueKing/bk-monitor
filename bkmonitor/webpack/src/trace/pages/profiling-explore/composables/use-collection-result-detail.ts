@@ -47,12 +47,15 @@ export function useCollectionResultDetail({
   source,
   dataType,
   graphMode,
+  pid,
   onDataType,
 }: {
   bizId: Ref<number>;
   dataType: Ref<string>;
   graphMode: Ref<GraphMode>;
   onDataType: (value: string) => void;
+  // 选中的进程 pid；为空时查看全部进程
+  pid: Ref<number | undefined>;
   selection: Ref<CollectionResultSelection | null>;
   source: Ref<CollectionHostResult | undefined>;
 }) {
@@ -87,6 +90,8 @@ export function useCollectionResultDetail({
     const current = new AbortController();
     controller = current;
     row.value = undefined;
+    // 换主机或执行后仍沿用上一个进程的 pid 会查出空图
+    pid.value = undefined;
     types.value = [];
     data.value = {};
     callGraph.value = '';
@@ -135,7 +140,7 @@ export function useCollectionResultDetail({
     profileLoading.value = true;
     try {
       const result = await getCollectionProfile(
-        resultParams(row.value, bizId.value),
+        resultParams(row.value, bizId.value, pid.value),
         selectedType.value,
         current.signal
       );
@@ -158,7 +163,7 @@ export function useCollectionResultDetail({
     callLoading.value = true;
     try {
       const result = await getCollectionCallGraph(
-        resultParams(row.value, bizId.value),
+        resultParams(row.value, bizId.value, pid.value),
         selectedType.value,
         current.signal
       );
@@ -183,7 +188,7 @@ export function useCollectionResultDetail({
     exporting.value = true;
     try {
       const file = await downloadCollectionProfile(
-        resultParams(row.value, bizId.value),
+        resultParams(row.value, bizId.value, pid.value),
         selectedType.value,
         current.signal
       );
@@ -207,6 +212,7 @@ export function useCollectionResultDetail({
     if (value && value !== dataType.value) onDataType(value);
     loadCharts();
   });
+  watch(pid, loadCharts);
   onScopeDispose(() => {
     controller?.abort();
     graphController?.abort();

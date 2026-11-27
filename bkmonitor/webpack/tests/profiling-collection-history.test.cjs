@@ -106,7 +106,7 @@ test('结果链接和历史筛选能恢复，立即执行不能混入任务 ID',
   const detail = execution();
   const result = executionSelection(detail, detail.hosts[0]);
   const history = {
-    ips: ['192.0.2.1'], task_id: 7, task_name: '', process_names: ['worker'], process_pids: ['22'], schedule_types: [], status: 'failed',
+    collection_method: [], collection_type: [], ips: ['192.0.2.1'], task_id: 7, task_name: '', process_names: ['worker'], process_pids: ['22'], schedule_types: [], status: 'failed',
   };
   const restored = restoreCollectionQuery(JSON.parse(JSON.stringify({ tab: 'results', history, result })));
   // 历史存储里的单值字符串状态恢复后统一成数组
@@ -114,6 +114,18 @@ test('结果链接和历史筛选能恢复，立即执行不能混入任务 ID',
   // 非法状态值被丢弃，数组里的合法值保留
   assert.deepEqual(restoreCollectionQuery({ history: { ...history, status: 'legacy' } }).history.status, []);
   assert.deepEqual(restoreCollectionQuery({ history: { ...history, status: ['failed', 'legacy', 1] } }).history.status, ['failed']);
+  // 采集方式与采集类型同样只保留后端支持的取值
+  const withMethods = { ...history, collection_method: ['perf', 'legacy', 1], collection_type: ['go_cpu', 'legacy'] };
+  assert.deepEqual(restoreCollectionQuery({ history: withMethods }).history.collection_method, ['perf']);
+  assert.deepEqual(restoreCollectionQuery({ history: withMethods }).history.collection_type, ['go_cpu']);
+  // 前端筛选字段为单数，请求体按后端字段名复数下发
+  const { historyFiltersPayload } = load('utils/collection-history.ts');
+  const payload = historyFiltersPayload({ ...history, collection_method: ['perf'], collection_type: ['native_cpu'] });
+  assert.deepEqual(payload.collection_methods, ['perf']);
+  assert.deepEqual(payload.collection_types, ['native_cpu']);
+  assert.equal(payload.collection_method, undefined);
+  assert.equal(payload.collection_type, undefined);
+  assert.equal(payload.task_id, 7);
   // 任务 ID 与任务名互斥：按 ID 定位时丢弃名称关键词，非法 ID 退回按名称筛选
   assert.equal(restoreCollectionQuery({ history: { ...history, task_name: 'cpu' } }).history.task_name, '');
   assert.equal(restoreCollectionQuery({ history: { ...history, task_id: -1 } }).history.task_id, null);

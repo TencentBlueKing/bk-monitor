@@ -126,6 +126,7 @@ export default defineComponent({
               </Radio.Button>
             ))}
           </Radio.Group>
+          {this.$slots['search-prefix']?.()}
           {this.mode === 'callgraph' ? (
             <span class='profile-symbol-search' />
           ) : (
