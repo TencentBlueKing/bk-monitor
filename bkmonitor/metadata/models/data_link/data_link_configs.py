@@ -124,10 +124,14 @@ class DataIdConfig(DataLinkResourceConfigBase):
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
 
+    # 独立清洗入口的 eventType，不参与原注册名的查找。空值沿用 ETL 推导。
+    event_type_override = models.CharField(max_length=16, blank=True, default="")
+
     def compose_predefined_config(self, data_source: "DataSource") -> dict[str, Any]:
         """按监控已有的 Data ID、Kafka 通道和 topic 注册 DataId。"""
         config = self.compose_config(
-            event_type="log" if data_source.etl_config in LOG_EVENT_ETL_CONFIGS else "metric",
+            event_type=self.event_type_override
+            or ("log" if data_source.etl_config in LOG_EVENT_ETL_CONFIGS else "metric"),
             alias=data_source.data_name,
         )
         channel = {"kind": "KafkaChannel", "namespace": self.namespace, "name": data_source.mq_cluster.cluster_name}

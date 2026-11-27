@@ -218,6 +218,7 @@ def find_registered_bkdata_data_id_name(data_source: "DataSource", namespace: st
             bk_tenant_id=data_source.bk_tenant_id,
             namespace=namespace,
             bk_data_id=data_source.bk_data_id,
+            event_type_override="",
         )
         .exclude(name="")
         .only("name")
@@ -342,6 +343,7 @@ def get_bkbase_raw_data_id_name(data_source, table_id, namespace=settings.DEFAUL
             bk_tenant_id=data_source.bk_tenant_id,
             namespace=namespace,
             bk_data_id=source_data_id,
+            event_type_override="",
         )
         .exclude(name="")
         .values_list("name", flat=True)

@@ -305,6 +305,8 @@ Databus 继续使用同一 DataID 和预置清洗，仅写入一个 Binding。�
 - 结果名整体受 BKBase 40 长度限制，超长时截断并追加哈希；
 - 联邦子集群策略会加 `_fed` 后缀。
 
+指标明细入库和 Doris 窗口汇总可分别通过逻辑结果表配置。参见[两个 RT 的接入示例](MetricDoris.md)。
+
 ### 8.4 随机名称与持久化身份
 
 `compose_bkdata_data_id_name` / `compose_bkdata_table_id` 保留旧规则，DataId 申请与轮询仍使用它们。

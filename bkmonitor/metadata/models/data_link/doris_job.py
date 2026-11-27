@@ -23,6 +23,20 @@ class DorisJobConfig(models.Model):
         unique_together = (("cluster_id", "name"),)
 
 
+class MetricDorisPipeline(models.Model):
+    """每个逻辑 RT 的期望输出与尚待执行的步骤。历史输出由 StorageClusterRecord 保存。"""
+
+    result_table = models.OneToOneField("metadata.ResultTable", primary_key=True, on_delete=models.CASCADE)
+    data_link = models.OneToOneField("metadata.DataLink", on_delete=models.PROTECT)
+    source = models.ForeignKey(
+        "metadata.ResultTable", null=True, related_name="metric_aggregates", on_delete=models.PROTECT
+    )
+    output = models.ForeignKey("metadata.ResultTableConfig", null=True, on_delete=models.PROTECT)
+    layout = models.JSONField(default=dict)
+    phase = models.CharField(max_length=16, default="apply", db_index=True)
+    status_reason = models.TextField(blank=True)
+
+
 class DorisJobTableRelation(models.Model):
     job = models.ForeignKey(DorisJobConfig, on_delete=models.CASCADE, related_name="table_relations")
     direction = models.CharField(max_length=8, choices=[("source", "source"), ("target", "target")])
