@@ -46,6 +46,7 @@ export interface ISpaceItem {
   id_str?: string;
   is_demo: boolean;
   is_hidden_tag?: boolean;
+  name?: string;
   py_text?: string; // 拼音全拼
   pyf_text?: string; // 拼音首字母
   space_code: string;

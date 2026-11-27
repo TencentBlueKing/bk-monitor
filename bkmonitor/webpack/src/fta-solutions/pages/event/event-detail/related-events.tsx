@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { eventTopN, searchEvent } from 'monitor-api/modules/alert';
+import { eventSpaceId, resolveEventSpaceIds } from 'monitor-common/utils/related-event-spaces';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import { getKeyValueTooltip } from 'monitor-pc/pages/text-display-utils';
 import { getEventPaths } from 'monitor-pc/utils/index';
@@ -125,6 +126,14 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
     events: [],
     total: 0,
   };
+  spaceIds: Record<number, string> = {};
+
+  @Watch('data.events')
+  async updateSpaceIds(events: IEventItem[]) {
+    this.spaceIds = {};
+    const resolved = await resolveEventSpaceIds(events);
+    if (this.data.events === events) this.spaceIds = resolved;
+  }
   pagination = {
     current: 1,
     count: 0,
@@ -242,7 +251,13 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
                   ...getKeyValueTooltip(tags),
                 }}
               >
-                {tags.slice(0, 2).map(item => [<span class='tags-item'>{`${item.key}: ${item.value}`}</span>, <br />])}
+                {tags.slice(0, 2).map(item => [
+                  <span
+                    key={`tag-${item.key}-${item.value}`}
+                    class='tags-item'
+                  >{`${item.key}: ${item.value}`}</span>,
+                  <br key={`break-${item.key}-${item.value}`} />,
+                ])}
               </span>
             ) : (
               '--'
@@ -286,8 +301,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
         disabled: false,
         props: {
           minWidth: 130,
-          formatter: (row: IEventItem) =>
-            this.$store.getters.bizList.find(item => item.id === row?.bk_biz_id)?.space_id || row?.bk_biz_id,
+          formatter: (row: IEventItem) => eventSpaceId(row?.bk_biz_id, this.spaceIds, this.$store.getters.bizList),
         },
       },
       {
@@ -507,8 +521,7 @@ export default class RelatedEvents extends tsc<IRelatedEventsProps> {
    */
   getChildSlotsComponent(child) {
     const arrayTip = (arr: Array<string>) => arr?.filter(Boolean).join('\n') || '';
-    const { bizList } = this.$store.getters;
-    const spaceId = bizList.find(item => item.bk_biz_id === child.bk_biz_id)?.space_id || child.bk_biz_id;
+    const spaceId = eventSpaceId(child.bk_biz_id, this.spaceIds, this.$store.getters.bizList);
     const topItems = [
       {
         children: [

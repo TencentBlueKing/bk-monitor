@@ -52,9 +52,10 @@
               class="biz-list-wrap"
             >
               <space-select
+                remote
                 :need-alarm-option="false"
                 :need-authority-option="false"
-                :need-defalut-options="true"
+                :need-default-options="true"
                 :space-list="$store.getters.bizList"
                 :value="DefaultCurBizIdList"
                 @change="handleChangeBizIdList"
@@ -73,6 +74,7 @@
               class="biz-list-wrap"
             >
               <space-select
+                remote
                 :multiple="false"
                 :need-alarm-option="false"
                 :need-authority-option="false"

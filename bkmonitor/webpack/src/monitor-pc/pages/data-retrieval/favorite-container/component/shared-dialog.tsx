@@ -24,10 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Model, Prop, Ref } from 'vue-property-decorator';
+import { Component, Emit, Model, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { shareFavorite } from 'monitor-api/modules/model';
+import { supportsSpaceDirectoryPages } from 'monitor-common/utils/space-directory';
+import { FormSpacePages } from 'monitor-common/utils/space-selection';
 import { Debounce } from 'monitor-common/utils/utils';
 
 import List, { type IListItem } from './checkbox-list';
@@ -58,24 +60,21 @@ export default class SharedDialog extends tsc<IProps> {
 
   @Ref('list') private readonly listRef: HTMLDivElement; // select实例
 
-  created() {
-    const spaceTypeMap: Record<string, any> = {};
-    this.bizList.forEach(item => {
-      spaceTypeMap[item.space_type_id] = 1;
-      if (item.space_type_id === 'bkci' && item.space_code) {
-        spaceTypeMap.bcs = 1;
-      }
-    });
-    // this.spaceTypeIdList = Object.keys(spaceTypeMap).map(key => ({
-    //   id: key,
-    //   name: SPACE_TYPE_MAP[key]?.name || this.$t('未知'),
-    //   styles: SPACE_TYPE_MAP[key]?.light || {},
-    // }));
+  pages = new FormSpacePages(500);
+  get remoteDirectory() {
+    return supportsSpaceDirectoryPages();
+  }
+
+  @Watch('value', { immediate: true })
+  handleDirectoryOpen(open: boolean) {
+    if (!this.remoteDirectory) return;
+    if (open) void this.pages.search(this.keyword);
+    else this.pages.reset();
   }
 
   /** 业务列表 */
   get bizList(): ISpaceItem[] {
-    return this.$store.getters.bizList;
+    return this.remoteDirectory ? this.pages.items : this.$store.getters.bizList;
   }
 
   get bizId(): string {
@@ -101,11 +100,11 @@ export default class SharedDialog extends tsc<IProps> {
       if ((show && keyword) || (!this.searchTypeId && !show)) {
         show =
           item.space_name.toLocaleLowerCase().indexOf(keyword) > -1 ||
-          item.py_text.toLocaleLowerCase().indexOf(keyword) > -1 ||
+          item.py_text?.toLocaleLowerCase().includes(keyword) ||
           `${item.id}`.includes(keyword) ||
           `${item.space_id}`.toLocaleLowerCase().includes(keyword);
       }
-      if (show) {
+      if (show || this.remoteDirectory) {
         const tags = [{ id: item.space_type_id, name: item.type_name, type: item.space_type_id }];
         if (item.space_type_id === 'bkci' && item.space_code) {
           tags.push({ id: 'bcs', name: this.$tc('容器项目'), type: 'bcs' });
@@ -133,7 +132,8 @@ export default class SharedDialog extends tsc<IProps> {
   /** 搜索操作 */
   @Debounce(300)
   handleBizSearch(keyword?: string) {
-    this.keyword = keyword;
+    this.keyword = keyword || '';
+    if (this.remoteDirectory && this.value) void this.pages.search(this.keyword);
   }
 
   @Emit('change')
@@ -153,11 +153,19 @@ export default class SharedDialog extends tsc<IProps> {
     let selectIDList = (this.listRef as any).selectList;
 
     if (selectIDList.length === 1 && selectIDList[0] === '*') {
-      if (window.space_list_state === 'deferred') {
-        this.$bkMessage({ message: this.$t('空间目录加载中，请稍后重试'), theme: 'warning' });
-        return;
+      if (this.remoteDirectory) {
+        if (this.isQuest || this.pages.loading) return;
+        this.isQuest = true;
+        selectIDList = await this.pages.allMatching();
+        this.isQuest = false;
+        if (!selectIDList || !this.value) return;
+      } else {
+        if (window.space_list_state === 'deferred') {
+          this.$bkMessage({ message: this.$t('空间目录加载中，请稍后重试'), theme: 'warning' });
+          return;
+        }
+        selectIDList = this.bizListFilter[0]?.children.map(item => item.bk_biz_id) || [];
       }
-      selectIDList = this.bizListFilter[0]?.children.map(item => item.bk_biz_id) || [];
     }
 
     if (!selectIDList.length) {
@@ -241,9 +249,18 @@ export default class SharedDialog extends tsc<IProps> {
             <ul class='biz-list'>
               <List
                 ref='list'
-                allowSelectAll={window.space_list_state !== 'deferred'}
+                allowSelectAll={this.remoteDirectory ? !this.pages.loading : window.space_list_state !== 'deferred'}
                 list={this.bizListFilter}
               />
+              {this.remoteDirectory && (this.pages.hasMore || this.pages.failed) && (
+                <bk-button
+                  loading={this.pages.loading}
+                  text
+                  onClick={() => this.pages.retryOrNext()}
+                >
+                  {this.$t(this.pages.failed ? '重试' : '加载更多')}
+                </bk-button>
+              )}
             </ul>
           </div>
         </div>

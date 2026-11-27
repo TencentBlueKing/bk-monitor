@@ -28,6 +28,8 @@ import { type PropType, computed, defineComponent, onMounted, reactive, shallowR
 
 import { Exception, Loading, Popover, Select } from 'bkui-vue';
 import { fetchConfigList, fetchGlobalVariables } from 'monitor-api/modules/incident';
+import { supportsSpaceDirectoryPages } from 'monitor-common/utils/space-directory';
+import { resolveSelectedSpaces } from 'monitor-common/utils/space-selection';
 import { useI18n } from 'vue-i18n';
 
 import { useAppStore } from '../../store/modules/app';
@@ -47,6 +49,8 @@ export interface SpaceInfo {
   bk_biz_id: number;
   space_id: number | string;
   space_name: string;
+  space_type_id?: string;
+  space_uid?: string;
 }
 type ConnectStatus = 'connect' | 'empty' | 'unconnect';
 type RequirementType = 'at_least_one' | 'optional' | 'required';
@@ -78,7 +82,7 @@ export default defineComponent({
     /** 所选空间总数（guide 模式下用于展示 count） */
     totalCount: {
       type: Number,
-      default: 0,
+      default: undefined,
     },
     /** 是否暗色背景 */
     isDarkTheme: {
@@ -110,7 +114,7 @@ export default defineComponent({
     },
   },
   emits: ['enabled'],
-  setup(props, { emit }) {
+  setup(props, { emit, slots }) {
     const { t } = useI18n();
     const appStore = useAppStore();
     const REQUIREMENT_TEXT_MAP: Record<RequirementType, string> = {
@@ -155,9 +159,6 @@ export default defineComponent({
       const item = globalVariables.value.incident_overview;
       return item?.category === 'docs' && item.value?.trim() ? item.value.trim() : '';
     });
-    /** 数据类型 → 拼接好的跳转链接（加载 globalVariables 后计算） */
-    const dataTypeLinks = shallowRef<Record<string, string>>({});
-
     const getKey = (moduleId: string, dataTypeId: string) => `${moduleId}_${dataTypeId}`;
 
     /** 是否强制将该模块下某一数据源列按未接入（红色）展示 */
@@ -269,20 +270,43 @@ export default defineComponent({
       try {
         const res = await fetchGlobalVariables({ bk_biz_id: selectedSpace.value });
         globalVariables.value = res?.variables || {};
-        buildDataTypeLinks();
       } catch (e) {
         console.error(e);
       }
     };
 
-    /** 根据接口返回的平台 URL 拼接各数据类型的跳转链接 */
-    const buildDataTypeLinks = () => {
+    const knownSpace = computed(
+      () =>
+        props.spaceList.find(item => item.bk_biz_id === selectedSpace.value && item.space_type_id) ??
+        appStore.bizList?.find(item => item.bk_biz_id === selectedSpace.value)
+    );
+    const pointSpace = shallowRef<SpaceInfo>();
+    // A topology snapshot can supply just a business ID. Resolve that ID only when its knowledge link is visible.
+    watch(
+      () => [selectedSpace.value, knownSpace.value, dataTypes.value.some(type => type.id === 'knowledge')] as const,
+      async ([id, known, needsKnowledge], _, onCleanup) => {
+        let active = true;
+        onCleanup(() => {
+          active = false;
+        });
+        pointSpace.value = undefined;
+        if (!needsKnowledge || known?.space_type_id || !supportsSpaceDirectoryPages()) return;
+        try {
+          const [space] = await resolveSelectedSpaces([id]);
+          if (active) pointSpace.value = space;
+        } catch {
+          // The remaining data access links do not depend on directory metadata.
+        }
+      },
+      { immediate: true }
+    );
+    const dataTypeLinks = computed(() => {
       const bizId = String(selectedSpace.value);
       const vars = globalVariables.value;
       const resolve = (key: string, path: string) => (vars[key]?.value ? vars[key].value + path : '');
-      const currentSpace = appStore.bizList?.find(item => item.bk_biz_id === selectedSpace.value);
-      const spaceUid = currentSpace ? `${currentSpace.space_type_id}_${currentSpace.space_id}` : '';
-      dataTypeLinks.value = {
+      const space = knownSpace.value?.space_type_id ? knownSpace.value : pointSpace.value;
+      const scope = space?.space_type_id ? `${space.space_type_id}_${space.space_id}` : '';
+      return {
         alert: resolve('bkmonitor_url', `?bizId=${bizId}#/strategy-config`),
         metric_ebpf: '',
         apm: resolve('bkmonitor_url', `?bizId=${bizId}#/apm/home`),
@@ -290,11 +314,11 @@ export default defineComponent({
         log: resolve('bklog_url', `/#/manage/log-collection/collection-item/list?bizId=${bizId}`),
         event: resolve('bkmonitor_url', `?bizId=${bizId}#/custom-event`),
         knowledge:
-          window.bk_incident_saas_host && spaceUid
-            ? `${window.bk_incident_saas_host}${spaceUid}/space/setting/knowledge`
+          window.bk_incident_saas_host && scope
+            ? `${window.bk_incident_saas_host}${scope}/space/setting/knowledge`
             : '',
       };
-    };
+    });
 
     /** 获取功能模块的白皮书链接（category: docs） */
     const getModuleDocUrl = (moduleId: string): string => {
@@ -372,7 +396,9 @@ export default defineComponent({
           {renderEmptyStatus()}
           <div class={['data-access-table', { 'data-access-table-dark': props.isDarkTheme }]}>
             <div class='legend-area'>
-              {props.spaceList.length > 1 ? (
+              {slots.spacePicker ? (
+                slots.spacePicker()
+              ) : props.spaceList.length > 1 ? (
                 <div class='legend-select-wrapper'>
                   <Select
                     class='legend-select'

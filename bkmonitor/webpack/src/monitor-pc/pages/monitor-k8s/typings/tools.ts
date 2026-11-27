@@ -66,6 +66,7 @@ export const COMMON_TAB_LIST: ITabItem[] = [
   },
 ];
 export interface IMenuItem extends ITabItem {
+  demoBizId?: number;
   disable?: boolean;
   id: IMenuId | string;
   show?: boolean;

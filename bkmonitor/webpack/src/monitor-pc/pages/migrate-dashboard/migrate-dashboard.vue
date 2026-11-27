@@ -54,6 +54,7 @@
         class="biz-select"
         :value="bizId"
         :biz-list="bizList"
+        remote
         :min-width="270"
         @change="handleChangeBizId"
       />
@@ -635,7 +636,9 @@ export default class MigrateDashboard extends Mixins(
 }
 </style>
 <style lang="scss" scoped>
+@use "sass:list";
 @import '../home/common/mixins';
+
 $statusBorderColors: #c4c6cc #2dcb56 #ea3636;
 $statusColors: #f0f1f5 #94f5a4 #fd9c9c;
 
@@ -666,7 +669,7 @@ $statusColors: #f0f1f5 #94f5a4 #fd9c9c;
       height: 20px;
       line-height: 14px;
 
-      @for $i from 1 through length($statusColors) {
+      @for $i from 1 through list.length($statusColors) {
         .status-#{$i} {
           display: inline-block;
           width: 12px;
@@ -674,10 +677,10 @@ $statusColors: #f0f1f5 #94f5a4 #fd9c9c;
           margin-right: 5px;
 
           /* stylelint-disable-next-line function-no-unknown */
-          background: nth($statusColors, $i);
+          background: list.nth($statusColors, $i);
 
           /* stylelint-disable-next-line function-no-unknown */
-          border: 1px solid nth($statusBorderColors, $i);
+          border: 1px solid list.nth($statusBorderColors, $i);
           border-radius: 50%;
         }
       }

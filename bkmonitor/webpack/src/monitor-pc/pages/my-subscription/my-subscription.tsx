@@ -234,7 +234,8 @@ class MySubscription extends tsc<object> {
       // URL参数补齐再跳转即可。需要: spaceUid、bizId, activeTableTab, clusterRouteParams (一个配置对象)
       // 日志平台的 URL: window.bk_log_search_url
       const query = {
-        spaceUid: window.space_list.find(item => item.bk_biz_id === window.bk_biz_id).space_uid || '',
+        spaceUid:
+          window.space_uid || window.space_list?.find(item => item.bk_biz_id === window.bk_biz_id)?.space_uid || '',
         bizId: window.bk_biz_id,
         // 固定写
         activeTableTab: 'clustering',
@@ -525,7 +526,7 @@ class MySubscription extends tsc<object> {
                   this.fetchSubscriptionList();
                 },
 
-                'sort-change': ({ column, prop, order }) => {
+                'sort-change': ({ prop, order }) => {
                   if (prop) {
                     this.order = `${order === 'ascending' ? '' : '-'}${prop}`;
                   } else {

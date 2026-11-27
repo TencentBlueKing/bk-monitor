@@ -518,7 +518,7 @@ export default class AuthorizationList extends tsc<object> {
         const { prop } = item;
         this.totalListData.forEach(item => {
           const data = Array.isArray(item[prop]) ? item[prop] : [item[prop]];
-          data.forEach(val => set.add(val));
+          for (const val of data) set.add(val);
         });
         // 操作实例列需要通过ID在resourceList找到匹配的text
         if (prop === TableColumnEnum.resource_id || prop === TableColumnEnum.resources) {
@@ -702,7 +702,9 @@ export default class AuthorizationList extends tsc<object> {
         view_type: this.angleType,
       });
       this.getListData();
-    } catch (_error) {}
+    } catch {
+      // The API client already displays failed requests.
+    }
   }
 
   showDialog(row = null) {
@@ -748,6 +750,7 @@ export default class AuthorizationList extends tsc<object> {
               minWidth={310}
               theme='light'
               value={+this.bizId}
+              remote
               onChange={this.handleBizChange}
             />
           </div>

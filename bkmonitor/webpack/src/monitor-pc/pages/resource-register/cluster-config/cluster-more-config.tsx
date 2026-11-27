@@ -41,6 +41,7 @@ interface IProps {
   data?: any;
   spaceTypes?: any[];
   onChange?: (v: any) => void;
+  onOpenSpaceTypes?: (open: boolean) => void;
 }
 @Component
 export default class ClusterMoreConfig extends tsc<IProps> {
@@ -151,6 +152,7 @@ export default class ClusterMoreConfig extends tsc<IProps> {
                         v-model={this.localFormData.elasticsearch.space}
                         multiple
                         onChange={this.handleEmitChange}
+                        onToggle={open => this.$emit('openSpaceTypes', open)}
                       >
                         {this.spaceTypes.map(item => (
                           <bk-option
@@ -167,6 +169,7 @@ export default class ClusterMoreConfig extends tsc<IProps> {
                         needAuthorityOption={false}
                         spaceList={this.$store.getters.bizList}
                         value={this.localFormData.elasticsearch.space}
+                        remote
                         onChange={this.handleBizIdsChange}
                       />
                     )}

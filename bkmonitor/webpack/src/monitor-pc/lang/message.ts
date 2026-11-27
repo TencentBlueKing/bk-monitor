@@ -27,6 +27,7 @@
 // 反馈 弹窗 相关的词条
 export default {
   '空间目录加载中，请稍后重试': 'The space directory is loading. Please try again shortly.',
+  '部分空间未能确认，请重试': 'Some spaces could not be verified. Please retry.',
   '空间目录加载失败，请刷新页面重试': 'Failed to load the space directory. Refresh the page to retry.',
   空间不存在: 'Space not found',
   '空间权限检查失败，请重试': 'Failed to check space access. Please retry.',

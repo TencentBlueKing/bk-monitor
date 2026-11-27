@@ -32,7 +32,12 @@ function fixture() {
     './type': { EScopes: scopes, EClusterType: {} },
     'monitor-api/modules/commons': { registerCluster: async data => { submitted.push(data); return true; } },
     'monitor-api/modules/model': { shareFavorite: async data => submitted.push(data) },
-    vue: { defineComponent: x => x, shallowRef: value => ({ value }), computed: fn => ({ get value() { return fn(); } }), watch() {} },
+    'monitor-common/utils/space-directory': { supportsSpaceDirectoryPages: () => false },
+    'monitor-common/utils/space-selection': { FormSpacePages: class {}, resolveSelectedSpaces: async (ids, rows) => {
+      const records = ids.every(id => rows.some(row => row.id === id)) ? rows : await window.loadSpaceDirectory();
+      return records.filter(row => ids.includes(row.id));
+    } },
+    vue: { reactive: x => x, defineComponent: x => x, shallowRef: value => ({ value }), computed: fn => ({ get value() { return fn(); } }), watch() {} },
     'vue-i18n': { useI18n: () => ({ t }) },
     '@store/modules/app': { useAppStore: () => store },
     '../../../../../hooks/use-favorite-type': { default: () => ({ value: 'trace' }) },
@@ -89,4 +94,20 @@ test('Trace favorite all waits for the authorized directory, handles failure and
   await find(old(), deps['bkui-vue'].Checkbox).props.onChange(true);
   await find(old().props['v-slots'].footer(), 'button').props.onClick();
   assert.deepEqual(submitted.at(-1).share_bk_biz_ids, [2, -4]);
+});
+
+test('manually checking all confirmed rows of a partial Trace result leaves the all-spaces checkbox clear', () => {
+  const { window, deps } = fixture();
+  deps['monitor-common/utils/space-directory'].supportsSpaceDirectoryPages = () => true;
+  let pages;
+  deps['monitor-common/utils/space-selection'].FormSpacePages = class {
+    constructor() { pages = this; this.failed = true; this.items = [row(7)]; }
+  };
+  const render = load(sharePath, deps, window).setup({ isShow: true, data: {} }, { emit() {} });
+  const selected = find(render(), 'group').props['v-model'];
+  selected.push(7);
+  const all = () => find(render(), deps['bkui-vue'].Checkbox).props.modelValue;
+  assert.equal(all(), false);
+  pages.failed = false;
+  assert.equal(all(), true);
 });

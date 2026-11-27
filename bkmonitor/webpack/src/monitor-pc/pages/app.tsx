@@ -882,6 +882,7 @@ export default class App extends tsc<object> {
                     stickyList={this.spaceStickyList}
                     theme='dark'
                     value={+this.bizId}
+                    remote
                     onChange={this.handleBizChange}
                     onOpenSpaceManager={this.handleOpenSpace}
                   />

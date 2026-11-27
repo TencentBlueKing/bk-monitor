@@ -1,3 +1,7 @@
+import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import { getDocLink } from 'monitor-api/modules/commons';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,15 +27,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
-import { getDocLink } from 'monitor-api/modules/commons';
+import { demoSpaceUrl, guideDemoSpace } from 'monitor-common/utils/space-selection';
 
 import AddAppSide from '../../../apm/pages/home/add-app/add-app-side';
 import ServiceAddSide from '../../../apm/pages/service/service-add-side';
 
 import type { IBtnAndLinkItem, ISPaceIntroduceData, SpaceIntroduceKeys } from '../../types/common/common';
+import type { ISpaceItem } from 'monitor-common/typings';
 import type { Route } from 'vue-router';
 
 import './guide-page.scss';
@@ -69,9 +71,17 @@ export default class GuidePage extends tsc<IGuidePageProps> {
   get bizList() {
     return this.$store.getters.bizList;
   }
+  guideDemo: ISpaceItem | null = null;
+  @Watch('guideData', { immediate: true })
+  async resolveGuideDemo(data: ISPaceIntroduceData) {
+    this.guideDemo = null;
+    const demo = await guideDemoSpace(data?.data?.buttons).catch(() => null);
+    if (this.guideData === data) this.guideDemo = demo ?? null;
+  }
+
   /** DEMO业务 */
   get demoBiz() {
-    return this.bizList.find(item => item.is_demo);
+    return this.guideDemo ?? this.bizList.find(item => item.is_demo);
   }
   get introduceData(): ISPaceIntroduceData {
     return this.guideData;
@@ -109,7 +119,7 @@ export default class GuidePage extends tsc<IGuidePageProps> {
         if (+this.$store.getters.bizId === +this.demoBiz?.bk_biz_id) {
           location.reload();
         } else {
-          location.href = location.href.replace(`bizId=${this.bizId}`, `bizId=${this.demoBiz?.bk_biz_id}`);
+          location.href = demoSpaceUrl(location.href, this.demoBiz.bk_biz_id);
         }
       }
     } else if (this.introduceData.is_no_source) {

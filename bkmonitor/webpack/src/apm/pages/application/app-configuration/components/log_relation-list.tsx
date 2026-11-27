@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { logServiceRelationBkLogIndexSet } from 'monitor-api/modules/apm_service';
 import { random } from 'monitor-common/utils';
+import FormSpaceSelect from 'monitor-pc/components/form-space-select';
 
 import './log_relation-list.scss';
 
@@ -43,7 +44,6 @@ interface ILogRelationList extends ILogRelation {
 }
 
 interface IProp {
-  bizSelectList?: { id: string; name: string }[];
   indexSetListMap: Map<number | string, { id: string; name: string }[]>;
   value?: ILogRelation[];
   onChange?: (v: ILogRelation[]) => void;
@@ -56,7 +56,6 @@ interface IProp {
 @Component
 export default class LogRelationList extends tsc<IProp> {
   @Prop({ default: () => [], type: Array }) value: ILogRelation[];
-  @Prop({ default: () => [], type: Array }) bizSelectList: { id: string; name: string }[];
   @Prop({ default: () => new Map(), type: Map }) indexSetListMap: Map<number | string, { id: string; name: string }[]>;
 
   logRelationList: ILogRelationList[] = [];
@@ -237,15 +236,12 @@ export default class LogRelationList extends tsc<IProp> {
           >
             <div class='list-edit-item-content'>
               <bk-form-item>
-                <bk-select
-                  vModel={item.related_bk_biz_id}
-                  display-key='name'
-                  id-Key='id'
-                  list={this.bizSelectList}
-                  search-placeholder={this.$t('请输入 关键字')}
-                  enable-virtual-scroll
-                  searchable
-                  onChange={v => this.handleLogBizChange(index, v)}
+                <FormSpaceSelect
+                  value={item.related_bk_biz_id}
+                  onChange={v => {
+                    item.related_bk_biz_id = v;
+                    this.handleLogBizChange(index, v);
+                  }}
                 />
               </bk-form-item>
               <bk-form-item ref={`${item.key}-indexSet`}>

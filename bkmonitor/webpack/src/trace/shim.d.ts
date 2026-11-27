@@ -31,6 +31,7 @@ import 'vue/jsx.d.ts';
 
 import type { IBizItem, ISpaceItem } from './typings';
 import type { Dayjs } from 'dayjs';
+import type { querySpaceDirectory } from 'monitor-common/utils/space-directory';
 import type { Vue3WewebData } from 'monitor-pc/types/weweb/weweb';
 import type { HTMLAttributes, ReservedProps } from 'vue/dist/vue.d.ts';
 
@@ -54,6 +55,7 @@ declare global {
     bk_incident_saas_host: string;
     bk_log_search_url: string;
     bk_nodeman_host: string;
+    bk_tenant_id?: string;
     bk_url: string;
     bkchat_manage_url: string;
     bklogsearch_host: string;
@@ -70,11 +72,13 @@ declare global {
     i18n: typeof i18n.global;
     // 以下为日志全局变量配置
     mainComponent: any;
+    querySpaceDirectory?: typeof querySpaceDirectory;
     rawWindow?: Window;
     site_url: string;
     source_app: string;
     space_access?: 'allowed' | 'denied' | 'error' | 'not_found';
     space_list: ISpaceItem[];
+    space_list_page_supported?: boolean;
     space_list_state?: 'deferred' | 'full';
     static_url: string;
     tapd_oauth_base_url?: string;

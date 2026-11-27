@@ -47,6 +47,16 @@ function loadMethod(filename, methodName) {
 }
 
 for (const file of ['common-page.tsx', 'common-page-new.tsx']) {
+  test(`${file} navigates to the verified demo even when it is absent from the current store`, () => {
+    const select = loadMethod(file, 'handleShowSettingModel').prototype.handleShowSettingModel;
+    const navigate = loadMethod(file, 'handleToDemo').prototype.handleToDemo;
+    const dest = [];
+    const page = { handleToDemo: navigate, $store: { getters: { bizId: 2, bizList: [] }, commit: (_type, value) => dest.push(value.bizId) } };
+    select.call(page, { id: 'view-demo', demoBizId: 7 });
+    select.call(page, { id: 'view-demo' });
+    assert.deepEqual(dest, [7]);
+  });
+
   test(`${file} declares support only for Kubernetes Pod detail and overview`, async () => {
     for (const type of ['detail', 'overview']) {
       const request = await capture(commonPage(file, 'kubernetes', type), 'handleGetPanelData', 'pod', false);

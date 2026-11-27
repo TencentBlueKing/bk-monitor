@@ -34,23 +34,14 @@
         {{ $t('所属') }}
       </div>
       <div class="item-container">
-        <bk-select
+        <form-space-select
           v-model="bizList.value"
           class="biz"
+          :extra-options="[{ id: 0, name: $t('全业务') }]"
           :clearable="false"
           :disabled="isPublicPlugin || data.isEdit || ccBizId !== 0"
-          :list="bizList.list"
-          display-key="text"
-          id-key="id"
-          enable-virtual-scroll
-        >
-          <!-- <bk-option
-            v-for="(biz, index) in bizList.list"
-            :id="biz.id"
-            :key="index"
-            :name="biz.text"
-          /> -->
-        </bk-select>
+          :show-identifier="false"
+        />
         <div class="plugin-logo">
           <logo :logo.sync="pluginBasicInfo.logo" />
         </div>
@@ -467,6 +458,7 @@
   </div>
 </template>
 <script>
+import FormSpaceSelect from 'monitor-pc/components/form-space-select';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { queryAsyncTaskResult } from 'monitor-api/modules/commons';
 import {
@@ -499,6 +491,7 @@ import './codemirror.css';
 export default {
   name: 'StepSetPlugin',
   components: {
+    FormSpaceSelect,
     MoUpload,
     ParamCard,
     Logo,
@@ -861,7 +854,6 @@ export default {
       isContentEmpty: false,
       isPublicPlugin: false,
       bizList: {
-        list: [],
         value: +this.$store.getters.bizId,
       },
       ccBizId: +this.$store.getters.bizId,
@@ -965,8 +957,6 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
     this.pluginBasicInfo.label.value = this.$route.params.objectId;
     this.defaultCheckOptions();
     this.pluginBasicInfo.desc = this.mdContent;
-    this.bizList.list = this.$store.getters.bizList.slice();
-    this.bizList.list.unshift({ id: 0, text: this.$t('全业务') });
     this.pluginLoading = true;
     const list = [this.getOsList(), this.getLabels(), this.getReservedWords()];
     const resultList = await Promise.all(list).catch(() => false);

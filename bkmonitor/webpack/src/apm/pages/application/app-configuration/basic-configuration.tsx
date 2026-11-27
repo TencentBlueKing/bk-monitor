@@ -42,7 +42,6 @@ import { logServiceRelationBkLogIndexSet } from 'monitor-api/modules/apm_service
 import { getFieldOptionValues } from 'monitor-api/modules/apm_trace';
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { deepClone, typeTools } from 'monitor-common/utils/utils';
-import { ETagsType } from 'monitor-pc/components/biz-select/list';
 import ChangeRcord from 'monitor-pc/components/change-record/change-record';
 // import CycleInput from '../../../components/cycle-input/cycle-input';
 import CycleInput from 'monitor-pc/components/cycle-input/cycle-input';
@@ -348,14 +347,6 @@ export default class BasicInfo extends tsc<IProps> {
     // TODO：等到后端开发好后再解开注释
     return this.appInfo.plugin_id === 'log_trace';
     // return true;
-  }
-
-  get bizSelectList() {
-    return this.$store.getters.bizList.map(el => ({
-      id: el.id,
-      // 业务名后拼接英文标识，与顶部业务选择器保持一致，避免同名业务无法区分
-      name: `${el.text} (${el.space_type_id === ETagsType.BKCC ? `#${el.id}` : el.space_id || el.space_code})`,
-    }));
   }
 
   @Watch('recordData', { immediate: true })
@@ -1218,7 +1209,6 @@ export default class BasicInfo extends tsc<IProps> {
               <bk-form>
                 <LogRelationList
                   ref='logRelationListRef'
-                  bizSelectList={this.bizSelectList}
                   indexSetListMap={this.indexSetListMap}
                   value={this.localLogRelationList}
                   onChange={v => this.handleChangeLogRelation(v)}

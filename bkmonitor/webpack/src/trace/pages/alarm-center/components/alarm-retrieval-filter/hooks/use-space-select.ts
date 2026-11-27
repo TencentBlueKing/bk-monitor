@@ -27,6 +27,7 @@
 import { shallowRef } from 'vue';
 
 import { checkAllowed } from 'monitor-api/modules/iam';
+import { getAuthorizedSpaceContext } from 'monitor-common/utils/space-selection';
 import { random } from 'monitor-common/utils/utils';
 
 import { useAuthorityStore } from '@/store/modules/authority';
@@ -56,7 +57,7 @@ export function useSpaceSelect() {
       ? [...values]
       : allowedBizList.value.filter(item => item.noAuth).map(item => item.id);
     if (!allowedBizIdList?.length) return;
-    const requestBizId = getAuthorizedRequestBizId();
+    const requestBizId = await getAuthorizedSpaceContext(window.space_list || []);
     const resources = allowedBizIdList.map(id => ({ id: Number(id), type: 'space' }));
     const applyObj = await checkAllowed({
       action_ids: SPACE_APPLY_ACTION_IDS,
@@ -79,14 +80,6 @@ export function useSpaceSelect() {
     handleCheckAllowedByIds,
     handleChangeChoiceType,
   };
-}
-
-/** 取一个有权限的业务作为请求上下文，避免当前 cc_biz_id 无权限时 checkAllowed 403 */
-function getAuthorizedRequestBizId(): number | undefined {
-  const spaceList = window.space_list || [];
-  const authorized = spaceList.find(item => !item.is_demo && item.bk_biz_id != null);
-  if (authorized?.bk_biz_id != null) return +authorized.bk_biz_id;
-  return undefined;
 }
 
 function openApplyUrl(url?: string) {

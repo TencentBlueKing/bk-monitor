@@ -24,15 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, onActivated, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, onActivated, shallowRef, watch } from 'vue';
 
 import { Button, InfoBox } from 'bkui-vue';
 import { getDocLink } from 'monitor-api/modules/commons';
+import { demoSpaceUrl, guideDemoSpace } from 'monitor-common/utils/space-selection';
 import { useAppStore } from 'trace/store/modules/app';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
 import type { IBtnAndLinkItem, SpaceIntroduceKeys } from './typing';
+import type { ISpaceItem } from 'monitor-common/typings';
 
 import './guide-page.scss';
 
@@ -66,14 +68,25 @@ export default defineComponent({
     const route = useRoute();
     const appStore = useAppStore();
     const { t } = useI18n();
-    const bizId = computed(() => {
-      return appStore.bizId;
-    });
     const bizList = computed(() => {
       return appStore.bizList;
     });
+    const guideDemo = shallowRef<ISpaceItem>();
+    watch(
+      () => props.introduceData?.data?.buttons,
+      async (buttons, _, onCleanup) => {
+        let active = true;
+        onCleanup(() => {
+          active = false;
+        });
+        guideDemo.value = undefined;
+        const demo = await guideDemoSpace(buttons).catch(() => undefined);
+        if (active) guideDemo.value = demo;
+      },
+      { immediate: true }
+    );
     const demoBiz = computed(() => {
-      return bizList.value.find(item => item.is_demo);
+      return guideDemo.value ?? bizList.value.find(item => item.is_demo);
     });
     navId.value = route.meta?.navId || '';
     onActivated(() => {
@@ -97,7 +110,7 @@ export default defineComponent({
           if (+appStore.bizId === +demoBiz.value?.bk_biz_id) {
             location.reload();
           } else {
-            location.href = location.href.replace(`bizId=${bizId.value}`, `bizId=${demoBiz.value?.bk_biz_id}`);
+            location.href = demoSpaceUrl(location.href, demoBiz.value.bk_biz_id);
           }
         }
       } else if (props.introduceData.is_no_source) {

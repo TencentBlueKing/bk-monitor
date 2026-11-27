@@ -31,6 +31,7 @@ import { getPlugins, getPluginTemplates, getTemplateDetail } from 'monitor-api/m
 import { retrieveActionConfig } from 'monitor-api/modules/model';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
 import { getStrategyListV2 } from 'monitor-api/modules/strategies';
+import { resolveSelectedSpaces } from 'monitor-common/utils/space-selection';
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { Debounce, deepClone, transformDataKey } from 'monitor-common/utils/utils';
 import HistoryDialog from 'monitor-pc/components/history-dialog/history-dialog';
@@ -145,19 +146,22 @@ export default class SetMealDeail extends tsc<ISetMealDetail, IEvent> {
       url: res?.url || '',
     };
   }
-  // 业务列表
-  get bizList() {
-    return this.$store.getters.bizList;
+  resolvedSpaceName = '';
+  @Watch('detailInfo.bk_biz_id')
+  async resolveSpaceName(id: number) {
+    this.resolvedSpaceName = '';
+    if (!id) return;
+    const [space] = await resolveSelectedSpaces([id], this.$store.getters.bizList).catch(() => []);
+    if (this.detailInfo.bk_biz_id === id && space) this.resolvedSpaceName = space.text;
   }
 
-  // 业务名
   get getBizName() {
-    return this.bizList.find(item => item.id === +this.detailInfo.bk_biz_id)?.name;
+    return this.resolvedSpaceName || String(this.detailInfo.bk_biz_id ?? '');
   }
 
   // 关联的策略列表
   get filterStrategyList() {
-    return this.strategyList.filter((item, index) => (this.isShowMoreStrategy ? true : index <= 2));
+    return this.isShowMoreStrategy ? this.strategyList : this.strategyList.slice(0, 3);
   }
   // 策略展示更多按钮
   get tplShowMore() {

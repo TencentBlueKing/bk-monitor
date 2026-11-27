@@ -96,7 +96,7 @@ export default class TableStore {
       const targetString = '';
       const objectType = item.target_object_type;
       const nodeType = item.target_node_type;
-      const biz = bizList.find(v => v.id === item.bk_biz_id) || { text: '' };
+      const biz = bizList.find(v => v.id === item.bk_biz_id) || { text: String(item.bk_biz_id ?? '') };
       const noticeGroupList = item.notice.user_groups;
       const noticeGroupNameList = item.notice.user_group_list.map(item => ({ name: item?.name, id: item?.id }));
       const intervalNotifyMode = intervalModeNames[item.notice.config.interval_notify_mode] || '';

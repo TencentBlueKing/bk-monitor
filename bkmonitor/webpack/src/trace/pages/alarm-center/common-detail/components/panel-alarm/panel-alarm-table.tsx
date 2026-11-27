@@ -23,11 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, reactive, shallowRef } from 'vue';
+import { type PropType, defineComponent, reactive, shallowRef, watch } from 'vue';
 
 import { type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
 import dayjs from 'dayjs';
 import { xssFilter } from 'monitor-common/utils';
+import { eventSpaceId, resolveEventSpaceIds } from 'monitor-common/utils/related-event-spaces';
 import { useI18n } from 'vue-i18n';
 
 import { DetailTableSkeleton } from '../../detail-loading';
@@ -52,7 +53,7 @@ export default defineComponent({
   name: 'PanelAlarmTable',
   props: {
     data: {
-      type: Array,
+      type: Array as PropType<{ bk_biz_id?: number }[]>,
       default: () => [],
     },
     loading: {
@@ -61,8 +62,22 @@ export default defineComponent({
     },
   },
   emits: ['sortChange'],
-  setup(_, { emit }) {
+  setup(props, { emit }) {
     const appStore = useAppStore();
+    const spaceIds = shallowRef<Record<number, string>>({});
+    watch(
+      () => props.data,
+      async (events, _, onCleanup) => {
+        let active = true;
+        onCleanup(() => {
+          active = false;
+        });
+        spaceIds.value = {};
+        const resolved = await resolveEventSpaceIds(events);
+        if (active) spaceIds.value = resolved;
+      },
+      { immediate: true }
+    );
     const { t } = useI18n();
     /** 当前展开的行 */
     const expandedRowKeys = shallowRef([]);
@@ -204,9 +219,7 @@ export default defineComponent({
         title: t('空间ID'),
         minWidth: 130,
         cell: (_h, { row }) => (
-          <span class='cell'>
-            {appStore.bizList.find(item => item.id === row?.bk_biz_id)?.space_id || row?.bk_biz_id}
-          </span>
+          <span class='cell'>{eventSpaceId(row?.bk_biz_id, spaceIds.value, appStore.bizList)}</span>
         ),
       },
       {
@@ -280,8 +293,7 @@ export default defineComponent({
 
     const getChildSlotsComponent = child => {
       const arrayTip = (arr: Array<string>) => arr?.map(item => `<div>${item}</div>`).join('') || '';
-      const { bizList } = appStore;
-      const spaceId = bizList.find(item => item.bk_biz_id === child.bk_biz_id)?.space_id || child.bk_biz_id;
+      const spaceId = eventSpaceId(child.bk_biz_id, spaceIds.value, appStore.bizList);
       const topItems = [
         {
           children: [

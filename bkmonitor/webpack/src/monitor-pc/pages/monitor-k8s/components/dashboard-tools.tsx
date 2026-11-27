@@ -26,6 +26,8 @@
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { querySpaceDirectory, supportsSpaceDirectoryPages } from 'monitor-common/utils/space-directory';
+
 //
 // import MonitorDateRange from '../../../components/monitor-date-range';
 import MonitorDropdown from '../../../components/monitor-dropdown';
@@ -145,6 +147,30 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
 
   intervalList: IRefreshItem[] = [];
   intervalValue = 'auto';
+  visibleDemoId: number = null;
+
+  get needsDemo() {
+    return this.showListMenu && this.menuList.some(item => item.id === 'view-demo');
+  }
+
+  get visibleMenuList() {
+    if (!this.needsDemo) return this.menuList;
+    const demoBizId = supportsSpaceDirectoryPages()
+      ? this.visibleDemoId
+      : this.$store.getters.bizList.find(item => item.is_demo)?.id;
+    return this.menuList
+      .filter(item => item.id !== 'view-demo' || demoBizId != null)
+      .map(item => (item.id === 'view-demo' ? { ...item, demoBizId } : item));
+  }
+
+  @Watch('needsDemo', { immediate: true })
+  async resolveDemo(needed: boolean) {
+    if (needed && supportsSpaceDirectoryPages()) {
+      const page = await querySpaceDirectory({ includeDemo: true, pageSize: 1 }).catch(() => null);
+      const demo = page?.items.find(item => item.is_demo);
+      if (demo || (page && !page.partial)) this.visibleDemoId = demo?.bk_biz_id ?? null;
+    }
+  }
 
   @Watch('timeRange', { immediate: true })
   onTimeRangeChange(v: TimeRangeType) {
@@ -468,9 +494,9 @@ export default class DashboardTools extends tsc<IHeadToolProps, IHeadToolEvent> 
           )}
 
           {this.$slots.default}
-          {this.showListMenu && !!this.menuList?.length && (
+          {this.showListMenu && !!this.visibleMenuList.length && (
             <ListMenu
-              list={this.menuList}
+              list={this.visibleMenuList}
               onHidden={this.handleSetSettings}
               onMenuSelect={this.handleSettingsMenuSelect}
               onShow={this.handleSetSettings}

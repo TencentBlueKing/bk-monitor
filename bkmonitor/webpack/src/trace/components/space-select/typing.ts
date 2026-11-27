@@ -68,6 +68,10 @@ export const SPACE_SELECTOR_PROPS = {
     type: Array as PropType<ISpaceItem[]>,
     default: () => [],
   },
+  remote: {
+    type: Boolean,
+    default: false,
+  },
   /* 是否为多选 */
   multiple: {
     type: Boolean,
@@ -119,7 +123,7 @@ export const SPACE_SELECTOR_PROPS = {
   },
 };
 export const SPACE_SELECTOR_EMITS = {
-  change: (_val: number[]) => true,
+  change: (_val: (number | string)[]) => true,
   applyAuth: (_val: (number | string)[]) => true,
   changeChoiceType: (_val: boolean) => true,
 } as const;

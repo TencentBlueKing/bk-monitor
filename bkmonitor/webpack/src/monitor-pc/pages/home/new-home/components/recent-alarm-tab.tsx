@@ -228,9 +228,11 @@ export default class RecentAlarmTab extends Mixins(UserConfigMixin) {
               <HomeBizSelect
                 ref='homeBizSelect'
                 bizList={this.bizIdList}
+                excludeIds={this.tabs.map(item => item.bk_biz_id)}
                 minWidth={380}
                 stickyList={[]}
                 theme='light'
+                remote
                 onChange={this.handleSelectBiz}
               />
             )}

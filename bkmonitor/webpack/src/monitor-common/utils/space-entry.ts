@@ -37,6 +37,7 @@ import {
   resolveEntryBizId,
   setGlobalBizId,
 } from './index';
+import { querySpaceDirectory } from './space-directory';
 import { getUrlParam } from './utils';
 
 import type { ISpaceItem } from '../typings';
@@ -110,7 +111,10 @@ export function initializeSpaceEntry(data: Record<string, any>) {
   const id = missingLegacyUid ? undefined : (targetBizId(data.BK_BIZ_ID) ?? requested);
   checkedBizId = id;
   checkedAccess = access;
-  if (deferred) window.loadSpaceDirectory = loadSpaceDirectory;
+  if (deferred) {
+    window.loadSpaceDirectory = loadSpaceDirectory;
+    if (data.SPACE_LIST_PAGE_SUPPORTED === true) window.querySpaceDirectory = querySpaceDirectory;
+  }
   if (access !== 'allowed' && !isPublicEntry(url.hash)) {
     if (access === 'error' || (access === 'not_found' && (requested != null || uid))) {
       showEntryProblem(access === 'error' ? '空间权限检查失败，请重试' : '空间不存在');
@@ -140,9 +144,14 @@ export function isAidevPermissionPending(data: Record<string, any>) {
 }
 
 let directoryRequest: Promise<ISpaceItem[]> | undefined;
+let updateKnownSpaces: DirectoryUpdate | undefined;
 
 /** 独立应用挂载后加载目录。微前端共享宿主发起的在途请求。 */
 export function hydrateSpaceDirectory(update: DirectoryUpdate, host = window) {
+  if (host?.space_list_page_supported === true) {
+    updateKnownSpaces = update;
+    return;
+  }
   if (!host?.loadSpaceDirectory) return;
   void host
     .loadSpaceDirectory()
@@ -182,6 +191,13 @@ export async function getSpaceSwitchAccess(
       : (data.SPACE_ACCESS ?? (data.SPACE_LIST.some(s => +s.bk_biz_id === id) ? 'allowed' : 'denied'));
     if (access === 'error') {
       return isPublicEntry(hash) ? 'allowed' : 'error';
+    }
+    if (access === 'allowed' && updateKnownSpaces) {
+      const row = data.SPACE_LIST.find((space: ISpaceItem) => space.bk_biz_id === id);
+      const known = window.space_list || [];
+      if (row && !known.some(space => space.bk_biz_id === id)) {
+        updateKnownSpaces(mergeSpaceList([...known, row]));
+      }
     }
     checkedBizId = id;
     checkedAccess = access;

@@ -28,6 +28,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { checkClusterHealth, registerCluster, updateRegisteredCluster } from 'monitor-api/modules/commons';
 import { random } from 'monitor-common/utils';
+import { directorySpaceTypes, querySpaceDirectory } from 'monitor-common/utils/space-directory';
+import { resolveSelectedSpaces } from 'monitor-common/utils/space-selection';
 
 import { SPACE_TYPE_MAP } from '../../common/constant';
 import UserSelector from '../../components/user-selector/user-selector';
@@ -246,18 +248,22 @@ export default class ClusterConfig extends tsc<object> {
     this.selectedType = data?.cluster_type || EClusterType.Kafka;
   }
 
-  get spaceTypes() {
-    const spaceTypeMap: Record<string, any> = {};
-    this.$store.getters.bizList.forEach(item => {
-      spaceTypeMap[item.space_type_id] = 1;
-      if (item.space_type_id === 'bkci' && item.space_code) {
-        spaceTypeMap.bcs = 1;
-      }
-    });
-    return Object.keys(spaceTypeMap).map(key => ({
-      id: key,
-      name: SPACE_TYPE_MAP[key]?.name || this.$t('未知'),
-    }));
+  spaceTypes: { id: string; name: string }[] = [];
+  async loadSpaceTypes(open: boolean) {
+    if (!open) return;
+    try {
+      const types = await Promise.all(
+        [...new Set([...directorySpaceTypes, ...Object.keys(SPACE_TYPE_MAP)])].map(async type => {
+          const { items } = await querySpaceDirectory({ type, pageSize: 1 });
+          return items.length ? type : null;
+        })
+      );
+      this.spaceTypes = types
+        .filter(Boolean)
+        .map(id => ({ id, name: String(SPACE_TYPE_MAP[id]?.name || this.$t('未知')) }));
+    } catch {
+      this.$bkMessage({ theme: 'error', message: this.$t('空间目录加载失败，请刷新页面重试') });
+    }
   }
 
   /* 资源类别的切换 */
@@ -292,10 +298,7 @@ export default class ClusterConfig extends tsc<object> {
     if (scope === EScopes.allSpace) return [];
     if (scope === EScopes.spaceType) return space.map(space_type => ({ space_type }));
     const ids = scope === EScopes.currentSpace ? [Number(this.$store.getters.bizId)] : space.map(Number);
-    let records = this.$store.getters.bizList;
-    if (ids.some(id => !records.some(item => item.id === id)) && window.loadSpaceDirectory) {
-      records = await window.loadSpaceDirectory();
-    }
+    const records = await resolveSelectedSpaces(ids, this.$store.getters.bizList);
     const byId = new Map<number, { space_id: string; space_type_id: string }>(records.map(item => [item.id, item]));
     return ids.map(id => {
       const record = byId.get(id);
@@ -609,6 +612,7 @@ export default class ClusterConfig extends tsc<object> {
                 selected-type={this.selectedType}
                 spaceTypes={this.spaceTypes}
                 onChange={this.handleMoreDataChange}
+                onOpenSpaceTypes={this.loadSpaceTypes}
               />
             )}
             <FormItem
