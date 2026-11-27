@@ -147,6 +147,11 @@ class ViewLoadingTimingSection(WaterfallSection):
         "page_stable": _("页面趋于稳定"),
     }
 
+    PHASE_GROUP_RULES = (
+        (_("TTFB 分解"), ("redirect", "prepare", "dns", "connect", "tls", "first_byte")),
+        (_("页面加载"), ("download", "dom_parsing", "dom_processing", "resource_load", "page_stable")),
+    )
+
     def get_data(self) -> dict[str, Any] | None:
         if self.flatten_data.get("attributes.view.loading_type") != ViewLoadingType.INITIAL_LOAD.value:
             return None
