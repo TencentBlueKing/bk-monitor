@@ -30,11 +30,10 @@ import { OverflowTitle } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { checkIsRoot } from '../../utils';
-import { edgeRelationLabel, isDirectedEdge } from '../edge-relation';
+import { isDirectedEdge } from '../edge-relation';
 import { NODE_TYPE_ICON } from '../node-type-svg';
 import { canJumpByType, getApmServiceType, handleToLink } from '../utils';
 import MetricView from './metric-view';
-import SnapshotAnalysisInfo from './snapshot-analysis-info';
 
 import type { IEdge, IncidentDetailData, ITopoNode } from '../types/topo';
 
@@ -191,7 +190,6 @@ export default defineComponent({
     };
     return {
       renderEdgeInfo,
-      relationLabel: computed(() => edgeRelationLabel(props.activeEdge, t)),
       t,
     };
   },
@@ -199,13 +197,6 @@ export default defineComponent({
     return (
       <div class='edge-wrap'>
         <div class='edge-info'>{this.renderEdgeInfo()}</div>
-        <SnapshotAnalysisInfo
-          analysis={this.activeEdge?.graph_analysis}
-          scores={this.activeEdge?.properties?.scores}
-        />
-        <div>
-          {this.t('关系类型')}：{this.relationLabel}
-        </div>
         <div class='edge-metrics'>
           <div class='edge-metrics_title'>{this.t('指标')}</div>
           <div class='edge-metrics_main'>

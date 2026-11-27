@@ -87,6 +87,7 @@ export default defineComponent({
 
     // 赋值前向引用（renderGraph 在 useTopoGraph 返回后才可用）
     renderGraphFn = renderGraph;
+    data.registerRenderGraphCallback(renderGraphAccess.renderGraphCallback);
 
     /** 纯 emit 透传（留在主文件） */
     const handleToDetail = (node: ITopoNode) => emit('toDetail', node);

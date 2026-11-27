@@ -127,26 +127,53 @@ export function useTopoTimeline(
     });
   };
 
-  const applyRootComboVisibility = () => {
+  const getOccupiedComboIds = () => {
     const graph = graphAccess.getGraph();
-    if (!graph) return;
+    if (!graph) return new Set<string>();
     const combos = new Map(graph.getCombos().map(combo => [String(combo.getModel().id), combo]));
     const occupied = new Set<string>();
-    for (const node of graph.getNodes()) {
-      if (!node.isVisible()) continue;
-      let id = node.getModel().comboId;
+    /** 从指定 id 向上追溯 combo parentId 链，标记所有占用的 combo */
+    const traceComboChain = (startId: unknown) => {
+      let id = startId;
       const visited = new Set<string>();
-      while (id != null && !visited.has(String(id))) {
+      while (id != null && id !== '' && !visited.has(String(id))) {
         const key = String(id);
         visited.add(key);
         occupied.add(key);
         id = combos.get(key)?.getModel().parentId;
       }
+    };
+    for (const node of graph.getNodes()) {
+      if (!node.isVisible()) continue;
+      const model = node.getModel();
+      // 追溯 comboId 链（顶层分类）
+      traceComboChain(model.comboId);
+      // 追溯 subComboId 链（嵌套 combo）—— complete 数据中 comboId 是顶层分类，
+      // subComboId 才是节点实际归属的嵌套 combo，需同时追溯
+      traceComboChain(model.subComboId);
     }
-    for (const [id, combo] of combos) {
+    return occupied;
+  };
+
+  /** 只切换嵌套 Combo 自身，避免 graph.showItem 递归恢复已删除节点 */
+  const applyNestedComboVisibility = () => {
+    const graph = graphAccess.getGraph();
+    if (!graph) return;
+    const occupied = getOccupiedComboIds();
+    for (const combo of graph.getCombos()) {
+      if (!combo.getModel().parentId) continue;
+      combo[occupied.has(String(combo.getModel().id)) ? 'show' : 'hide']();
+    }
+  };
+
+  const applyRootComboVisibility = () => {
+    const graph = graphAccess.getGraph();
+    if (!graph) return;
+    const occupied = getOccupiedComboIds();
+    for (const combo of graph.getCombos()) {
       if (combo.getModel().parentId) continue;
       // G6 graph.showItem recursively restores deleted descendants; only toggle the category itself.
-      combo[occupied.has(id) ? 'show' : 'hide']();
+      combo[occupied.has(String(combo.getModel().id)) ? 'show' : 'hide']();
     }
   };
 
@@ -292,8 +319,9 @@ export function useTopoTimeline(
         });
       updateCombo && ServiceCombo.labelChange(combo);
 
-      g[showNodes.length > 0 ? 'showItem' : 'hideItem'](combo);
+      combo[showNodes.length > 0 ? 'show' : 'hide']();
     });
+    applyNestedComboVisibility();
     applyRootComboVisibility();
     return currNodes.length === 0 || !next;
   };
@@ -594,8 +622,9 @@ export function useTopoTimeline(
             is_on_alert: updateCombo.is_on_alert,
           });
         updateCombo && ServiceCombo.labelChange(combo);
-        g[showNodes.length > 0 ? 'showItem' : 'hideItem'](combo);
+        combo[showNodes.length > 0 ? 'show' : 'hide']();
       });
+      applyNestedComboVisibility();
       applyRootComboVisibility();
     }
   };
@@ -635,6 +664,8 @@ export function useTopoTimeline(
     handlePlay,
     handleTimelineChange,
     onAnimationStateChange,
+    applyNestedComboVisibility,
+    applyRootComboVisibility,
     cleanupTimeline,
   };
 }

@@ -110,7 +110,6 @@ export default function useMetrics(
   const refreshTimeout = deepRef<NodeJS.Timeout | null>(null);
   // 是否禁用事件分析弹窗相关功能
   const disableEventAnalysis = deepRef(false);
-  const eventDataMessage = deepRef('');
   // 故障结束时间戳
   const endTime = shallowRef(null);
   const metricInterval = shallowRef(0);
@@ -443,14 +442,12 @@ export default function useMetrics(
 
   /** 获取事件分析数据 */
   const getEventsData = debounce(100, async () => {
-    eventDataMessage.value = '';
     const saved = snapshotEvents(snapshotAnalysis?.value, t('未提供'));
     // 边概览不需要事件分析相关功能
     if (metricType.value !== 'node' || (!saved?.events.length && !allowsRealtimeEvents(snapshotAnalysis?.value))) {
       allEventsData.value = [];
       eventsData.value = [];
       eventColumns.value = [];
-      if (metricType.value === 'node' && saved !== null) eventDataMessage.value = t('本快照未提供事件数据');
       disableEventAnalysis.value = true;
       isEventsLoaded.value = true;
       return;
@@ -539,7 +536,6 @@ export default function useMetrics(
     loading,
     exceptionData,
     disableEventAnalysis,
-    eventDataMessage,
     getMetricsData,
     getEventsData,
     handleChartInit,

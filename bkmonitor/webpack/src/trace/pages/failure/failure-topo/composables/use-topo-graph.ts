@@ -45,11 +45,9 @@ import { type Ref, type ShallowRef, nextTick } from 'vue';
 import { type ICombo, type IG6GraphEvent, type INode, type Item, Arrow, Graph } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { debounce } from 'throttle-debounce';
-
 import { useI18n } from 'vue-i18n';
 
 import { isDirectedEdge } from '../edge-relation';
-
 import ElkjsUtils from '../graph/elkjs-utils';
 import { clearAllG6Animations, registerAllAfterGraph, registerAllBeforeGraph } from '../graph/register-all';
 import { clearEdgeIntervals } from '../graph/topo-edge';
@@ -105,11 +103,11 @@ export interface TopoGraphInteraction {
 
 /** useTopoGraph 需要从 useTopoState 接收的状态子集 */
 export interface TopoGraphState {
-  errorData: Ref<ErrorData>;
   /** 当前选中的业务 ID 列表 */
   bkzIds: Ref<string[]>;
   /** 标记当前是否在 resize 过程中 */
   cacheResize: Ref<boolean>;
+  errorData: Ref<ErrorData>;
   /** G6 Tooltip 插件实例 shallowRef（在 registerCustomTooltip 中赋值） */
   g6TooltipRef: ShallowRef<G6TooltipInstance | undefined>;
   /** G6 Graph 实例 shallowRef（在此 composable 的 initGraph 中赋值） */
@@ -140,6 +138,10 @@ export interface TopoGraphState {
 
 /** useTopoGraph 需要从 useTopoTimeline 接收的播放函数子集 */
 export interface TopoGraphTimeline {
+  /** 同步嵌套 combo 显隐 */
+  applyNestedComboVisibility: () => void;
+  /** 同步顶层 combo 显隐 */
+  applyRootComboVisibility: () => void;
   /** 帧切换 */
   handleTimelineChange: (value: number, init?: boolean, keepSidePanel?: boolean) => void;
   /** afteritemstatechange 事件回调 */
@@ -213,44 +215,50 @@ export function useTopoGraph(
     const graph = getGraph();
     if (!graph) return;
     clearEdgeIntervals();
-    return Promise.resolve().then(() => topoData.resolveLayout(renderData)).then(resp => {
-      // LayoutInput 与 G6 GraphData 字段对齐，断言后写入画布
-      graph.data(resp.data as GraphData);
-      graph.render();
-      if (state.resourceNodeId.value) {
-        const node = graph.findById(state.resourceNodeId.value);
-        node && graph.setItemState(node, 'running', true);
-      }
-      interaction.setHighlightEdge();
-      state.isRenderComplete.value = renderComplete;
-      // 获取用户拖动设置后的zoom缩放级别
-      const zoom = localStorage.getItem('failure-topo-zoom');
-      if (zoom) {
-        // localStorage 取出为 string，缩放接口要求 number
-        interaction.handleZoomChange(Number(zoom));
-        state.zoomValue.value = Number(zoom);
-      }
-      topoData.moveToCenterIfNeeded(
-        graph,
-        state.resourceNodeId.value,
-        state.graphRef.value!.clientWidth,
-        state.graphRef.value!.clientHeight
-      );
-      // biome-ignore lint/complexity/noForEach: <explanation>
-      renderData.nodes.forEach(node => {
-        if (node.is_deleted) {
-          const deleteNode = graph.findById(node.id) as INode;
-          if (!deleteNode) return;
-          // biome-ignore lint/complexity/noForEach: <explanation>
-          deleteNode.getEdges().forEach(edge => edge.hide());
-          deleteNode.hide();
+    return Promise.resolve()
+      .then(() => topoData.resolveLayout(renderData))
+      .then(resp => {
+        // LayoutInput 与 G6 GraphData 字段对齐，断言后写入画布
+        graph.data(resp.data as GraphData);
+        graph.render();
+        if (state.resourceNodeId.value) {
+          const node = graph.findById(state.resourceNodeId.value);
+          node && graph.setItemState(node, 'running', true);
         }
+        interaction.setHighlightEdge();
+        state.isRenderComplete.value = renderComplete;
+        // 获取用户拖动设置后的zoom缩放级别
+        const zoom = localStorage.getItem('failure-topo-zoom');
+        if (zoom) {
+          // localStorage 取出为 string，缩放接口要求 number
+          interaction.handleZoomChange(Number(zoom));
+          state.zoomValue.value = Number(zoom);
+        }
+        topoData.moveToCenterIfNeeded(
+          graph,
+          state.resourceNodeId.value,
+          state.graphRef.value!.clientWidth,
+          state.graphRef.value!.clientHeight
+        );
+        // biome-ignore lint/complexity/noForEach: <explanation>
+        renderData.nodes.forEach(node => {
+          if (node.is_deleted) {
+            const deleteNode = graph.findById(node.id) as INode;
+            if (!deleteNode) return;
+            // biome-ignore lint/complexity/noForEach: <explanation>
+            deleteNode.getEdges().forEach(edge => edge.hide());
+            deleteNode.hide();
+          }
+        });
+        /** 节点删除态处理完后同步嵌套及顶层 combo 显隐，避免留下空层级框 */
+        timeline.applyNestedComboVisibility();
+        timeline.applyRootComboVisibility();
+        /** 布局渲染完将边置于顶层 */
+        setTimeout(interaction.toFrontAnomalyEdge, 500);
+      })
+      .catch(() => {
+        state.errorData.value = { isError: true, isNoData: false, msg: t('图谱布局失败，请刷新重试') };
       });
-      /** 布局渲染完将边置于顶层 */
-      setTimeout(interaction.toFrontAnomalyEdge, 500);
-    }).catch(() => {
-      state.errorData.value = { isError: true, isNoData: false, msg: t('图谱布局失败，请刷新重试') };
-    });
   };
 
   // ---------------------------------------------------------------------------

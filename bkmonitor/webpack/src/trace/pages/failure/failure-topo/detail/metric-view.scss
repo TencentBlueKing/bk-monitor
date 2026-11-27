@@ -49,6 +49,10 @@
     padding: 9px 12px;
     border-bottom: 1px solid #000;
 
+    &--no-data{
+      height: 35px;
+    }
+
     .metric-slider-wrap {
       width: calc(100% - 100px);
       display: flex;

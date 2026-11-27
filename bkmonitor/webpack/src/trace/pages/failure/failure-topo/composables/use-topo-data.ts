@@ -53,7 +53,7 @@ import { historyCombos, prepareHistoryFrames, validateTopology } from '../graph/
 import { topologyEdgeId } from '../snapshot-analysis';
 import formatTopoData, { type NodeArgs } from '../graph/format-topo-data';
 
-import type { GraphAccess } from '../types/composable';
+import type { GraphAccess, RenderGraphAccess } from '../types/composable';
 import type { ErrorData, TopoRawDataCache } from '../types/g6';
 import type { IEdge, IEntity, ITopoCombo, ITopoData, ITopoNode } from '../types/topo';
 import type { Graph } from '@antv/g6';
@@ -141,15 +141,22 @@ export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
   // ---------------------------------------------------------------------------
 
   let _initGraphCallback: (() => void) | null = null;
+  let _renderGraphCallback: RenderGraphAccess['renderGraphCallback'] | null = null;
 
   /** 延迟注册 initGraph 回调，由主文件在定义 initGraph 后调用 */
   function registerInitGraphCallback(cb: () => void) {
     _initGraphCallback = cb;
   }
 
+  /** 注册数据刷新后的画布重绘回调，由主文件在定义 renderGraph 后调用 */
+  function registerRenderGraphCallback(cb: RenderGraphAccess['renderGraphCallback']) {
+    _renderGraphCallback = cb;
+  }
+
   /** 组件卸载时清空回调引用，释放闭包持有的大量 composable state */
   function cleanupData() {
     _initGraphCallback = null;
+    _renderGraphCallback = null;
   }
 
   // ---------------------------------------------------------------------------
@@ -367,12 +374,15 @@ export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
           }, state.refreshTime.value);
         }
       });
-    if (isAutoRefresh || !renderData) return;
+    if (!renderData) return;
     topoRawData.value = renderData as ITopoData;
     // 首次加载且 graph 尚未创建时，触发 initGraph（此时 topoRawData.value 已赋值）
     const existingGraph = graphAccess.getGraph();
     if (!existingGraph && _initGraphCallback) {
       _initGraphCallback();
+    } else if (isAutoRefresh && existingGraph && _renderGraphCallback) {
+      // 自动刷新需要同步重绘，否则缓存和画布会停留在刷新前的拓扑状态。
+      _renderGraphCallback(topoRawData.value, true);
     }
     const rootNode = topoRawData.value.nodes.find(node => node.entity.is_root);
     if (!state.resourceNodeId.value && rootNode) {
@@ -488,6 +498,7 @@ export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
     // 数据获取
     getGraphData,
     registerInitGraphCallback,
+    registerRenderGraphCallback,
     cleanupData,
     // 刷新定时器
     handleChangeRefleshTime,
