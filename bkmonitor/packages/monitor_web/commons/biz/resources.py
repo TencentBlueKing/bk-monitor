@@ -21,6 +21,7 @@ from bkm_space.api import SpaceApi
 from bkm_space.define import SpaceFunction, SpaceTypeEnum
 from bkm_space.utils import is_disabled_bkms_space
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
+from bkmonitor.iam.space_page import SpacePageAccess, prepare_space_page_access
 from bkmonitor.models.external_iam import ExternalPermission
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.common_utils import safe_int
@@ -32,6 +33,7 @@ from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from core.errors.api import BKAPIError
 from monitor_web.commons.biz.func_control import CM
+from monitor_web.commons.biz.space_page import SpacePageRequestSerializer, search_space_page
 
 logger = logging.getLogger(__name__)
 
@@ -123,10 +125,24 @@ class FetchBusinessInfoResource(Resource):
 
 
 class ListSpacesResource(Resource):
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(SpacePageRequestSerializer):
         bk_tenant_id = TenantIdField()
         show_all = serializers.BooleanField(required=False, default=False, allow_null=True)
         show_detail = serializers.BooleanField(required=False, default=False, allow_null=True)
+        include_demo = serializers.BooleanField(default=False)
+
+        def validate(self, attrs):
+            attrs = super().validate(attrs)
+            if attrs.get("mode") == "page" and (
+                attrs["show_all"] or not hasattr(SpaceApi, "read_space_page_candidates")
+            ):
+                raise serializers.ValidationError("Authorized directory pagination is unavailable.")
+            if attrs.get("mode") == "page" and attrs["include_demo"]:
+                if attrs.get("space_uids"):
+                    raise serializers.ValidationError("include_demo accepts business ID bookmarks.")
+                ids = attrs.get("bk_biz_ids", frozenset())
+                attrs["bk_biz_ids"] = ids.union({str(settings.DEMO_BIZ_ID)}) if settings.DEMO_BIZ_ID else ids
+            return attrs
 
     @classmethod
     def get_space_by_user(
@@ -137,19 +153,39 @@ class ListSpacesResource(Resource):
         spaces = perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, use_cache)
         return spaces if include_disabled_bkms else [space for space in spaces if not is_disabled_bkms_space(space)]
 
-    def perform_request(self, validated_request_data) -> list[dict]:
+    @staticmethod
+    def external_permissions(user):
+        return ExternalPermission.objects.filter(authorized_user=user, expire_time__gt=timezone.now())
+
+    def perform_request(self, validated_request_data) -> list[dict] | dict:
         request = get_request(peaceful=True)
         username = get_request_username()
         bk_tenant_id = validated_request_data["bk_tenant_id"]
 
-        if request and getattr(request, "external_user", None):
-            spaces: list[dict] = SpaceApi.list_spaces_dict(bk_tenant_id=bk_tenant_id)
-            external_biz_ids = (
-                ExternalPermission.objects.filter(authorized_user=request.external_user, expire_time__gt=timezone.now())
-                .values_list("bk_biz_id", flat=True)
-                .distinct()
+        if validated_request_data.get("mode") == "page":
+            external_user = getattr(request, "external_user", None)
+            if external_user:
+                grants = self.external_permissions(external_user).values_list("bk_biz_id", flat=True).distinct()
+                access = SpacePageAccess(frozenset(map(str, grants)))
+            else:
+                access = prepare_space_page_access(Permission(username=username, bk_tenant_id=bk_tenant_id))
+            page = search_space_page(
+                bk_tenant_id, external_user or username, validated_request_data, access, external=bool(external_user)
             )
-            spaces = [space for space in spaces if space["bk_biz_id"] in external_biz_ids]
+            if validated_request_data["show_detail"]:
+                for space in page["items"]:
+                    self.enrich_space_func(space)
+            return page
+
+        if request and getattr(request, "external_user", None):
+            external_biz_ids = (
+                self.external_permissions(request.external_user).values_list("bk_biz_id", flat=True).distinct()
+            )
+            if hasattr(SpaceApi, "read_space_records"):
+                spaces = SpaceApi.read_space_records(bk_tenant_id, external_biz_ids)
+            else:
+                grants = set(external_biz_ids)
+                spaces = [s for s in SpaceApi.list_spaces_dict(bk_tenant_id=bk_tenant_id) if s["bk_biz_id"] in grants]
             if not validated_request_data["show_all"]:
                 spaces = [space for space in spaces if not is_disabled_bkms_space(space)]
         elif validated_request_data["show_all"]:
@@ -185,8 +221,9 @@ class ListSpacesResource(Resource):
             (SpaceFunction.UPTIMECHECK.value, lambda s: s["space_type_id"] == SpaceTypeEnum.BKCC.value),
             (
                 SpaceFunction.K8S.value,
-                lambda s: s["bk_biz_id"] > 0
-                or bool(s["space_type_id"] == SpaceTypeEnum.BKCI.value and s["space_code"]),
+                lambda s: (
+                    s["bk_biz_id"] > 0 or bool(s["space_type_id"] == SpaceTypeEnum.BKCI.value and s["space_code"])
+                ),
             ),
             (SpaceFunction.CI_BUILDER.value, lambda s: s["space_type_id"] == SpaceTypeEnum.BKCI.value),
             (SpaceFunction.PAAS_APP.value, lambda s: s["space_type_id"] == SpaceTypeEnum.BKSAAS.value),

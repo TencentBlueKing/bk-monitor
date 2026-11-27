@@ -1,23 +1,31 @@
 import logging
+import re
+import time
 from functools import cmp_to_key
 from typing import Any
 
 import arrow
 from django.conf import settings
+from django.core import signing
 from elasticsearch_dsl import Q
 from rest_framework import serializers
 
 from api.cmdb.define import Business
 from bkm_space.api import SpaceApi
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument, EventDocument
+from bkmonitor.iam import Permission
+from bkmonitor.iam.space_page import SpacePageAccess, prepare_space_page_access
 from bkmonitor.utils.cache import CacheType
-from bkmonitor.utils.request import get_request_username
+from bkmonitor.utils.request import get_request, get_request_tenant_id, get_request_username
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from constants.action import ActionDisplayStatus, ActionPluginType
 from constants.alert import EventSeverity, EventStatus
 from core.drf_resource import CacheResource, Resource, api, resource
 from fta_web.alert.handlers.base import build_es_terms_query
+from iam_engine.exceptions import ProviderUnavailable
 from monitor.models import GlobalConfig, UserConfig
+from monitor_web.commons.biz.resources import ListSpacesResource
+from monitor_web.commons.biz.space_page import SpacePageRequestSerializer, search_space_page
 
 FAVORITE_CONFIG_KEY = "fta_overview:favorite_biz"
 
@@ -657,7 +665,7 @@ class BizWithAlertStatisticsResource(Resource):
     统计一段周期内有数据的业务信息
     """
 
-    class RequestSerializer(serializers.Serializer):
+    class RequestSerializer(SpacePageRequestSerializer):
         days = serializers.IntegerField(default=31, label="查询天数", min_value=1, max_value=31)
 
     @staticmethod
@@ -677,7 +685,143 @@ class BizWithAlertStatisticsResource(Resource):
         }
         return business_data
 
+    # Keep a sparse receipt list from triggering unbounded work in one request.
+    EMPTY_PAGE_BUDGET = 3
+    RECEIPT_CURSOR_SALT = "monitor.alert-receipt-spaces.v1"
+
+    @staticmethod
+    def _assigned_page(username, tenant, days, end, size, *, after=None, ids=None):
+        """Read one composite window, using Elasticsearch's own continuation key."""
+        search = AlertDocument.search(start_time=end - days * 86400, end_time=end).filter(
+            Q("term", assignee=username) | Q("term", appointee=username)
+        )
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            # Old indices have no tenant field. Their business IDs are intersected with the
+            # current tenant's directory in search_space_page, as in the original endpoint.
+            search = search.filter(Q("term", bk_tenant_id=tenant) | ~Q("exists", field="bk_tenant_id"))
+        if ids is not None:
+            search = search.filter(build_es_terms_query("event.bk_biz_id", list(ids)))
+        request = search[:0]
+        request.aggs.bucket(
+            "assigned_spaces",
+            "composite",
+            size=size,
+            sources=[{"biz": {"terms": {"field": "event.bk_biz_id"}}}],
+            **({"after": after} if after is not None else {}),
+        )
+        aggregation = request.execute().aggs.assigned_spaces
+        keys = [str(bucket.key.biz) for bucket in aggregation.buckets]
+        more = len(keys) == size and getattr(aggregation, "after_key", None)
+        return keys, aggregation.after_key.to_dict() if more else None
+
+    @classmethod
+    def _assigned_biz_ids(cls, username, tenant, days, ids):
+        if not ids:
+            return set()
+        keys, _ = cls._assigned_page(username, tenant, days, int(time.time()), len(ids), ids=ids)
+        return set(keys)
+
+    def _receipt_page(self, username, tenant, params, access):
+        scope = [tenant, username, params["days"], params["type"]]
+        end, after = int(time.time()), None
+        if params["cursor"]:
+            try:
+                owner, end, after = signing.loads(params["cursor"], salt=self.RECEIPT_CURSOR_SALT)
+                if owner != scope:
+                    raise ValueError("Mismatched alert receipt cursor")
+            except (TypeError, ValueError, signing.BadSignature) as error:
+                raise serializers.ValidationError({"cursor": "Invalid cursor for this alert query."}) from error
+        size = params["page_size"]
+        for _ in range(self.EMPTY_PAGE_BUDGET):
+            keys, after = self._assigned_page(username, tenant, params["days"], end, size, after=after)
+            eligible = frozenset(key for key in keys if not access.allows(key))
+            rows = []
+            if eligible:
+                candidates = search_space_page(
+                    tenant,
+                    username,
+                    {**params, "cursor": "", "bk_biz_ids": eligible},
+                    SpacePageAccess(eligible),
+                    namespace=f"alert:{params['days']}",
+                )["items"]
+                by_id = {str(row["bk_biz_id"]): row for row in candidates}
+                rows = [by_id[key] for key in keys if key in by_id]
+            if rows or after is None:
+                break
+        cursor = signing.dumps([scope, end, after], salt=self.RECEIPT_CURSOR_SALT) if after is not None else None
+        return {"items": rows, "next_cursor": cursor}
+
+    def _search_receipts(self, username, tenant, params, access):
+        # Keep the ordinary directory's exact-first order. Check receipt status for only the
+        # current candidate IDs; a sparse page can be empty and carry a continuation.
+        eligible = SpacePageAccess(matches_policy=lambda key: not access.allows(key))
+        for _ in range(self.EMPTY_PAGE_BUDGET):
+            page = search_space_page(tenant, username, params, eligible, namespace=f"alert-search:{params['days']}")
+            ids = frozenset(str(row["bk_biz_id"]) for row in page["items"])
+            assigned = self._assigned_biz_ids(username, tenant, params["days"], ids)
+            page["items"] = [row for row in page["items"] if str(row["bk_biz_id"]) in assigned]
+            if page["items"] or not page["next_cursor"]:
+                break
+            params = {**params, "cursor": page["next_cursor"]}
+        return page
+
+    def _selector_page(self, params):
+        tenant = get_request_tenant_id()
+        username = get_request_username()
+        request = get_request(peaceful=True)
+        external = getattr(request, "external_user", None)
+        known = params.get("bk_biz_ids")
+        restricted = bool(external or (settings.BLOCK_SPACE_RULE and re.search(settings.BLOCK_SPACE_RULE, username)))
+        if restricted and known is None:
+            return {"items": [], "next_cursor": None}
+        if external:
+            ids = (
+                ListSpacesResource.external_permissions(external)
+                .filter(bk_biz_id__in=known)
+                .values_list("bk_biz_id", flat=True)
+            )
+            access = SpacePageAccess(frozenset(map(str, ids)))
+        else:
+            permission = Permission(username=username, bk_tenant_id=tenant)
+            permission.skip_check = False
+            access = prepare_space_page_access(permission)
+        if access.partial:
+            raise ProviderUnavailable("Cannot determine alert-only spaces with incomplete directory permissions.")
+        # Restricted users' legacy business_list is their authorized directory. Names for
+        # other IDs must not be disclosed even if they explicitly request a label.
+        if known is None and access.ids is None:
+            return {"items": [], "next_cursor": None}
+        if known is not None:
+            if restricted:
+                known = frozenset(key for key in known if access.allows(key))
+            page = search_space_page(
+                tenant,
+                external or username,
+                params,
+                SpacePageAccess(known),
+                namespace=f"alert:{params['days']}",
+                external=bool(external),
+            )
+            assigned = self._assigned_biz_ids(username, tenant, params["days"], known)
+        else:
+            if params["query"] or params.get("space_uids"):
+                page = self._search_receipts(username, tenant, params, access)
+            else:
+                page = self._receipt_page(username, tenant, params, access)
+            assigned = {str(row["bk_biz_id"]) for row in page["items"]}
+        page["items"] = [
+            {
+                "bk_biz_id": row["bk_biz_id"],
+                "bk_biz_name": row["display_name"],
+                "has_data": str(row["bk_biz_id"]) in assigned,
+            }
+            for row in page["items"]
+        ]
+        return page
+
     def perform_request(self, validated_request_data):
+        if validated_request_data.get("mode") == "page":
+            return self._selector_page(validated_request_data)
         business_info = self.get_all_business_list()
         unauthorized_biz_ids = business_info["unauthorized_biz_ids"]
         business_list = business_info["business_list"]

@@ -8,25 +8,32 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import heapq
 import json
 import logging
 import traceback
+from itertools import chain, islice
+from operator import itemgetter
 
 from django.conf import settings
 from django.core.cache import caches
 from django.db import connections
 from django.utils.translation import gettext as _
+from opentelemetry import trace
 from rest_framework.exceptions import ValidationError
 
 from bkm_space import api as space_api
 from bkm_space.define import Space as SpaceDefine
 from bkm_space.define import SpaceTypeEnum
+from bkm_space.utils import BKMS_SPACE_ID_PREFIX
+from bkmonitor.space.pinyin import pinyin_search_patterns
 from core.drf_resource import api
 from core.prometheus import metrics
 
 local_mem = caches["space"]
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer(__name__)
 
 
 # 空间缓存时间，单位：秒
@@ -39,6 +46,15 @@ class Empty:
 
 miss_cache = Empty()
 _space_transform = {}
+
+
+PAGE_GRANT_CHUNK = 2000
+
+
+def _grant_chunks(ids):
+    values = iter(ids)
+    while batch := tuple(islice(values, PAGE_GRANT_CHUNK)):
+        yield batch
 
 
 def enrich_space_display_name(space_dict):
@@ -142,12 +158,311 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         return ret
 
     @classmethod
+    def _read_space_rows(
+        cls, conditions, params, *, first=False, limit=None, type_names=None, seek=False
+    ) -> list[dict]:
+        """Read the directory projection without touching either space cache."""
+        type_projection = "t.type_name" if type_names is None else "s.space_type_id AS type_name"
+        type_join = "JOIN metadata_spacetype t ON s.space_type_id = t.type_id" if type_names is None else ""
+        index = "FORCE INDEX (PRIMARY)" if seek else ""
+        sql = f"""
+                SELECT s.id,
+                       s.bk_tenant_id,
+                       s.space_type_id,
+                       s.space_id,
+                       s.space_name,
+                       s.status,
+                       s.space_code,
+                       s.time_zone,
+                       s.language,
+                       s.is_bcs_valid,
+                       s.is_global,
+                       CONCAT(s.space_type_id, '__', s.space_id) AS space_uid,
+                       {type_projection}
+                FROM metadata_space s {index} {type_join}
+            """
+        if conditions:
+            sql += " WHERE " + " AND ".join(conditions)
+        if first:
+            sql += " ORDER BY s.id LIMIT 1"
+        elif limit is not None:
+            sql += " ORDER BY s.id LIMIT %s"
+            params.append(limit)
+        with connections["monitor_api"].cursor() as cursor:
+            cursor.execute(sql, params)
+            columns = [col[0] for col in cursor.description]
+            spaces = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+        for space in spaces:
+            if type_names is not None:
+                space["type_name"] = type_names[space["space_type_id"]]
+            cc_space = space["space_type_id"] == SpaceTypeEnum.BKCC.value
+            # bk_biz_id
+            if not cc_space:
+                space["bk_biz_id"] = -space["id"]
+            else:
+                space["bk_biz_id"] = int(space["space_id"])
+            # is_demo
+            space["is_demo"] = space["bk_biz_id"] == int(settings.DEMO_BIZ_ID or 0)
+            enrich_space_display_name(space)
+        return spaces
+
+    @staticmethod
+    def _restrict_to_biz_ids(conditions, params, biz_ids):
+        if biz_ids is not None:
+            cc_ids, other_ids = [], []
+            for raw_id in biz_ids:
+                # Match the same canonical strings as the IAM candidate intersection.
+                try:
+                    biz_id = int(raw_id)
+                except (TypeError, ValueError):
+                    continue
+                if str(biz_id) != str(raw_id):
+                    continue
+                if biz_id > 0:
+                    cc_ids.append(str(biz_id))
+                elif biz_id < 0:
+                    other_ids.append(-biz_id)
+            predicates = []
+            if cc_ids:
+                placeholders = ", ".join(["%s"] * len(cc_ids))
+                predicates.append(f"(s.space_type_id = %s AND s.space_id IN ({placeholders}))")
+                params.extend([SpaceTypeEnum.BKCC.value, *cc_ids])
+            if other_ids:
+                placeholders = ", ".join(["%s"] * len(other_ids))
+                predicates.append(f"(s.space_type_id != %s AND s.id IN ({placeholders}))")
+                params.extend([SpaceTypeEnum.BKCC.value, *other_ids])
+            if not predicates:
+                return False
+            conditions.append("(" + " OR ".join(predicates) + ")")
+        return True
+
+    @classmethod
+    def read_space_records(
+        cls, bk_tenant_id: str, biz_ids=None, *, space_uid: str | None = None, first_available=False
+    ) -> list[dict]:
+        """Read tenant-scoped directory records. None selects the tenant, an empty ID set selects nothing."""
+        conditions = ["s.bk_tenant_id = BINARY %s"]
+        params = [bk_tenant_id]
+        if space_uid is not None:
+            space_type, _, space_id = space_uid.partition("__")
+            if not space_type or not space_id:
+                return []
+            # Preserve the case-sensitive UID match of the Python directory lookup.
+            conditions.extend(["s.space_type_id = BINARY %s", "s.space_id = BINARY %s"])
+            params.extend([space_type, space_id])
+        if not cls._restrict_to_biz_ids(conditions, params, biz_ids):
+            return []
+        if first_available:
+            # Apply these predicates before LIMIT, including the reserved -1 / 0 IDs.
+            conditions.extend(
+                [
+                    "NOT (s.space_type_id = %s AND s.space_id = %s)",
+                    "NOT (s.space_type_id != %s AND s.id = 1)",
+                    "NOT (BINARY s.status = %s AND s.space_type_id = %s AND BINARY s.space_id LIKE %s)",
+                ]
+            )
+            params.extend(
+                [
+                    SpaceTypeEnum.BKCC.value,
+                    "0",
+                    SpaceTypeEnum.BKCC.value,
+                    "disabled",
+                    SpaceTypeEnum.BKCI.value,
+                    BKMS_SPACE_ID_PREFIX + "%",
+                ]
+            )
+        with tracer.start_as_current_span("space.read_records", record_exception=False) as span:
+            span.set_attribute("space.first_available", first_available)
+            span.set_attribute("space.finite_ids", biz_ids is not None or space_uid is not None)
+            rows = cls._read_space_rows(conditions, params, first=first_available)
+            span.set_attribute("space.row_count", len(rows))
+            return rows
+
+    @classmethod
+    def _page_conditions(cls, tenant, biz_ids, space_type, after_id, space_uids):
+        """Read a stable keyset window with the same tenant and BKMS semantics as the user directory."""
+        conditions = [
+            "s.bk_tenant_id = BINARY %s",
+            "s.id > %s",
+            "NOT (BINARY s.status = %s AND s.space_type_id = %s AND BINARY s.space_id LIKE %s)",
+        ]
+        params = [tenant, after_id, "disabled", SpaceTypeEnum.BKCI.value, BKMS_SPACE_ID_PREFIX + "%"]
+        if not cls._restrict_to_biz_ids(conditions, params, biz_ids):
+            return ["1=0"], []
+        if space_uids:
+            placeholders = ", ".join(["(BINARY %s, BINARY %s)"] * len(space_uids))
+            conditions.append(f"(s.space_type_id, s.space_id) IN ({placeholders})")
+            for uid in space_uids:
+                params.extend(uid.split("__", 1))
+        if space_type == "bcs":
+            conditions.extend(["s.space_type_id = %s", "s.space_code IS NOT NULL", "s.space_code <> ''"])
+            params.append(SpaceTypeEnum.BKCI.value)
+        elif space_type:
+            conditions.append("s.space_type_id = %s")
+            params.append(space_type)
+        return conditions, params
+
+    @classmethod
+    def read_space_page_types(cls):
+        with connections["monitor_api"].cursor() as cursor:
+            cursor.execute("SELECT type_id, type_name FROM metadata_spacetype", [])
+            return dict(cursor.fetchall())
+
+    @classmethod
+    def read_space_page_candidates(
+        cls, tenant, biz_ids, space_type, after_id, limit, *, type_names, space_uids=None, row_ids=None
+    ):
+        if biz_ids is not None and len(biz_ids) > PAGE_GRANT_CHUNK:
+            if row_ids:
+                # Hydration already has a bounded primary-key restriction; recheck the entire grant set.
+                selected = cls.read_space_page_candidates(
+                    tenant,
+                    None,
+                    space_type,
+                    after_id,
+                    len(row_ids),
+                    type_names=type_names,
+                    space_uids=space_uids,
+                    row_ids=row_ids,
+                )
+                return [row for row in selected if str(row["bk_biz_id"]) in biz_ids or row["bk_biz_id"] in biz_ids][
+                    :limit
+                ]
+            pages = (
+                cls.read_space_page_candidates(
+                    tenant, chunk, space_type, after_id, limit, type_names=type_names, space_uids=space_uids
+                )
+                for chunk in _grant_chunks(biz_ids)
+            )
+            return heapq.nsmallest(limit, chain.from_iterable(pages), key=itemgetter("id"))
+        conditions, params = cls._page_conditions(tenant, biz_ids, space_type, after_id, space_uids)
+        if not type_names:
+            return []
+        conditions.append("s.space_type_id IN (" + ", ".join(["%s"] * len(type_names)) + ")")
+        params.extend(type_names)
+        if row_ids:
+            conditions.append("s.id IN (" + ", ".join(["%s"] * len(row_ids)) + ")")
+            params.extend(row_ids)
+        seek = not (biz_ids is not None or space_uids or row_ids or space_type)
+        return cls._read_space_rows(conditions, params, limit=limit, type_names=type_names, seek=seek)
+
+    @classmethod
+    def iter_space_search_keys(
+        cls,
+        tenant,
+        biz_ids,
+        space_type,
+        after_id,
+        *,
+        type_names,
+        space_uids=None,
+        text_filter="",
+        search_pinyin=False,
+        exact=False,
+        window=128,
+    ):
+        """Read only the keys used by the selector. Keyset windows bound the DB driver's buffer."""
+        if biz_ids is not None and len(biz_ids) > PAGE_GRANT_CHUNK:
+            streams = (
+                cls.iter_space_search_keys(
+                    tenant,
+                    chunk,
+                    space_type,
+                    after_id,
+                    type_names=type_names,
+                    space_uids=space_uids,
+                    text_filter=text_filter,
+                    search_pinyin=search_pinyin,
+                    exact=exact,
+                    window=window,
+                )
+                for chunk in _grant_chunks(biz_ids)
+            )
+            yield from heapq.merge(*streams, key=itemgetter(0))
+            return
+        conditions, params = cls._page_conditions(tenant, biz_ids, space_type, after_id, space_uids)
+        if not type_names:
+            return
+        conditions.append("s.space_type_id IN (" + ", ".join(["BINARY %s"] * len(type_names)) + ")")
+        params.extend(type_names)
+        phonetic = []
+        phonetic_params = []
+        if search_pinyin:
+            if exact:
+                # Every ASCII-only exact reading has at least one character per source character.
+                # The phonetic keys are only produced for non-ASCII names.
+                phonetic.extend(["CHAR_LENGTH(s.space_name) <= %s", "LENGTH(s.space_name) > CHAR_LENGTH(s.space_name)"])
+                phonetic_params.append(len(text_filter))
+            connection = connections["monitor_api"]
+            bounded = space_uids or (biz_ids is not None and len(biz_ids) <= 500)
+            if not bounded and not getattr(connection, "mysql_is_mariadb", False):
+                if getattr(connection, "mysql_version", (8, 0)) >= (8, 0):
+                    patterns = pinyin_search_patterns
+                    predicate = "{} REGEXP %s"
+                else:
+                    from bkmonitor.space.pinyin_mysql5 import pinyin_hex_search_patterns
+
+                    # The legacy regex engine matches bytes. Convert to GB2312 and bind the binary pattern as hex.
+                    patterns = pinyin_hex_search_patterns
+                    predicate = "BINARY CONVERT({} USING gb2312) REGEXP UNHEX(%s)"
+                # Exact readings must start and end in the corresponding source characters.
+                # For substrings the two rarest letters may occur anywhere in the name.
+                anchors = (
+                    [("LEFT(s.space_name, 1)", text_filter[:1]), ("RIGHT(s.space_name, 1)", text_filter[-1:])]
+                    if exact
+                    else [("s.space_name", text_filter)]
+                )
+                for column, term in anchors:
+                    for pattern in patterns(term):
+                        phonetic.append(predicate.format(column))
+                        phonetic_params.append(pattern)
+        if exact:
+            text = "LOWER(s.space_name) = %s OR LOWER(s.space_id) = %s"
+            params.extend([text_filter, text_filter])
+            magnitude = text_filter.removeprefix("-")
+            if magnitude.isascii() and magnitude.isdigit() and len(magnitude) <= 20:
+                text += " OR s.id = %s"
+                params.append(int(magnitude))
+            if "__" in text_filter:
+                text += " OR (LOWER(s.space_type_id) = %s AND LOWER(s.space_id) = %s)"
+                params.extend(text_filter.split("__", 1))
+        elif text_filter and (not search_pinyin or phonetic):
+            text = """LOCATE(%s, LOWER(CONCAT_WS(CHAR(0), s.space_name, s.space_id, s.id,
+                IF(s.space_type_id = 'bkcc', s.space_id, CONCAT('-', s.id)), s.space_code,
+                CONCAT(s.space_type_id, '__', s.space_id),
+                IF(s.space_type_id = 'bkci' AND s.space_code <> '', '容器项目', '')))) > 0"""
+            params.append(text_filter)
+            matching_types = [kind for kind, label in type_names.items() if text_filter in label.lower()]
+            if matching_types:
+                text += " OR s.space_type_id IN (" + ", ".join(["%s"] * len(matching_types)) + ")"
+                params.extend(matching_types)
+        else:
+            text = ""
+        if text:
+            if phonetic:
+                text += " OR (" + " AND ".join(phonetic) + ")"
+                params.extend(phonetic_params)
+            conditions.append("(" + text + ")")
+        index = "FORCE INDEX (PRIMARY)" if biz_ids is None and not space_uids and not space_type else ""
+        base = f"""SELECT s.id, s.space_type_id, s.space_id, s.space_name, s.space_code
+                   FROM metadata_space s {index} WHERE """ + " AND ".join(conditions)
+        while True:
+            with connections["monitor_api"].cursor() as cursor:
+                cursor.execute(base + " AND s.id > %s ORDER BY s.id LIMIT %s", [*params, after_id, window])
+                rows = cursor.fetchall()
+            for row in rows:
+                yield (*row, type_names[row[1]])
+            if len(rows) < window:
+                return
+            after_id = rows[-1][0]
+
+    @classmethod
     def list_spaces_dict(
         cls, using_cache=True, bk_tenant_id: str | None = None, filters: dict[str, str | int] | None = None
     ) -> list[dict]:
         """
         告警性能版本获取空间列表
-        TODO: Space表增加租户字段后，需要修改 SQL，增加租户字段查询，当前使用默认租户
         """
         if bk_tenant_id:
             cache_key = f"metadata:list_spaces_dict:{bk_tenant_id}"
@@ -161,44 +476,12 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         if ret is not miss_cache:
             return ret
 
-        with connections["monitor_api"].cursor() as cursor:
-            sql = """
-                SELECT s.id,
-                       s.bk_tenant_id,
-                       s.space_type_id,
-                       s.space_id,
-                       s.space_name,
-                       s.status,
-                       s.space_code,
-                       s.time_zone,
-                       s.language,
-                       s.is_bcs_valid,
-                       s.is_global,
-                       CONCAT(s.space_type_id, '__', s.space_id) AS space_uid,
-                       t.type_name
-                FROM
-                    metadata_space s
-                JOIN
-                    metadata_spacetype t
-                ON
-                    s.space_type_id = t.type_id
-            """
-            sql_params: list[object] = []
-            if filters:
-                where_conditions = []
-                for field, value in filters.items():
-                    where_conditions.append(f"s.{field} = %s")
-                    sql_params.append(value)
-                if where_conditions:
-                    sql += " WHERE " + " AND ".join(where_conditions)
-
-            cursor.execute(sql, sql_params)
-            columns = [col[0] for col in cursor.description]
-            spaces: list[dict] = [dict(zip(columns, row)) for row in cursor.fetchall()]
-
-            # 过滤指定租户
-            if bk_tenant_id:
-                spaces = [space for space in spaces if space["bk_tenant_id"] == bk_tenant_id]
+        conditions = [f"s.{field} = %s" for field in filters or {}]
+        params = list((filters or {}).values())
+        if bk_tenant_id:
+            conditions.append("s.bk_tenant_id = BINARY %s")
+            params.append(bk_tenant_id)
+        spaces = cls._read_space_rows(conditions, params)
 
         # db 无数据， 开发环境给出提示， 生产环境不提示（正常部署不会出现该问题）
         if not spaces and settings.RUN_MODE == "DEVELOP" and not filters and not bk_tenant_id:
@@ -210,14 +493,6 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         _space_transform.clear()
         for space in spaces:
             cc_space = space["space_type_id"] == SpaceTypeEnum.BKCC.value
-            # bk_biz_id
-            if not cc_space:
-                space["bk_biz_id"] = -space["id"]
-            else:
-                space["bk_biz_id"] = int(space["space_id"])
-            # is_demo
-            space["is_demo"] = space["bk_biz_id"] == int(settings.DEMO_BIZ_ID or 0)
-            enrich_space_display_name(space)
             if cc_space:
                 # 仅针对cmdb空间，进行缓存， 非cc空间，需要额外resource信息，走api丰富。
                 local_mem.set(f"metadata:spaces_map:{space['space_uid']}", space, timeout=SPACE_CACHE_TIMEOUT)

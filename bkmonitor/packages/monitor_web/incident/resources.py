@@ -36,9 +36,13 @@ from bkmonitor.documents.incident import (
     IncidentOperationDocument,
     IncidentSnapshotDocument,
 )
-from bkmonitor.utils.request import get_request_username
+from bkmonitor.iam import ActionEnum, Permission
+from bkmonitor.utils.request import get_request, get_request_tenant_id, get_request_username
+from bkmonitor.utils.user import get_global_user
 from bkmonitor.views import serializers
+from bkm_space.api import SpaceApi
 from bkm_space.scope import MONITOR_SCOPE_QUERY_SENTINELS, bk_biz_id_to_scope_id, scope_id_to_bk_biz_id
+from bkm_space.utils import is_disabled_bkms_space
 from constants.alert import EVENT_STATUS_DICT, EventStatus
 from constants.incident import (
     IncidentAlertAggregateDimension,
@@ -507,15 +511,29 @@ class IncidentListResource(IncidentBaseResource):
 
     @staticmethod
     def get_authorized_query_biz_ids(bk_biz_ids):
-        """将查询范围收敛到当前用户有查看权限的空间。"""
-        authorized_biz_ids = resource.space.get_bk_biz_ids_by_user()
-        authorized_biz_ids = list(dict.fromkeys(authorized_biz_ids))
+        """返回原查询的授权 ID，完整解析时同时返回普通空间选择器中的可见范围。"""
+        permission = Permission(username=get_global_user(), bk_tenant_id=get_request_tenant_id())
+        visible_ids = None
+        if not hasattr(SpaceApi, "read_space_records"):
+            rows = permission.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
+        else:
+            rows, complete = permission.list_authorized_space_records_with_status(ActionEnum.VIEW_BUSINESS)
+            # External links use a separate directory grant. The service's skip-check mode also
+            # cannot determine the signed-in user's directory count from this lookup.
+            if (
+                complete
+                and not permission.skip_check
+                and not getattr(get_request(peaceful=True), "external_user", None)
+            ):
+                visible_ids = {row["bk_biz_id"] for row in rows if not is_disabled_bkms_space(row)}
+        authorized_biz_ids = list(dict.fromkeys(row["bk_biz_id"] for row in rows))
         requested_biz_ids = [biz_id for biz_id in (bk_biz_ids or []) if biz_id not in (None, "")]
         if not requested_biz_ids or set(requested_biz_ids) & MONITOR_SCOPE_QUERY_SENTINELS:
-            return authorized_biz_ids
+            return authorized_biz_ids, visible_ids
 
         authorized_biz_id_set = set(authorized_biz_ids)
-        return [biz_id for biz_id in requested_biz_ids if biz_id in authorized_biz_id_set]
+        selected = list(dict.fromkeys(biz_id for biz_id in requested_biz_ids if biz_id in authorized_biz_id_set))
+        return selected, visible_ids.intersection(selected) if visible_ids is not None else None
 
     @staticmethod
     def build_general_config_search_params(bk_biz_ids):
@@ -524,15 +542,16 @@ class IncidentListResource(IncidentBaseResource):
         BKFara 校验必填 scope_type、scope_value，批量查询再带 scope_id_list。
         不能只传监控侧的 bk_biz_id / bk_biz_id_list。
         """
-        scope_id_list = []
+        scope_ids = {}
         for biz_id in bk_biz_ids:
             try:
                 scope_id = bk_biz_id_to_scope_id(biz_id)
             except (TypeError, ValueError):
                 logger.warning("skip unresolved enabled-space scope")
                 continue
-            if scope_id and scope_id not in scope_id_list:
-                scope_id_list.append(scope_id)
+            if scope_id:
+                scope_ids[scope_id] = None
+        scope_id_list = list(scope_ids)
         if not scope_id_list:
             raise ValueError("no valid scope_id for list_configs")
         scope_type, scope_value = scope_id_list[0].split("_", 1)
@@ -546,14 +565,16 @@ class IncidentListResource(IncidentBaseResource):
         }
 
     @classmethod
-    def fetch_enabled_spaces(cls, bk_biz_ids):
+    def fetch_space_summary(cls, bk_biz_ids):
         """分页查询当前用户授权范围内已开启故障分析的空间。"""
         try:
-            query_biz_ids = cls.get_authorized_query_biz_ids(bk_biz_ids)
+            query_biz_ids, visible_ids = cls.get_authorized_query_biz_ids(bk_biz_ids)
             if not query_biz_ids:
-                return []
+                return ([], 0) if visible_ids is not None else ([], None)
 
             params = cls.build_general_config_search_params(query_biz_ids)
+            if len(params["scope_id_list"]) != len(query_biz_ids):
+                visible_ids = None
             enabled_spaces = []
             enabled_space_set = set()
             while True:
@@ -567,13 +588,17 @@ class IncidentListResource(IncidentBaseResource):
                     if not isinstance(item, dict) or item.get("content", {}).get("enabled") is not True:
                         continue
                     enabled_space = cls.get_enabled_space_bk_biz_id(item)
-                    if not enabled_space or enabled_space in enabled_space_set:
+                    if not enabled_space:
+                        visible_ids = None
+                        continue
+                    if enabled_space in enabled_space_set:
                         continue
                     enabled_space_set.add(enabled_space)
                     enabled_spaces.append(enabled_space)
 
                 if not general_config_data.get("has_next"):
-                    return enabled_spaces
+                    count = len(visible_ids) if visible_ids is not None and enabled_space_set <= visible_ids else None
+                    return enabled_spaces, count
 
                 current_page = general_config_data.get("current_page")
                 if not isinstance(current_page, int) or current_page < params["page"]:
@@ -586,7 +611,11 @@ class IncidentListResource(IncidentBaseResource):
                 params["page"] = current_page + 1
         except Exception:
             logger.exception("fetch enabled incident spaces failed")
-            return []
+            return [], None
+
+    @classmethod
+    def fetch_enabled_spaces(cls, bk_biz_ids):
+        return cls.fetch_space_summary(bk_biz_ids)[0]
 
     class RequestSerializer(IncidentSearchSerializer):
         level = serializers.ListField(required=False, label="故障级别", default=[])
@@ -608,7 +637,9 @@ class IncidentListResource(IncidentBaseResource):
         ):
             result = handler.search(show_overview=False, show_aggs=True)
 
-        result["enabled_spaces"] = self.fetch_enabled_spaces(validated_request_data.get("bk_biz_ids"))
+        result["enabled_spaces"], authorized_count = self.fetch_space_summary(validated_request_data.get("bk_biz_ids"))
+        if authorized_count is not None:
+            result["authorized_space_count"] = authorized_count
         result["wx_cs_link"] = bk_data_robot_link_list_search(settings.BK_DATA_ROBOT_LINK_LIST, "icon-kefu")
         return result
 

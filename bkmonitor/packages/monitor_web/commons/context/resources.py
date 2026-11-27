@@ -12,10 +12,13 @@ from enum import Enum
 from typing import Any
 
 from django.middleware.csrf import get_token
+from opentelemetry import trace
 
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space
-from bkmonitor.utils.request import get_request
+from bkm_space.utils import is_disabled_bkms_space
+from bkmonitor.iam import ActionEnum, Permission
+from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.user import get_request_username
 from bkmonitor.views import serializers
 from common.context_processors import (
@@ -30,7 +33,9 @@ from common.log import logger
 from core.drf_resource import resource
 from core.drf_resource.base import Resource
 from core.errors.api import BKAPIError
+from iam_engine.exceptions import ProviderUnavailable
 from monitor.models.models import UserConfig
+from monitor_web.commons.biz.resources import ListSpacesResource
 from monitor_web.tasks import run_init_builtin
 
 
@@ -91,10 +96,87 @@ class ContextType(Enum):
     FULL = "full"
 
 
+def resolve_basic_space(request, space_uid, bk_biz_id, preferred_biz_id, default_biz_id):
+    """Resolve one available space. Only an implicit target may fall back to another space."""
+    try:
+        tenant = get_request_tenant_id()
+        uid_records = None
+        if space_uid:
+            uid_records = SpaceApi.read_space_records(tenant, space_uid=space_uid)
+            if not uid_records:
+                return -1, [], "not_found"
+            bk_biz_id = uid_records[0]["bk_biz_id"]
+            if bk_biz_id in (-1, 0):
+                return -1, [], "not_found"
+
+        external_user = getattr(request, "external_user", None)
+        if external_user:
+            grants = ListSpacesResource.external_permissions(external_user)
+        else:
+            permission = Permission(username=request.user.username, bk_tenant_id=tenant)
+            permission.skip_check = False
+
+        def check_space(space):
+            biz_id = space["bk_biz_id"]
+            if external_user:
+                return grants.filter(bk_biz_id=biz_id).exists()
+            return permission.is_space_allowed(ActionEnum.VIEW_BUSINESS, space)
+
+        explicit = bk_biz_id not in (None, 0, -1)
+        if explicit:
+            targets = [bk_biz_id]
+        else:
+            targets = (
+                preferred_biz_id,
+                request.session.get("bk_biz_id"),
+                request.COOKIES.get("bk_biz_id"),
+                default_biz_id,
+            )
+        seen = set()
+        probe_failed = False
+        for target in targets:
+            try:
+                target = int(str(target).strip("/"))
+            except ValueError:
+                continue
+            if target in (0, -1) or target in seen:
+                continue
+            seen.add(target)
+            records = uid_records if uid_records is not None else SpaceApi.read_space_records(tenant, [target])
+            if not records or is_disabled_bkms_space(records[0]):
+                if explicit:
+                    return target, [], "not_found"
+                continue
+            try:
+                if check_space(records[0]):
+                    return target, records, "allowed"
+            except ProviderUnavailable:
+                if explicit:
+                    raise
+                probe_failed = True
+                continue
+            if explicit:
+                return target, [], "denied"
+
+        if external_user:
+            ids = grants.values_list("bk_biz_id", flat=True).distinct()
+            records = SpaceApi.read_space_records(tenant, ids, first_available=True)
+        else:
+            records = permission.list_authorized_space_records(ActionEnum.VIEW_BUSINESS, first_available=True)
+        if records:
+            return records[0]["bk_biz_id"], records, "allowed"
+        return -1, [], "error" if probe_failed else "denied"
+    except Exception:
+        logger.exception("[get_basic_context] unable to resolve space access")
+        return bk_biz_id or -1, [], "error"
+
+
 class EnhancedGetContextResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=False, label="业务ID", default=0)
         space_uid = serializers.CharField(required=False, label="空间ID", default="")
+        include_space_list = serializers.BooleanField(default=True)
+        preferred_biz_id = serializers.IntegerField(required=False)
         context_type = serializers.ChoiceField(
             required=False,
             choices=[ContextType.BASIC.value, ContextType.FULL.value, ContextType.EXTRA.value],
@@ -121,7 +203,14 @@ class EnhancedGetContextResource(Resource):
         elif not bk_biz_id:
             bk_biz_id = get_default_biz_id(request, space_list, "id")
 
-        context = get_basic_context(request, space_list, bk_biz_id)
+        return cls.format_basic_context(request, space_list, bk_biz_id)
+
+    @staticmethod
+    def format_basic_context(request, spaces, biz_id, space_access=None):
+        context = get_basic_context(request, spaces, biz_id, space_access=space_access)
+        context["SPACE_LIST_STATE"] = "deferred" if space_access is not None else "full"
+        if space_access is not None and hasattr(SpaceApi, "read_space_page_candidates"):
+            context["SPACE_LIST_PAGE_SUPPORTED"] = True
         context["CSRF_TOKEN"] = get_token(request)
 
         field_formatter(context)
@@ -155,7 +244,26 @@ class EnhancedGetContextResource(Resource):
         bk_biz_id: int | None = validated_request_data["bk_biz_id"]
         space_uid: str | None = validated_request_data["space_uid"]
 
-        if context_type == ContextType.BASIC.value:
+        # 补充默认业务ID
+        default_biz_config = UserConfig.objects.filter(
+            username=request.user.username,
+            key=UserConfig.Keys.DEFAULT_BIZ_ID,
+        ).first()
+        default_biz_id = default_biz_config.value if default_biz_config else None
+
+        if (
+            context_type == ContextType.BASIC.value
+            and not validated_request_data["include_space_list"]
+            and hasattr(SpaceApi, "read_space_records")
+        ):
+            with trace.get_tracer(__name__).start_as_current_span("context.resolve_basic_space") as span:
+                biz_id, spaces, access = resolve_basic_space(
+                    request, space_uid, bk_biz_id, validated_request_data.get("preferred_biz_id"), default_biz_id
+                )
+                span.set_attribute("space.access", access)
+                span.set_attribute("space.row_count", len(spaces))
+            context = self.format_basic_context(request, spaces, biz_id, access)
+        elif context_type == ContextType.BASIC.value:
             context = self.get_basic_context(request, space_uid, bk_biz_id)
         elif context_type == ContextType.EXTRA.value:
             context = self.get_extra_context(request, space_uid, bk_biz_id)
@@ -166,6 +274,9 @@ class EnhancedGetContextResource(Resource):
         external_fields: list[str] = [
             "PLATFORM",
             "SPACE_LIST",
+            "SPACE_LIST_STATE",
+            "SPACE_LIST_PAGE_SUPPORTED",
+            "SPACE_ACCESS",
             "SITE_URL",
             "STATIC_URL",
             "BK_BIZ_ID",
@@ -191,11 +302,6 @@ class EnhancedGetContextResource(Resource):
             context = {k: v for k, v in context.items() if k in external_fields}
             context["UIN"] = request.external_user
 
-        # 补充默认业务ID
-        default_biz_config = UserConfig.objects.filter(
-            username=request.user.username,
-            key=UserConfig.Keys.DEFAULT_BIZ_ID,
-        ).first()
-        context["DEFAULT_BIZ_ID"] = default_biz_config.value if default_biz_config else None
+        context["DEFAULT_BIZ_ID"] = default_biz_id
 
         return {"context": context, "context_type": context_type}

@@ -1,4 +1,5 @@
 import abc
+from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -27,7 +28,7 @@ _serializers = SimpleNamespace(
 )
 
 
-def _load_incident_list_resource(remote_responses, authorized_biz_ids):
+def _load_incident_list_resource(remote_responses, authorized_biz_ids, *, complete=True, disabled=(), external=False):
     source = (PROJECT_ROOT / "packages/monitor_web/incident/resources.py").read_text(encoding="utf-8")
     resource_start = source.index("class IncidentListResource")
     resource_end = source.index("class ExportIncidentResource", resource_start)
@@ -35,6 +36,7 @@ def _load_incident_list_resource(remote_responses, authorized_biz_ids):
 
     class FakeGetConfigResource:
         calls = []
+        scope_reads = 0
 
         def request(self, **kwargs):
             self.calls.append(kwargs)
@@ -59,11 +61,35 @@ def _load_incident_list_resource(remote_responses, authorized_biz_ids):
         "bkcc_4": 4,
         "bkcc_10": 10,
     }
+
+    class FakePermission:
+        skip_check = False
+
+        def __init__(self, **kwargs):
+            pass
+
+        def list_authorized_space_records_with_status(self, action):
+            FakeGetConfigResource.scope_reads += 1
+            if isinstance(authorized_biz_ids, Exception):
+                raise authorized_biz_ids
+            return [{"bk_biz_id": biz, "disabled": biz in disabled} for biz in authorized_biz_ids], complete
+
     namespace = {
         "IncidentBaseResource": object,
         "IncidentSearchSerializer": _Serializer,
         "serializers": _serializers,
-        "resource": SimpleNamespace(space=SimpleNamespace(get_bk_biz_ids_by_user=lambda: list(authorized_biz_ids))),
+        "Permission": FakePermission,
+        "ActionEnum": SimpleNamespace(VIEW_BUSINESS="view_business"),
+        "get_global_user": lambda: "viewer",
+        "get_request_tenant_id": lambda: "tenant",
+        "get_request": lambda **kwargs: SimpleNamespace(external_user=external),
+        "SpaceApi": SimpleNamespace(read_space_records=True),
+        "is_disabled_bkms_space": lambda item: item["disabled"],
+        "IncidentQueryHandler": lambda **kwargs: SimpleNamespace(search=lambda **kwargs: {"incidents": []}),
+        "SearchHistory": SimpleNamespace(record=lambda *args, **kwargs: nullcontext()),
+        "SearchType": SimpleNamespace(INCIDENT="incident"),
+        "bk_data_robot_link_list_search": lambda *args: {},
+        "settings": SimpleNamespace(BK_DATA_ROBOT_LINK_LIST=[]),
         "MONITOR_SCOPE_QUERY_SENTINELS": {-1, -2},
         "bk_biz_id_to_scope_id": lambda bk_biz_id: scope_ids[bk_biz_id],
         "scope_id_to_bk_biz_id": lambda scope_id: monitor_ids.get(scope_id, 0),
@@ -541,6 +567,39 @@ def test_incident_list_degrades_enabled_spaces_when_list_configs_fails():
     )
 
     assert resource_cls.fetch_enabled_spaces([2]) == []
+
+
+def test_incident_list_counts_only_visible_spaces_from_the_existing_lookup():
+    for scope in ([-1], [-2], [2, 2, 3, 10]):
+        cls, remote = _load_incident_list_resource(
+            [{"objects": [{"scope_id": "bkcc_2", "content": {"enabled": True}}]}],
+            [2, 2, 3, 4],
+            disabled=(4,),
+        )
+        result = cls().perform_request({"record_history": False, "bk_biz_ids": scope})
+        assert result["authorized_space_count"] == 2
+        assert result["enabled_spaces"] == [2]
+        assert remote.scope_reads == len(remote.calls) == 1
+
+
+def test_incident_list_preserves_confirmed_zero_and_omits_unreliable_counts():
+    cls, remote = _load_incident_list_resource([], [])
+    assert cls().perform_request({"record_history": False, "bk_biz_ids": [-1]})["authorized_space_count"] == 0
+    assert remote.scope_reads == 1 and not remote.calls
+
+    for configs, permissions, options, enabled in (
+        ([], RuntimeError("iam offline"), {}, []),
+        ([RuntimeError("config offline")], [2], {}, []),
+        ([{"objects": []}], [2], {"complete": False}, []),
+        ([{"objects": []}], [2], {"external": True}, []),
+        ([{"objects": [{"scope_id": "unknown_scope", "content": {"enabled": True}}]}], [2], {}, []),
+        ([{"objects": [{"scope_id": "bkcc_4", "content": {"enabled": True}}]}], [2], {}, [4]),
+    ):
+        cls, remote = _load_incident_list_resource(configs, permissions, **options)
+        result = cls().perform_request({"record_history": False, "bk_biz_ids": [-2]})
+        assert "authorized_space_count" not in result
+        assert result["enabled_spaces"] == enabled
+        assert remote.scope_reads == 1
 
 
 def test_bk_incident_api_keeps_standard_scope_ids_when_converting_lists():
