@@ -50,6 +50,9 @@ class Command(BaseCommand):
         )
         parser.add_argument("--namespace", default="bkmonitor")
         parser.add_argument("--vm-cluster-name", help="不传时沿用 __default__ 已接入的 VM 集群")
+        parser.add_argument(
+            "--databus-cluster-name", help="Databus 集群名，写入 default 表的 databus_prefer_cluster option"
+        )
         parser.add_argument("--operator", default="system")
         parser.add_argument(
             "--no-wait", action="store_true", help="execute 不等待组件 Ok，申请完成后直接设置 V4 option 并清理 Transfer"
@@ -69,6 +72,12 @@ class Command(BaseCommand):
         self.tenant = options["bk_tenant_id"]
         self.namespace = options["namespace"]
         self.operator = options["operator"]
+        self.link_options = {models.ResultTableOption.OPTION_CMDB_LEVEL_CONFIG: ["bk_set_id", "bk_module_id"]}
+        self.databus_cluster_name = options.get("databus_cluster_name")
+        if self.databus_cluster_name:
+            self.link_options[models.ResultTableOption.OPTION_DATABUS_PREFER_CLUSTER] = {
+                "name": self.databus_cluster_name
+            }
         if options["wait_timeout"] <= 0 or options["poll_interval"] <= 0:
             raise CommandError("--wait-timeout 和 --poll-interval 必须大于 0；不等待请使用 --no-wait")
 
@@ -297,11 +306,13 @@ class Command(BaseCommand):
             "namespace": self.namespace,
             "data_link_strategy": STRATEGIES.get(self.source.etl_config),
             "vm_cluster_name": self.cluster.cluster_name if self.cluster else None,
+            "result_table_options": self.link_options,
             "topic": self.topic,
             "consumer_group": compose_transfer_consumer_group(self.source) if self.topic else None,
             "transfer_consul_path": self.source.consul_config_path,
             "steps": [
-                "查询已有 V4 组件；已有组件记录时不重新注册 Data ID 或 apply 链路",
+                "查询已有 V4 组件；已有组件不重新注册 Data ID，指定的 Databus 集群尚未下发时重新 apply",
+                "申请链路时写入 CMDB 集群和模块配置",
                 "仅首次且无组件记录时注册 Data ID 并申请 V4 链路，沿用原 Kafka Topic、Transfer 消费组和 VM 集群",
                 "默认等待组件 Ok；--no-wait 跳过等待及远端状态检查，直接收尾",
                 "设置 enable_plugin_v4_data_link=true，保留原有查询路由及 data_label",
@@ -309,15 +320,50 @@ class Command(BaseCommand):
             ],
         }
 
+    def databus_cluster_needs_apply(self, components):
+        if not self.databus_cluster_name:
+            return False
+
+        # 本地 option 先于 apply 写入，续跑要以 BKBase 已接收的配置为准。
+        databuses = [component for component in components if component.kind == DataBusConfig.kind and component.name]
+        datalink = models.DataLink(bk_tenant_id=self.tenant)
+        for component in databuses:
+            remote = datalink.get_existing_component_config(component.kind, component.name, component.namespace)
+            spec = (remote or {}).get("spec") or {}
+            prefer_cluster = spec.get("preferCluster") or {}
+            if (
+                prefer_cluster.get("name") != self.databus_cluster_name
+                or prefer_cluster.get("namespace", self.namespace) != self.namespace
+                or (settings.ENABLE_MULTI_TENANT_MODE and prefer_cluster.get("tenant", self.tenant) != self.tenant)
+            ):
+                return True
+        return not databuses
+
+    def save_link_options(self, *, apply_link):
+        for name, value in self.link_options.items():
+            if not apply_link and name == models.ResultTableOption.OPTION_CMDB_LEVEL_CONFIG:
+                continue
+            models.ResultTableOption.objects.update_or_create(
+                bk_tenant_id=self.tenant,
+                table_id=self.table_id,
+                name=name,
+                defaults={"value": json.dumps(value), "value_type": type(value).__name__, "creator": self.operator},
+            )
+
     def execute_migration(self, *, no_wait=False, wait_timeout=300, poll_interval=10):
         components = self.component_records()
-        newly_applied = not any(component.name for component in components)
-        if not newly_applied:
-            # 重新 apply 会把已就绪组件重置为 Pending；续跑只读状态，不能再次申请。
-            self.stdout.write("已有 V4 组件记录，复用已有资源，不重新注册或 apply……")
-        else:
+        first_apply = not any(component.name for component in components)
+        newly_applied = first_apply or self.databus_cluster_needs_apply(components)
+        if first_apply:
             self.stdout.write("首次注册 Data ID 并申请 V4 链路……")
             self.source.register_to_bkbase(bk_biz_id=self.datalink_biz_id, namespace=self.namespace)
+        self.save_link_options(apply_link=newly_applied)
+        if not newly_applied:
+            # 普通续跑不重复 apply，避免将已就绪组件重置为 Pending。
+            self.stdout.write("已有 V4 组件记录，复用已有资源，不重新注册或 apply……")
+        else:
+            if not first_apply:
+                self.stdout.write("已更新链路 option，复用已有资源重新 apply……")
             create_bkbase_data_link(
                 bk_biz_id=self.datalink_biz_id,
                 data_source=self.source,
@@ -361,7 +407,7 @@ class Command(BaseCommand):
             if remaining <= 0:
                 self.output({"components": components})
                 raise CommandError(
-                    f"等待 V4 组件就绪超时（{wait_timeout} 秒），未执行收尾；稍后重试 execute 不会重新 apply"
+                    f"等待 V4 组件就绪超时（{wait_timeout} 秒），未执行收尾；保留原参数重试 execute 可继续等待"
                 )
             delay = min(poll_interval, remaining)
             self.stdout.write(f"等待 V4 组件就绪，{delay:g} 秒后检查……")
