@@ -1,9 +1,8 @@
 @font-face {
   font-family: "icon-monitor"; /* Project id 1185924 */
-  src:
-    url("monitor-icons.woff2?t=1795517873152") format("woff2"),
-    url("monitor-icons.woff?t=1795517873152") format("woff"),
-    url("monitor-icons.ttf?t=1795517873152") format("truetype");
+  src: url('monitor-icons.woff2?t=1795746057896') format('woff2'),
+       url('monitor-icons.woff?t=1795746057896') format('woff'),
+       url('monitor-icons.ttf?t=1795746057896') format('truetype');
 }
 
 .icon-monitor {
@@ -12,6 +11,18 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-a-Property1yz:before {
+  content: "\e8a8";
+}
+
+.icon-a-Property1az:before {
+  content: "\e8a9";
+}
+
+.icon-a-Property1ab:before {
+  content: "\e8aa";
 }
 
 .icon-Jump:before {
@@ -2757,3 +2768,4 @@
 .icon-arrow-right-copy:before {
   content: "\ec33";
 }
+

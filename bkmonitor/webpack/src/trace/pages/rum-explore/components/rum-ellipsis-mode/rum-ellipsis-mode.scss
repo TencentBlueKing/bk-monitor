@@ -39,10 +39,9 @@
     cursor: pointer;
     border-radius: 4px;
 
-    .mode-text {
-      letter-spacing: 0.1px;
-      white-space: nowrap;
-      scale: 0.7;
+    .mode-item-icon {
+      font-size: 16px;
+      color: #49576b;
     }
 
     &:not(.active):hover {
@@ -54,16 +53,5 @@
       background: #fff;
       box-shadow: 0 2px 4px 0 rgb(25 25 41 / 6%);
     }
-  }
-
-  /* 省略号按设计稿缩小并收紧间距，视觉上贴住字符底部 */
-  .mode-dots {
-    position: relative;
-    top: 3px;
-    display: inline-block;
-    margin: 0 1px;
-    font-family: system-ui;
-    font-size: 12px;
-    font-weight: 900;
   }
 }
