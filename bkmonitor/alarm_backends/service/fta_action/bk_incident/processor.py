@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 
+from alarm_backends.service.fta_action.bk_incident.action_ref import attach_action_group_reference
 from alarm_backends.service.fta_action.common.processor import ActionProcessor as CommonActionProcessor
 from constants.action import ActionSignal
 
@@ -27,12 +28,14 @@ class ActionProcessor(CommonActionProcessor):
             request_schema.get("function") == "create_task"
             and request_schema.get("resource_module") == "api.bk_incident.default"
             and request_schema.get("resource_class") == "CreateTaskResource"
-            and not inputs.get("source")
         ):
-            # 旧任务保存了缺少 source 映射的插件快照，不能仅靠更新插件表修复。
-            inputs["source"] = self.execute_config.get("source") or (
-                "bk_monitor_debug" if self.action.signal == ActionSignal.DEMO else "bk_monitor"
-            )
+            if not inputs.get("source"):
+                # 旧任务保存了缺少 source 映射的插件快照，不能仅靠更新插件表修复。
+                inputs["source"] = self.execute_config.get("source") or (
+                    "bk_monitor_debug" if self.action.signal == ActionSignal.DEMO else "bk_monitor"
+                )
+            if self.action.signal == ActionSignal.ABNORMAL and inputs["source"] == "bk_monitor":
+                attach_action_group_reference(inputs, self.action, getattr(self, "action_context", None))
         return inputs
 
     def start_task(self, **kwargs):
