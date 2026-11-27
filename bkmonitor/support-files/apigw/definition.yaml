@@ -57,12 +57,12 @@ stages:
     # 显式维护工具清单；新增资源须评审后加入对应 Server，不按文件名自动暴露。
     # 不配置 target_app_codes，不为其他业务应用新增主动授权。
     mcp_servers:
-      - &public_mcp_server
+      - &mcp_server_defaults
         name: "metadata-query"
         title: "蓝鲸观测-元数据查询MCP"
         description: "蓝鲸观测MCP（Streamable HTTP）--元数据查询服务"
         labels: ["BKM"]
-        is_public: true
+        is_public: {% if settings.APIGW_STAGE == "prod" %}true{% else %}false{% endif %}
         status: 1
         protocol_type: "streamable_http"
         oauth2_public_client_enabled: true
@@ -72,7 +72,7 @@ stages:
         resource_names:
           - list_bcs_clusters
           - search_spaces
-      - <<: *public_mcp_server
+      - <<: *mcp_server_defaults
         name: "metrics-query"
         title: "蓝鲸观测-指标查询MCP"
         description: "蓝鲸观测MCP（Streamable HTTP）--指标查询服务"
@@ -81,7 +81,7 @@ stages:
           - list_time_series_metrics
           - execute_range_query
           - execute_sql_query
-      - <<: *public_mcp_server
+      - <<: *mcp_server_defaults
         name: "log-query"
         title: "蓝鲸观测-日志查询MCP"
         description: "蓝鲸观测MCP（Streamable HTTP）--日志查询服务"
@@ -92,7 +92,7 @@ stages:
           - search_index_set_context
           - analyze_field
           - search_log_clustering_pattern
-      - <<: *public_mcp_server
+      - <<: *mcp_server_defaults
         name: "log-scene-search"
         title: "蓝鲸观测-日志场景化检索 MCP"
         description: "蓝鲸观测-日志场景化检索 MCP"
@@ -102,7 +102,7 @@ stages:
           - list_scene_dimension_values
           - get_scene_log_fields
           - search_logs
-      - <<: *public_mcp_server
+      - <<: *mcp_server_defaults
         name: "event-query"
         title: "蓝鲸观测-事件查询MCP"
         description: "蓝鲸观测MCP（Streamable HTTP）--事件查询服务"
@@ -110,7 +110,7 @@ stages:
           - list_events
           - get_event_view_config
           - search_event_log
-      - <<: *public_mcp_server
+      - <<: *mcp_server_defaults
         name: "alarm"
         title: "蓝鲸观测-告警查询MCP"
         description: "蓝鲸观测MCP（Streamable HTTP）--告警查询服务"
@@ -127,7 +127,7 @@ stages:
           - get_alert_host_target
           - get_alert_traces
           - get_alert_log_relations
-      - <<: *public_mcp_server
+      - <<: *mcp_server_defaults
         name: "alarm-handling"
         title: "蓝鲸观测-告警处置MCP"
         description: "蓝鲸观测-告警处置MCP"
@@ -151,21 +151,21 @@ stages:
           - search_alarm_assign_groups
           - save_alarm_assign_group
           - delete_alarm_assign_group
-      - <<: *public_mcp_server
+      - <<: *mcp_server_defaults
         name: "dashboard-query"
         title: "蓝鲸观测-仪表盘配置查询MCP"
         description: "蓝鲸观测MCP（Streamable HTTP）--仪表盘配置查询服务"
         resource_names:
           - get_dashboard_tree_list
           - get_dashboard_detail_by_uid
-      - <<: *public_mcp_server
+      - <<: *mcp_server_defaults
         name: "dashboard-edit"
         title: "蓝鲸观测-仪表盘编辑MCP"
         description: "蓝鲸观测MCP（Streamable HTTP）--仪表盘编辑服务"
         resource_names:
           - create_dashboard
           - update_dashboard
-      - <<: *public_mcp_server
+      - <<: *mcp_server_defaults
         name: "tracing"
         title: "蓝鲸观测-Trace查询MCP"
         description: "蓝鲸观测MCP（Streamable HTTP）--APM Tracing查询"
@@ -181,7 +181,7 @@ stages:
           - llm_mcp_search_flows
           - llm_mcp_search_spans
           - llm_mcp_calculate_by_range
-      - <<: *public_mcp_server
+      - <<: *mcp_server_defaults
         name: "profiling-query"
         title: "蓝鲸观测-Profiling数据查询MCP"
         description: "蓝鲸观测MCP（Streamable HTTP）--Profiling查询服务"
@@ -191,14 +191,14 @@ stages:
           - get_profile_label
           - query_graph_profile
           - export_profile_pprof
-      - <<: *public_mcp_server
+      - <<: *mcp_server_defaults
         name: "relation-query"
         title: "蓝鲸观测-关联关系查询MCP"
         description: "蓝鲸观测MCP（Streamable HTTP）--关联关系查询服务"
         resource_names:
           - find_relations
           - find_relations_range
-      - <<: *public_mcp_server
+      - <<: *mcp_server_defaults
         name: "log-collector"
         title: "蓝鲸观测-日志采集 MCP"
         description: "蓝鲸观测-日志采集 MCP"
@@ -221,7 +221,7 @@ stages:
           - update_custom_report
           - update_third_party_es
           - update_bkdata_index_set
-      - <<: *public_mcp_server
+      - <<: *mcp_server_defaults
         name: "log-extract"
         title: "蓝鲸观测-日志提取 MCP"
         description: "蓝鲸观测-日志提取 MCP"
@@ -234,7 +234,7 @@ stages:
           - create_log_extract_task
           - get_log_extract_task
           - get_log_extract_download_url
-      - <<: *public_mcp_server
+      - <<: *mcp_server_defaults
         name: "recording-rule"
         title: "蓝鲸观测-预计算配置MCP"
         description: "蓝鲸观测-预计算配置MCP"
@@ -246,7 +246,7 @@ stages:
           - get_recording_rule
           - apply_recording_rule
           - list_recording_rules
-      - <<: *public_mcp_server
+      - <<: *mcp_server_defaults
         name: "unified"
         title: "蓝鲸观测-统一聚合MCP"
         description: "蓝鲸观测-统一聚合MCP，通过工具检索按需调用指标、日志、告警等观测能力"

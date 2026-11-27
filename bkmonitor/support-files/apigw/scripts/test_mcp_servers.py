@@ -68,8 +68,9 @@ def test_only_target_stage_is_rendered_with_existing_backend(stage):
     }
 
 
-def test_server_names_and_access_modes_preserve_existing_contracts():
-    servers = _definition()["stages"][0]["mcp_servers"]
+@pytest.mark.parametrize("stage, is_public", [("prod", True), ("stage", False)])
+def test_server_names_and_access_modes_follow_target_stage(stage, is_public):
+    servers = _definition(stage)["stages"][0]["mcp_servers"]
     names = [server["name"] for server in servers]
     assert len(names) == len(set(names)) == 16
     assert set(names) == {
@@ -96,7 +97,7 @@ def test_server_names_and_access_modes_preserve_existing_contracts():
         assert server["status"] == 1
         assert server["raw_response_enabled"] is False
         assert not server.get("target_app_codes")
-        assert server["is_public"] is True
+        assert server["is_public"] is is_public
         assert server["oauth2_public_client_enabled"] is True
         assert server["oauth2_personal_client_enabled"] is True
 
@@ -210,7 +211,8 @@ def test_remote_failures_are_not_reported_as_success(failed_command):
     assert call_command.call_args.args[0] == failed_command
 
 
-def test_locked_sdk_loads_v2_definition_and_sends_mcp_servers():
+@pytest.mark.parametrize("stage, is_public", [("prod", True), ("stage", False)])
+def test_locked_sdk_loads_v2_definition_and_sends_mcp_servers(stage, is_public):
     # 让独立运行也能加载 SDK 的实际 Django Command；不建立数据库连接。
     if not settings.configured:
         settings.configure(
@@ -223,7 +225,7 @@ def test_locked_sdk_loads_v2_definition_and_sends_mcp_servers():
     from apigw_manager.apigw.management.commands.sync_apigw_stage_mcp_servers import Command as McpCommand
     from django.test import override_settings
 
-    with override_settings(**vars(_settings())):
+    with override_settings(**vars(_settings(stage))):
         stage_command = StageCommand()
         stages = stage_command.get_definition(define=[], file=str(_DEFINITION), namespace="stage")
         command = McpCommand()
@@ -232,7 +234,10 @@ def test_locked_sdk_loads_v2_definition_and_sends_mcp_servers():
     assert len(definitions[0]["mcp_servers"]) == 16
     manager = Mock()
     manager.sync_stage_mcp_servers.return_value = {
-        "data": [{"id": 1, "name": "bk-monitor-prod-alarm", "action": "update"}]
+        "data": [{"id": 1, "name": f"bk-monitor-{stage}-alarm", "action": "update"}]
     }
     command.do(manager, definitions)
     manager.sync_stage_mcp_servers.assert_called_once_with(**definitions[0])
+    payload = manager.sync_stage_mcp_servers.call_args.kwargs
+    assert payload["name"] == stage
+    assert all(server["is_public"] is is_public for server in payload["mcp_servers"])
