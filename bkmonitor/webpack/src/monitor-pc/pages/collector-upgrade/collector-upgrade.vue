@@ -77,7 +77,7 @@
             width="180"
           >
             <template slot-scope="props">
-              {{ bizMapping[props.row.bk_biz_id] }}
+              {{ bizMapping[props.row.bk_biz_id] || props.row.bk_biz_id }}
             </template>
           </bk-table-column>
           <bk-table-column
@@ -157,7 +157,7 @@
             width="180"
           >
             <template slot-scope="props">
-              {{ bizMapping[props.row.bk_biz_id] }}
+              {{ bizMapping[props.row.bk_biz_id] || props.row.bk_biz_id }}
             </template>
           </bk-table-column>
           <bk-table-column
@@ -217,14 +217,11 @@
   </div>
 </template>
 <script>
+import { resolveSelectedSpaces } from 'monitor-common/utils/space-selection';
 export default {
   name: 'CollectorUpgrade',
   data() {
     return {
-      bizList: {
-        value: 0,
-        data: [],
-      },
       script: {
         data: [],
         loading: true,
@@ -254,15 +251,16 @@ export default {
   created() {
     this.getUpgradeList();
   },
-  mounted() {
-    this.bizList.data = this.$store.getters.bizList.slice();
-    this.bizList.data.unshift({ id: 0, text: this.$t('全部') });
-    for (const index in this.bizList.data) {
-      const biz = this.bizList.data[index];
-      this.bizMapping[biz.id] = biz.text;
-    }
-  },
   methods: {
+    async resolveNames(rows) {
+      const ids = rows.map(item => item.bk_biz_id).filter(id => id != null && Number(id) !== 0);
+      const spaces = await resolveSelectedSpaces(ids, this.$store.getters.bizList).catch(() => []);
+      this.bizMapping = {
+        ...this.bizMapping,
+        0: this.$t('全部'),
+        ...Object.fromEntries(spaces.map(space => [space.id, space.text])),
+      };
+    },
     upgradeAll() {
       this.$bkInfo({
         title: this.$t('你确认要开始升级？'),
@@ -309,11 +307,13 @@ export default {
         this.script.data = data.filter(task => task.upgrade_status !== 'success');
         data.errorMsg = '';
         this.script.loading = false;
+        void this.resolveNames(this.script.data);
       });
       this.$api.model.listUpgradeHostLogCollector({ bk_biz_id: this.$store.getters.bizId }).then(data => {
         addStatusProp(data, 'log');
         this.log.data = data.filter(task => task.upgrade_status !== 'success');
         this.log.loading = false;
+        void this.resolveNames(this.log.data);
       });
     },
     upgrade(row) {

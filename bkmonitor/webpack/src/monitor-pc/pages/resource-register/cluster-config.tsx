@@ -28,6 +28,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { checkClusterHealth, registerCluster, updateRegisteredCluster } from 'monitor-api/modules/commons';
 import { random } from 'monitor-common/utils';
+import { DIRECTORY_SPACE_TYPES, querySpaceDirectory } from 'monitor-common/utils/space-directory';
+import { resolveSelectedSpaces } from 'monitor-common/utils/space-selection';
 
 import { SPACE_TYPE_MAP } from '../../common/constant';
 import UserSelector from '../../components/user-selector/user-selector';
@@ -190,8 +192,6 @@ export default class ClusterConfig extends tsc<object> {
   isEdit = false;
   influxdbGroupSidesliderTitle = OperationType.add;
 
-  spaceTypes = [];
-
   userSelectorKey = random(8);
 
   @Emit('show-change')
@@ -248,18 +248,22 @@ export default class ClusterConfig extends tsc<object> {
     this.selectedType = data?.cluster_type || EClusterType.Kafka;
   }
 
-  created() {
-    const spaceTypeMap: Record<string, any> = {};
-    this.$store.getters.bizList.forEach(item => {
-      spaceTypeMap[item.space_type_id] = 1;
-      if (item.space_type_id === 'bkci' && item.space_code) {
-        spaceTypeMap.bcs = 1;
-      }
-    });
-    this.spaceTypes = Object.keys(spaceTypeMap).map(key => ({
-      id: key,
-      name: SPACE_TYPE_MAP[key]?.name || this.$t('未知'),
-    }));
+  spaceTypes: { id: string; name: string }[] = [];
+  async loadSpaceTypes(open: boolean) {
+    if (!open) return;
+    try {
+      const types = await Promise.all(
+        [...new Set([...DIRECTORY_SPACE_TYPES, ...Object.keys(SPACE_TYPE_MAP)])].map(async type => {
+          const { items } = await querySpaceDirectory({ type, pageSize: 1 });
+          return items.length ? type : null;
+        })
+      );
+      this.spaceTypes = types
+        .filter(Boolean)
+        .map(id => ({ id, name: String(SPACE_TYPE_MAP[id]?.name || this.$t('未知')) }));
+    } catch {
+      this.$bkMessage({ theme: 'error', message: this.$t('空间目录加载失败，请刷新页面重试') });
+    }
   }
 
   /* 资源类别的切换 */
@@ -290,45 +294,35 @@ export default class ClusterConfig extends tsc<object> {
     }
     return {};
   }
+  async getSpaceParams(space: (number | string)[], scope: EScopes) {
+    if (scope === EScopes.allSpace) return [];
+    if (scope === EScopes.spaceType) return space.map(space_type => ({ space_type }));
+    const ids = scope === EScopes.currentSpace ? [Number(this.$store.getters.bizId)] : space.map(Number);
+    const records = await resolveSelectedSpaces(ids, this.$store.getters.bizList);
+    const byId = new Map<number, { space_id: string; space_type_id: string }>(records.map(item => [item.id, item]));
+    return ids.map(id => {
+      const record = byId.get(id);
+      if (!record) throw new Error('Missing selected space');
+      return { space_type: record.space_type_id, space_id: record.space_id };
+    });
+  }
   /* 提交表单 */
   async handleSubmit() {
+    if (this.submitButtonLoading) return;
     const validate = this.validate();
     if (!validate) {
       return;
     }
     const { elasticsearch } = this.formData.moreConfig;
-    const spaceParams = (space: (number | string)[], scope: EScopes) => {
-      if (scope === EScopes.allSpace) {
-        return [];
-      }
-      if (scope === EScopes.currentSpace) {
-        const currentSpace = this.$store.getters.bizId;
-        const currentInfo = this.$store.getters.bizList.find(item => item.id === currentSpace);
-        return [
-          {
-            space_type: currentInfo.space_type_id,
-            space_id: currentInfo.space_id,
-          },
-        ];
-      }
-      if (scope === EScopes.multiSpace) {
-        const temp = [];
-        this.$store.getters.bizList.forEach(item => {
-          if (space.includes(item.id)) {
-            temp.push({
-              space_type: item.space_type_id,
-              space_id: item.space_id,
-            });
-          }
-        });
-        return temp;
-      }
-      if (scope === EScopes.spaceType) {
-        return space.map(item => ({
-          space_type: item,
-        }));
-      }
-    };
+    let spaces: { space_id?: string; space_type: number | string }[];
+    this.submitButtonLoading = true;
+    try {
+      spaces = await this.getSpaceParams(elasticsearch.space, elasticsearch.scope);
+    } catch {
+      this.submitButtonLoading = false;
+      this.$bkMessage({ theme: 'error', message: this.$t('空间目录加载失败，请刷新页面重试') });
+      return;
+    }
     let params = {
       cluster_name: this.formData.clusterName,
       cluster_type: this.selectedType,
@@ -338,7 +332,7 @@ export default class ClusterConfig extends tsc<object> {
       default_settings: {
         kafka: this.formData.moreConfig.kafka,
         elasticsearch: {
-          spaces: spaceParams(elasticsearch.space, elasticsearch.scope),
+          spaces,
           scope: elasticsearch.scope,
           expires: elasticsearch.expires,
           replica: elasticsearch.replica,
@@ -350,7 +344,6 @@ export default class ClusterConfig extends tsc<object> {
     if (this.isEdit) {
       params = Object.assign(params, { cluster_id: this.rowConfig.rowData.cluster_id });
     }
-    this.submitButtonLoading = true;
     const api = this.isEdit ? updateRegisteredCluster : registerCluster;
     const res = await api(params).catch(() => false);
     this.submitButtonLoading = false;
@@ -619,6 +612,7 @@ export default class ClusterConfig extends tsc<object> {
                 selected-type={this.selectedType}
                 spaceTypes={this.spaceTypes}
                 onChange={this.handleMoreDataChange}
+                onOpenSpaceTypes={this.loadSpaceTypes}
               />
             )}
             <FormItem

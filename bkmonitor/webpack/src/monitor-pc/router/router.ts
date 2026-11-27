@@ -27,7 +27,14 @@
 
 import Vue from 'vue';
 
-import { getBizRouteHref, isAlarmCenterRouteHash, isShareRouteHash, isValidBizId, parseBizId } from 'monitor-common/utils';
+import { getSpaceSwitchAccess, showSpaceAccessError } from 'monitor-common/utils/space-entry';
+import {
+  getBizRouteHref,
+  isAlarmCenterRouteHash,
+  isShareRouteHash,
+  isValidBizId,
+  parseBizId,
+} from 'monitor-common/utils';
 import { LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils/constant';
 import { getUrlParam, random } from 'monitor-common/utils/utils';
 import VueRouter, { type Route, type RouteConfig } from 'vue-router';
@@ -120,20 +127,51 @@ const BIZ_ENTRY_ALLOW_ROUTES = new Set([
 const hasBizInSpaceList = (bizId: number) =>
   (store.getters.bizList || []).some(item => Number(item.bk_biz_id) === bizId || Number(item.id) === bizId);
 
+const isBizEntryExempt = (to: Route) => {
+  const routeHash = `#${to.fullPath}`;
+  return (
+    BIZ_ENTRY_ALLOW_ROUTES.has(String(to.name)) ||
+    isShareRouteHash(routeHash) ||
+    isAlarmCenterRouteHash(routeHash) ||
+    window.__BK_WEWEB_DATA__?.token
+  );
+};
+
+const navigationAccess = new WeakMap<Route, Awaited<ReturnType<typeof getSpaceSwitchAccess>>>();
+router.beforeEach(async (to, _from, next) => {
+  if (window.space_access && !isBizEntryExempt(to)) {
+    const id = parseBizId(getUrlParam('bizId'));
+    const access =
+      Number.isFinite(id) && id !== 0 && id !== -1
+        ? await getSpaceSwitchAccess(id, `#${to.fullPath}`)
+        : window.space_access;
+    navigationAccess.set(to, access);
+  }
+  // vue-router 在调用下一个守卫前会丢弃已被新导航取代的结果。
+  next();
+});
+
 router.beforeEach(async (to, from, next) => {
   store.commit('app/SET_PADDING_ROUTE', to);
+  const access = navigationAccess.get(to);
+  if (access === 'denied' || access === 'not_found') {
+    // 子应用可独立写入筛选条件。点击时保留可访问的来源页，后退或前进时替换已失权的目标条目。
+    const visibleRoute = router.resolve(location.hash.slice(1)).route;
+    const preserveSource = isBizEntryExempt(from) && isBizEntryExempt(visibleRoute);
+    return next({ name: 'no-business', replace: !preserveSource });
+  }
+  if (access === 'error') showSpaceAccessError();
+  if (access === 'error' || access === 'stale') return next(false);
   const urlBizId = parseBizId(getUrlParam('bizId'));
-  const routeHash = `#${to.fullPath}`;
+  const exempt = isBizEntryExempt(to);
   if (
+    !window.space_access &&
     (store.getters.bizList || []).length &&
     Number.isFinite(urlBizId) &&
     urlBizId !== 0 &&
     urlBizId !== -1 &&
     !hasBizInSpaceList(urlBizId) &&
-    !BIZ_ENTRY_ALLOW_ROUTES.has(String(to.name)) &&
-    !isShareRouteHash(routeHash) &&
-    !isAlarmCenterRouteHash(routeHash) &&
-    !window.__BK_WEWEB_DATA__?.token
+    !exempt
   ) {
     return next({ name: 'no-business', replace: true });
   }
@@ -141,20 +179,7 @@ router.beforeEach(async (to, from, next) => {
   if (store.getters.bizList?.length) {
     introduce.initIntroduce(to);
   }
-  if (
-    !window.__BK_WEWEB_DATA__?.token &&
-    ![
-      'no-business',
-      'event-center',
-      'event-center-detail',
-      'event-center-action-detail',
-      'alarm-center',
-      'alarm-center-detail',
-      'share',
-      'redis-management',
-    ].includes(to.name) &&
-    !store.getters.bizList?.length
-  ) {
+  if (!window.space_access && !exempt && !store.getters.bizList?.length) {
     return next({ name: 'no-business' });
   }
   document.body.___zrEVENTSAVED = null; // echarts 微应用偶发tooltips错误问题

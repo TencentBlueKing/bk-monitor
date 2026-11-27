@@ -303,6 +303,7 @@ export type CommonFilterParams = {
 };
 
 export type FilterTableResponse<T> = {
+  authorized_space_count?: number;
   data: T[];
   enabled_spaces?: number[];
   greyed_spaces?: number[];

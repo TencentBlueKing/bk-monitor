@@ -1,3 +1,6 @@
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,9 +26,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
+import { resolveSelectedSpaces } from 'monitor-common/utils/space-selection';
 import { Debounce, deepClone } from 'monitor-common/utils/utils';
 import { Sortable } from 'sortablejs';
 
@@ -83,7 +84,6 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
   tableKey = null;
   curFromIndex = 0;
   sortEndReportContents = [];
-  bizIdListNameMap: { [propName: string]: string } = {};
   @Watch('contentType', { immediate: true })
   handleContentType(v) {
     if (v) {
@@ -117,16 +117,27 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
     return type;
   }
 
+  resolvedNames: Record<string, string> = {};
+
+  get reportSpaceIds() {
+    return (this.data.pullData || []).map(row => row.curBizId).filter(Boolean);
+  }
+
+  @Watch('reportSpaceIds', { immediate: true })
+  async resolveReportNames(ids: string[]) {
+    const rows = await resolveSelectedSpaces(ids, this.$store.getters.bizList).catch(() => []);
+    if (ids !== this.reportSpaceIds) return;
+    this.resolvedNames = Object.fromEntries(rows.map(row => [row.bk_biz_id, row.text]));
+  }
+
+  getBizName(id: string) {
+    return (this.$store.getters.bizIdMap.get(+id)?.text || this.resolvedNames?.[id])?.replace(`[${id}] `, '') || '--';
+  }
+
   @Debounce(300)
   @Emit('imgInputChange')
   handleInputChange(index, inputVal, isHeightInput = false) {
     return { index, inputVal, isHeightInput };
-  }
-
-  created() {
-    this.$store.getters.bizList.forEach(item => {
-      this.bizIdListNameMap[item.id] = String(item.text).replace(`[${item.id}] `, '');
-    });
   }
 
   mounted() {
@@ -240,6 +251,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
     const operateSlot = {
       default: props => [
         <bk-button
+          key='edit'
           class='mr10'
           theme='primary'
           text
@@ -248,6 +260,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
           {this.$t('button-编辑')}
         </bk-button>,
         <bk-button
+          key='delete'
           class='mr10'
           theme='primary'
           text
@@ -297,6 +310,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
     const operateSlot = {
       default: props => [
         <bk-button
+          key='edit'
           class='mr10'
           theme='primary'
           text
@@ -305,6 +319,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
           {this.$t('编辑')}
         </bk-button>,
         <bk-button
+          key='delete'
           class='mr10'
           theme='primary'
           text
@@ -336,7 +351,7 @@ export default class SubscriptionContent extends tsc<ISubscriptionContent> {
                 key={item.key}
                 width={item.width}
                 label={item.label}
-                scopedSlots={{ default: ({ row }) => this.bizIdListNameMap[row.curBizId] || '--' }}
+                scopedSlots={{ default: ({ row }) => this.getBizName(row.curBizId) }}
               />
             );
           }

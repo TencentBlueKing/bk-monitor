@@ -27,6 +27,8 @@
 import { Component, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import SpaceSelect from 'monitor-pc/components/space-select/space-select';
+
 import type { BasicInfoData } from '../../typings';
 
 import './basic-info.scss';
@@ -188,17 +190,25 @@ export default class BasicInfo extends tsc<BasicInfoProps, BasicInfoEvents> {
             property='space_scope'
             required
           >
-            <bk-tag-input
-              clearable={false}
-              disabled={this.isGlobalTemplate}
-              list={this.bizList}
-              save-key='bk_biz_id'
-              tag-tpl={this.tagTpl}
-              trigger='focus'
-              value={this.formData.space_scope}
-              collapseTags
-              onChange={this.handleEffectChange}
-            />
+            {this.isGlobalTemplate ? (
+              <bk-tag-input
+                list={this.bizList}
+                save-key='bk_biz_id'
+                tag-tpl={this.tagTpl}
+                value={this.formData.space_scope}
+                collapseTags
+                disabled
+              />
+            ) : (
+              <SpaceSelect
+                needAlarmOption={false}
+                needAuthorityOption={false}
+                spaceList={this.$store.getters.bizList}
+                value={this.formData.space_scope.map(String)}
+                remote
+                onChange={this.handleEffectChange}
+              />
+            )}
           </bk-form-item>
           <bk-form-item
             class='w100'

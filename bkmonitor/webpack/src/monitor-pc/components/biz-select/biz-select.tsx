@@ -26,6 +26,11 @@
 import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import {
+  DIRECTORY_SPACE_TYPES,
+  SpaceDirectoryPager,
+  supportsSpaceDirectoryPages,
+} from 'monitor-common/utils/space-directory';
 import { Debounce } from 'monitor-common/utils/utils';
 
 import { SPACE_FIRST_CODE_COLOR_MAP, SPACE_TYPE_MAP } from '../../common/constant';
@@ -62,6 +67,7 @@ interface IProps {
   isShowCommon?: boolean;
   isShrink?: boolean;
   minWidth?: number;
+  remote?: boolean;
   stickyList?: string[];
   theme?: ThemeType;
   value: number;
@@ -72,6 +78,7 @@ interface IProps {
  */
 @Component
 export default class BizSelect extends tsc<IProps, IEvents> {
+  @Prop({ default: false, type: Boolean }) remote: boolean;
   @Prop({ default: () => [], type: Array }) bizList: ISpaceItem[];
   @Prop({ default: '', type: [Number, String] }) value: number;
   @Prop({ default: false, type: Boolean }) isShrink: boolean; // 是否收起显示首字母
@@ -93,6 +100,33 @@ export default class BizSelect extends tsc<IProps, IEvents> {
 
   localValue: number = null;
 
+  pages = new SpaceDirectoryPager();
+  selectedPageRow: ISpaceItem = null;
+  demoPageRow: ISpaceItem = null;
+  searchVersion = 0;
+  get paged() {
+    return this.remote && supportsSpaceDirectoryPages();
+  }
+  async loadDirectory(append = false) {
+    if (!this.showBizList || !this.paged) return false;
+    const changed = await (
+      append
+        ? this.pages.next()
+        : this.pages.reset(
+            { query: this.keyword, type: this.searchTypeId },
+            { bkBizIds: this.isShowCommon ? this.commonListIds : [], spaceUids: this.stickyList, includeDemo: true }
+          )
+    ).catch(() => false);
+    if (changed) {
+      this.bizListFilter = this.getBizListFilter();
+      if (!append && !this.keyword && !this.searchTypeId) this.demoPageRow = this.pages.items.find(row => row.is_demo);
+      if (!append) this.resetHighlight(!this.keyword);
+    }
+    return changed;
+  }
+  beforeDestroy() {
+    this.pages.close();
+  }
   showBizList = false;
   keyword = '';
 
@@ -102,7 +136,6 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   storage: Storage = null;
   /** 常用业务id */
   commonListIds: number[] = [];
-  spaceTypeIdList: { id: string; name: string; styles: any }[] = [];
   searchTypeId = '';
   bizBgColor = '';
 
@@ -136,6 +169,14 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   created() {
     this.localValue = this.value;
     this.bizBgColor = this.$store.getters.bizBgColor || this.getRandomColor();
+
+    this.getFirstCodeBgColor();
+  }
+  @Watch('bizList')
+  refreshOpenList() {
+    if (this.popoverRef?.instance?.state?.isVisible) this.bizListFilter = this.getBizListFilter();
+  }
+  get spaceTypeIdList() {
     const spaceTypeMap: Record<string, any> = {};
     for (const item of this.bizList) {
       spaceTypeMap[item.space_type_id] = 1;
@@ -143,13 +184,15 @@ export default class BizSelect extends tsc<IProps, IEvents> {
         spaceTypeMap.bcs = 1;
       }
     }
-    this.spaceTypeIdList = Object.keys(spaceTypeMap).map(key => ({
+    return (
+      this.paged ? [...new Set([...DIRECTORY_SPACE_TYPES, ...Object.keys(spaceTypeMap)])] : Object.keys(spaceTypeMap)
+    ).map(key => ({
       id: key,
       name: SPACE_TYPE_MAP[key]?.name || this.$t('未知'),
       styles: (this.theme === 'dark' ? SPACE_TYPE_MAP[key]?.dark : SPACE_TYPE_MAP[key]?.light) || {},
     }));
-    this.getFirstCodeBgColor();
   }
+
   mounted() {
     this.storage = new Storage();
     this.commonListIds = this.storage.get(BIZ_SELECTOR_COMMON_IDS) || [];
@@ -158,7 +201,9 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   /** 当前选中的业务 */
   get curentBizItem() {
     return (
-      this.$store.getters.bizIdMap?.get?.(this.localValue) || this.bizList.find(item => item.id === this.localValue)
+      this.$store.getters.bizIdMap?.get?.(this.localValue) ||
+      this.bizList.find(item => item.id === this.localValue) ||
+      (this.selectedPageRow?.id === this.localValue ? this.selectedPageRow : undefined)
     );
   }
   /** 业务名 */
@@ -193,7 +238,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
 
   /**  */
   get demo() {
-    return this.bizList.find(item => item.is_demo);
+    return this.bizList.find(item => item.is_demo) ?? (this.paged ? this.demoPageRow : undefined);
   }
 
   @Watch('value')
@@ -208,9 +253,24 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   // }
 
   /** 搜索操作 */
-  @Debounce(300)
-  handleBizSearch(keyword?: string) {
+  handleBizSearch(keyword = '') {
     this.keyword = keyword;
+    const version = ++this.searchVersion;
+    if (this.paged) {
+      this.pages.close();
+      this.bizListFilter = [];
+      if (!this.showBizList) return;
+    }
+    this.applyBizSearch(version);
+  }
+
+  @Debounce(300)
+  applyBizSearch(version: number) {
+    if (version !== this.searchVersion) return;
+    if (this.paged) {
+      if (this.showBizList) void this.loadDirectory();
+      return;
+    }
     this.bizListFilter = this.getBizListFilter();
     if (this.showBizList) {
       this.resetHighlight(false);
@@ -219,6 +279,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
 
   @Emit('change')
   handleBizChange(id: number) {
+    if (this.paged) this.selectedPageRow = this.pages.items.find(row => row.id === id) ?? this.demoPageRow;
     this.popoverRef.instance.hide();
     this.localValue = id;
     this.getFirstCodeBgColor();
@@ -287,7 +348,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
       return preArr.length ? (nextArr.length ? preArr.concat(nextArr) : preArr) : nextArr;
     };
 
-    for (const item of this.bizList) {
+    for (const item of this.paged ? this.pages.items : this.bizList) {
       let preciseMatch = false;
       // 类型筛选：不命中直接跳过
       if (this.searchTypeId) {
@@ -298,7 +359,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
         if (!typeMatched) continue;
       }
       // 无关键字时跳过字符串匹配（空串 indexOf 恒真，会误触发全量 toLocaleLowerCase）
-      if (keyword) {
+      if (keyword && !this.paged) {
         const nameLc = item.space_name_lc ?? item.space_name?.toLocaleLowerCase() ?? '';
         const spaceIdLc = item.space_id_lc ?? `${item.space_id ?? ''}`.toLocaleLowerCase();
         const idStr = item.id_str ?? `${item.id}`;
@@ -362,6 +423,11 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     return allList;
   }
   setPaginationData(isInit = false) {
+    if (this.paged) {
+      this.pagination.data = this.generalList.map(item => this.toListItem(item));
+      this.pagination.count = this.pagination.data.length;
+      return;
+    }
     const showData = this.generalList;
     this.pagination.count = showData.length;
     if (isInit) {
@@ -407,7 +473,9 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     this.resetHighlight(true);
     const react = this.$el.getBoundingClientRect();
     this.listWidth = react.width <= this.minWidth ? this.minWidth : react.width;
-    this.showBizList = !this.showBizList;
+    this.showBizList = true;
+    this.demoPageRow = null;
+    if (this.paged) void this.loadDirectory();
     setTimeout(() => {
       this.menuSearchInput.focus();
     }, 100);
@@ -469,6 +537,11 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   }
   handleSearchType(typeId: string) {
     this.searchTypeId = typeId === this.searchTypeId ? '' : typeId;
+    if (this.paged) {
+      this.bizListFilter = [];
+      void this.loadDirectory();
+      return;
+    }
     this.bizListFilter = this.getBizListFilter();
     this.resetHighlight(false);
   }
@@ -518,7 +591,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   }
 
   /** 方向键在可见项间移动；触底且还有分页时先加载再继续 */
-  moveHighlight(step: number) {
+  async moveHighlight(step: number) {
     const items = this.keyboardItems;
     if (!items.length) return;
     const index = items.findIndex(item => this.isSameBizId(item.id, this.highlightId));
@@ -532,6 +605,10 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     } else if (next >= items.length) {
       const generalData = this.bizListFilter.find(item => item.id === 'general');
       const beforeCount = items.length;
+      if (this.paged && this.pages.hasMore) {
+        if (await this.loadDirectory(true)) this.highlightId = this.keyboardItems[index + 1]?.id ?? this.highlightId;
+        return;
+      }
       if (generalData && this.pagination.current * this.pagination.limit < this.pagination.count) {
         this.setPaginationData(false);
         if (generalData.children) {
@@ -553,6 +630,10 @@ export default class BizSelect extends tsc<IProps, IEvents> {
     const el = event.target;
     const { scrollHeight, scrollTop, clientHeight } = el;
     if (Math.ceil(scrollTop) + clientHeight >= scrollHeight) {
+      if (this.paged) {
+        void this.loadDirectory(true);
+        return;
+      }
       this.setPaginationData(false);
       const generalData = this.bizListFilter.find(item => item.id === 'general');
       if (generalData?.children) {
@@ -639,6 +720,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
             onShow: this.handleSetListWidth,
             onHide: () => {
               this.showBizList = false;
+              this.pages.close();
               this.highlightId = null;
               this.handleBizSearch('');
               return true;
@@ -746,6 +828,27 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                   onHide={() => this.popoverRef.instance.hide()}
                   onSelected={this.handleBizChange}
                 />
+                {this.paged && this.pages.hasMore && (
+                  <li>
+                    <button
+                      disabled={this.pages.isLoading}
+                      type='button'
+                      onClick={() => this.loadDirectory(true)}
+                    >
+                      {this.$t('加载更多')}
+                    </button>
+                  </li>
+                )}
+                {this.paged && (this.pages.failed || this.pages.partial) && (
+                  <li>
+                    <button
+                      type='button'
+                      onClick={() => this.loadDirectory()}
+                    >
+                      {this.$t('部分空间未能确认，请重试')}
+                    </button>
+                  </li>
+                )}
               </ul>
             </div>
             {(process.env.APP !== 'external' || !!this.demo) && (

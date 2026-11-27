@@ -22,6 +22,7 @@ assert.ok(paginationFunction, '测试必须执行空间选择器的实际分页�
 const createPagination = new Function(
   'localSpaceList',
   'pagination',
+  'remote',
   `${paginationFunction.getText(source)}; return setPaginationData;`
 );
 

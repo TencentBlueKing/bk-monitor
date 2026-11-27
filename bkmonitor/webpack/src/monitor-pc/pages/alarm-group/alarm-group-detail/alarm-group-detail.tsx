@@ -1,3 +1,16 @@
+import { Component, Emit, Model, Prop, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import NoticeModeNew, {
+  type INoticeWayValue,
+} from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/notice-mode';
+import {
+  executionNotifyConfigChange,
+  getNotifyConfig,
+} from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
+import { listDutyRule, retrieveUserGroup } from 'monitor-api/modules/model';
+import { getNoticeWay } from 'monitor-api/modules/notice_group';
+import { getBkchatGroup, previewUserGroupPlan } from 'monitor-api/modules/user_groups';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,19 +36,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Model, Prop, Watch } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
-import NoticeModeNew, {
-  type INoticeWayValue,
-} from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/notice-mode';
-import {
-  executionNotifyConfigChange,
-  getNotifyConfig,
-} from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
-import { listDutyRule, retrieveUserGroup } from 'monitor-api/modules/model';
-import { getNoticeWay } from 'monitor-api/modules/notice_group';
-import { getBkchatGroup, previewUserGroupPlan } from 'monitor-api/modules/user_groups';
+import { resolveSelectedSpaces } from 'monitor-common/utils/space-selection';
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { random } from 'monitor-common/utils/utils';
 
@@ -166,16 +167,18 @@ export default class AlarmGroupDetail extends tsc<IAlarmGroupDetail, IEvent> {
   get title() {
     return `${this.$t('告警组详情')} - #${this.id} ${this.formData.name}`;
   }
+  resolvedSpaceName = '';
+  @Watch('formData.bizId', { immediate: true })
+  async resolveSpaceName(id: number | string) {
+    this.resolvedSpaceName = '';
+    if (!Number(id)) return;
+    const [space] = await resolveSelectedSpaces([id], this.$store.getters.bizList).catch(() => []);
+    if (this.formData.bizId === id && space) this.resolvedSpaceName = space.text;
+  }
+
   get bizName() {
-    let name = '';
-    // 筛选出所属空间
-    if (+this.formData.bizId === 0) {
-      name = this.$tc('全业务');
-    } else {
-      const bizItem = this.$store.getters.bizList.filter(item => +this.formData.bizId === +item.id);
-      name = bizItem[0].text;
-    }
-    return name;
+    if (+this.formData.bizId === 0) return this.$tc('全业务');
+    return this.resolvedSpaceName || String(this.formData.bizId ?? '');
   }
 
   get historyList() {

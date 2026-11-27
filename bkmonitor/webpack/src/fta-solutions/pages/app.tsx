@@ -36,12 +36,12 @@ import BizSelect from 'monitor-pc/components/biz-select/biz-select';
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
 import NavTools from 'monitor-pc/pages/nav-tools';
 import AuthorityModal from 'monitor-ui/authority-modal/index';
-import {} from 'vue-router';
 
 import debounce from '../common/debounce-decorator';
 import { createRouteConfig } from '../router/router-config';
 import { SET_NAV_ROUTE_LIST } from '../store/modules/app';
 import authorityStore from '../store/modules/authority';
+import 'vue-router';
 
 import type { ISpaceItem } from '../typings';
 
@@ -172,7 +172,7 @@ export default class App extends tsc<object> {
   handleToggle(v: boolean) {
     this.menuToggle = v;
   }
-  handleHeaderMenuClick(id: string, route: string) {
+  handleHeaderMenuClick(_id: string, route: string) {
     this.$route.name !== route && this.$router.push({ name: route });
   }
   async handleMenuItemClick(id: string) {
@@ -356,6 +356,7 @@ export default class App extends tsc<object> {
                   stickyList={this.spaceStickyList}
                   theme='dark'
                   value={+this.bizId}
+                  remote
                   onChange={this.handleBizChange}
                   onOpenSpaceManager={this.handleOpenSpace}
                 />

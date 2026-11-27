@@ -45,7 +45,6 @@ import dayjs from 'dayjs';
 import { logServiceRelationBkLogIndexSet } from 'monitor-api/modules/apm_service';
 import { getExistReports, getVariables } from 'monitor-api/modules/new_report';
 import { copyText, deepClone, transformDataKey } from 'monitor-common/utils';
-import type { IUserInfo } from 'monitor-pc/components/user-selector/user-group';
 import { useI18n } from 'vue-i18n';
 
 import UserSelector from '../../../components/user-selector/user-selector';
@@ -53,6 +52,8 @@ import { Scenario } from '../mapping';
 import { type Report, FrequencyType } from '../types';
 import { getDefaultReportData, switchReportDataForCreate, switchReportDataForUpdate } from '../utils';
 import ExistedReportAlert from './existed-report-alert';
+
+import type { IUserInfo } from 'monitor-pc/components/user-selector/user-group';
 
 import './create-subscription-form.scss';
 
@@ -539,7 +540,8 @@ export default defineComponent({
         // URL参数补齐再跳转即可。需要: spaceUid、bizId, activeTableTab, clusterRouteParams (一个配置对象)
         // 日志平台的 URL: window.bk_log_search_url
         const query = {
-          spaceUid: window.space_list.find(item => item.bk_biz_id === window.bk_biz_id).space_uid || '',
+          spaceUid:
+            window.space_uid || window.space_list?.find(item => item.bk_biz_id === window.bk_biz_id)?.space_uid || '',
           bizId: window.bk_biz_id,
           // 固定写
           activeTableTab: 'clustering',

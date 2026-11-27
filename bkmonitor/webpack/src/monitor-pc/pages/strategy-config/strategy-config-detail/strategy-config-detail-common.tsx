@@ -1,3 +1,20 @@
+import { Component, Inject, Prop, ProvideReactive } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import CustomTab from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
+import { templateSignalName } from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
+import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
+import { getConvergeFunction } from 'monitor-api/modules/action';
+import { strategySnapshot } from 'monitor-api/modules/alert';
+import { listCalendar } from 'monitor-api/modules/calendar';
+import { listActionConfig, listUserGroup } from 'monitor-api/modules/model';
+import {
+  getMetricListV2,
+  getScenarioList,
+  getStrategyV2,
+  getTargetDetail,
+  strategyLabelList,
+} from 'monitor-api/modules/strategies';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,23 +40,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Inject, Prop, ProvideReactive } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
-import CustomTab from 'fta-solutions/pages/setting/set-meal/set-meal-add/components/custom-tab';
-import { templateSignalName } from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
-import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
-import { getConvergeFunction } from 'monitor-api/modules/action';
-import { strategySnapshot } from 'monitor-api/modules/alert';
-import { listCalendar } from 'monitor-api/modules/calendar';
-import { listActionConfig, listUserGroup } from 'monitor-api/modules/model';
-import {
-  getMetricListV2,
-  getScenarioList,
-  getStrategyV2,
-  getTargetDetail,
-  strategyLabelList,
-} from 'monitor-api/modules/strategies';
+import { resolveSelectedSpaces } from 'monitor-common/utils/space-selection';
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { deepClone, random, transformDataKey } from 'monitor-common/utils/utils';
 
@@ -794,9 +795,16 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
    */
   getBaseInfo(data: Record<string, any>) {
     const bizItem = this.bizList.find(item => item.id === data.bk_biz_id);
+    if (!bizItem && data.bk_biz_id != null) {
+      void resolveSelectedSpaces([data.bk_biz_id])
+        .then(([space]) => {
+          if (space && this.detailData === data) this.baseInfo.bizName = space.text;
+        })
+        .catch(() => {});
+    }
     this.baseInfo = {
       name: data.name ?? '',
-      bizName: bizItem?.text ?? '',
+      bizName: bizItem?.text ?? String(data.bk_biz_id ?? ''),
       enabled: this.$tc(data.is_enabled ? '是' : '否'),
       labels: data.labels.map(item => item.replace(/\//g, ' : ')),
       scenario: this.findTreeItem(this.scenarioList, data.scenario)?.name ?? '',

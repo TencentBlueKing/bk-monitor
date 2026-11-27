@@ -877,7 +877,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
    */
   handleShowSettingModel(menuItem: IMenuItem) {
     if (menuItem.id === 'view-demo') {
-      this.handleToDemo();
+      this.handleToDemo(menuItem.demoBizId);
     } else if (this.menuList.length && this.menuList.find(menu => menu.id === menuItem.id)) {
       this.emitMenuSelect(menuItem.id, { taskId: this.$route.query['filter-task_id'] as string });
     } else {
@@ -903,15 +903,14 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
   /**
    * @description: 跳转demo业务
    */
-  handleToDemo() {
-    const demo = this.$store.getters.bizList.find(item => item.is_demo);
-    if (demo?.id) {
-      if (+this.$store.getters.bizId === +demo.id) {
+  handleToDemo(demoBizId: number) {
+    if (demoBizId != null) {
+      if (+this.$store.getters.bizId === demoBizId) {
         location.reload();
       } else {
         /** 切换为demo业务 */
         this.$store.commit('app/handleChangeBizId', {
-          bizId: demo.id,
+          bizId: demoBizId,
           ctx: this,
         });
       }

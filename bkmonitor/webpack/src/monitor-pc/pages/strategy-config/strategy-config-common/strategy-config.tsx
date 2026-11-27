@@ -42,6 +42,7 @@ import {
 } from 'monitor-api/modules/strategies';
 import { commonPageSizeGet, commonPageSizeSet, copyText, tryURLDecodeParse } from 'monitor-common/utils';
 import { getAlarmCenterRouteLocation } from 'monitor-common/utils/alarm-center-router';
+import { resolveSelectedSpaces } from 'monitor-common/utils/space-selection';
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { debounce } from 'throttle-debounce';
 
@@ -1340,13 +1341,18 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
       cancelToken: new CancelToken(c => (this.listCancelFn = c)),
       needMessage: false,
     })
-      .then(data => {
+      .then(async data => {
+        if (!this.isCurrentList(requestId)) return;
+        const spaces = await resolveSelectedSpaces(
+          data.strategy_config_list.map(row => row.bk_biz_id),
+          this.bizList
+        ).catch(() => this.bizList);
         if (!this.isCurrentList(requestId)) return;
         this.snapshotKey = queryKey;
         this.currentListResponse = data;
         this.currentConditions = params.conditions;
         this.noticeGroupList = data.user_group_list;
-        this.tableInstance = new TableStore(data.strategy_config_list, this.bizList);
+        this.tableInstance = new TableStore(data.strategy_config_list, spaces);
         this.tableInstance.page = page;
         this.tableInstance.pageSize = pageSize;
         this.tableInstance.keyword = this.header.keyword;
@@ -1498,7 +1504,9 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
     this.scenarioLoading = true;
     this.scenarioError = false;
     try {
-      const scenarios = this.scenarioList.length ? this.scenarioList : await getScenarioList({}, { needMessage: false });
+      const scenarios = this.scenarioList.length
+        ? this.scenarioList
+        : await getScenarioList({}, { needMessage: false });
       if (!this.isCurrentList(requestId)) return;
       this.scenarioList = scenarios;
       const scenarioFather = scenarios.map(({ name, id, index, children }) => {
@@ -1527,15 +1535,16 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
       return total;
     }, []);
     const scenarioKeyword = this.header.keywordObj.find(item => item.id === 'scenario');
-    scenarioKeyword &&
-      (scenarioKeyword.values = scenarioKeyword.values.map(item => {
+    if (scenarioKeyword) {
+      scenarioKeyword.values = scenarioKeyword.values.map(item => {
         const nameObj = list.find(li => li.id === item.id);
         const name = nameObj?.name || item.id;
         return {
           ...item,
           name,
         };
-      }));
+      });
+    }
   }
   getScenarioName(treeData, id) {
     const name = [];
@@ -2123,7 +2132,8 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
       const index = this.header.keywordObj.findIndex(obj => obj.id === item.id);
       if (obj) {
         const values = item.values || [];
-        values.length === 0 ? this.header.keywordObj.splice(index, 1) : (obj.values = values);
+        if (values.length === 0) this.header.keywordObj.splice(index, 1);
+        else obj.values = values;
         // values.forEach((value) => {
         //   const index = (obj.values || []).findIndex(objValue => objValue.id === value.id)
         //   index === -1 && obj.values && obj.values.push(value)
@@ -2220,9 +2230,18 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
 
   renderAsyncError(show: boolean, message, retry: () => void) {
     return show ? (
-      <div class='strategy-async-error' role='alert'>
+      <div
+        class='strategy-async-error'
+        role='alert'
+      >
         <span>{message}</span>
-        <bk-button text disabled={this.tableBusy} onClick={retry}>{this.$t('重试')}</bk-button>
+        <bk-button
+          disabled={this.tableBusy}
+          text
+          onClick={retry}
+        >
+          {this.$t('重试')}
+        </bk-button>
       </div>
     ) : null;
   }
@@ -2230,9 +2249,15 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   getTableComponent() {
     const withLoading = (field: string, slots) => ({
       ...slots,
-      default: props => this.showTableSkeleton
-        ? <StrategyCellSkeleton field={field} index={props.$index} />
-        : slots.default(props),
+      default: props =>
+        this.showTableSkeleton ? (
+          <StrategyCellSkeleton
+            field={field}
+            index={props.$index}
+          />
+        ) : (
+          slots.default(props)
+        ),
     });
     const idSlot = {
       default: props => props.row.id,
@@ -2264,7 +2289,13 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
                 {props.row.strategyName}
               </router-link>
             </span>
-            {this.summaryLoading && <span class='strategy-count-skeleton' aria-label={this.$t('加载中...')} />}
+            {this.summaryLoading && (
+              <span
+                class='strategy-count-skeleton'
+                aria-label={this.$t('加载中...')}
+                role='status'
+              />
+            )}
             {this.summaryError && <span title={this.$t('获取策略告警数量失败')}>--</span>}
             {[
               props.row.isInvalid ? (
@@ -2333,8 +2364,12 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
           </div>
           <div class='col-name-type'>
             {this.scenarioLoading ? (
-              <span class='strategy-async-placeholder'><StrategyCellSkeleton /></span>
-            ) : props.row.scenarioDisplayName || '--'}
+              <span class='strategy-async-placeholder'>
+                <StrategyCellSkeleton />
+              </span>
+            ) : (
+              props.row.scenarioDisplayName || '--'
+            )}
           </div>
         </div>
       ),
@@ -2376,7 +2411,13 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
       default: props => (
         <div class='col-name'>
           <div class='col-name-label'>
-            {this.targetLoading ? <StrategyCellSkeleton field='target' /> : this.targetError ? '--' : props.row.target || this.$t('默认全部')}
+            {this.targetLoading ? (
+              <StrategyCellSkeleton field='target' />
+            ) : this.targetError ? (
+              '--'
+            ) : (
+              props.row.target || this.$t('默认全部')
+            )}
           </div>
         </div>
       ),
@@ -2687,18 +2728,20 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
       <bk-table
         ref='strategyTable'
         class={['strategy-table', { 'is-busy': this.tableBusy, 'is-skeleton': this.showTableSkeleton }]}
-        aria-busy={this.tableBusy}
         on={{
           'hook:mounted': this.handleTableMountedOrActivated,
           'hook:activated': this.handleTableMountedOrActivated,
         }}
+        aria-busy={this.tableBusy}
         empty-text={this.$t('无数据')}
         on-header-dragend={this.handleHeaderDragend}
         on-selection-change={this.handleSelectionChange}
         {...{
           props: {
             data: this.showTableSkeleton
-              ? Array.from({ length: Math.min(this.tableInstance.pageSize, 10) }, (_, index) => ({ id: `skeleton-${index}` }))
+              ? Array.from({ length: Math.min(this.tableInstance.pageSize, 10) }, (_, index) => ({
+                  id: `skeleton-${index}`,
+                }))
               : this.table.data,
           },
         }}
@@ -2710,15 +2753,19 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
           />
         </div>
         <bk-table-column
-          width='50'
-          align='center'
           key={this.showTableSkeleton ? 'skeleton-selection' : 'selection'}
-          type={this.showTableSkeleton ? undefined : 'selection'}
+          width='50'
+          scopedSlots={
+            this.showTableSkeleton
+              ? {
+                  header: () => <StrategyCellSkeleton field='selection' />,
+                  default: () => <StrategyCellSkeleton field='selection' />,
+                }
+              : undefined
+          }
+          align='center'
           selectable={() => !this.tableBusy}
-          scopedSlots={this.showTableSkeleton ? {
-            header: () => <StrategyCellSkeleton field='selection' />,
-            default: () => <StrategyCellSkeleton field='selection' />,
-          } : undefined}
+          type={this.showTableSkeleton ? undefined : 'selection'}
         />
         {id.checked && (
           <bk-table-column
@@ -2819,8 +2866,10 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
           <bk-table-column
             key='notifyInterval'
             width='105'
+            scopedSlots={withLoading('notifyInterval', {
+              default: props => `${props.row.notifyInterval}${this.$t('分钟')}`,
+            })}
             label={this.$t('通知间隔')}
-            scopedSlots={withLoading('notifyInterval', { default: props => `${props.row.notifyInterval}${this.$t('分钟')}` })}
           />
         )}
         {trigger.checked && (
@@ -3082,13 +3131,16 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
                 },
               }}
               checkedData={this.header.keywordObj}
-              data={this.showFilterPanelData}
-              showSkeleton={this.authLoading || (!this.filtersReady && this.table.loading)}
               countLoading={this.table.loading && this.filtersReady}
+              data={this.showFilterPanelData}
               loadingGroups={this.scenarioLoading ? ['scenario'] : []}
+              showSkeleton={this.authLoading || (!this.filtersReady && this.table.loading)}
               on-change={this.handleSearchSelectChange}
             >
-              <StrategyFilterSkeleton slot='skeleton' groups={this.showFilterPanelData.map(item => String(item.id))} />
+              <StrategyFilterSkeleton
+                slot='skeleton'
+                groups={this.showFilterPanelData.map(item => String(item.id))}
+              />
               {!this.filtersReady && this.listError && (
                 <div slot='error'>
                   {this.renderAsyncError(true, this.$t('加载失败'), () => this.handleGetListData())}
@@ -3250,13 +3302,25 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
                 </bk-popover>
               </div>
               {(this.submitting || (this.table.loading && this.retainingData)) && (
-                <div class='strategy-refresh-progress' role='status' aria-label={this.$t('加载中...')} />
+                <div
+                  class='strategy-refresh-progress'
+                  aria-label={this.$t('加载中...')}
+                  role='status'
+                />
               )}
               <div class='strategy-load-errors'>
-                {this.renderAsyncError(this.listError && this.retainingData, this.$t('加载失败'), () => this.handleGetListData())}
-                {this.renderAsyncError(this.targetError, this.$t('监控目标加载失败'), () => this.getTargetDetail(this.table.data))}
-                {this.renderAsyncError(this.summaryError, this.$t('获取策略告警数量失败'), () => this.getAlertSummary(this.table.data, this.currentConditions))}
-                {this.renderAsyncError(this.scenarioError, this.$t('监控对象加载失败'), () => this.handelScenarioList(this.currentListResponse, this.table.data))}
+                {this.renderAsyncError(this.listError && this.retainingData, this.$t('加载失败'), () =>
+                  this.handleGetListData()
+                )}
+                {this.renderAsyncError(this.targetError, this.$t('监控目标加载失败'), () =>
+                  this.getTargetDetail(this.table.data)
+                )}
+                {this.renderAsyncError(this.summaryError, this.$t('获取策略告警数量失败'), () =>
+                  this.getAlertSummary(this.table.data, this.currentConditions)
+                )}
+                {this.renderAsyncError(this.scenarioError, this.$t('监控对象加载失败'), () =>
+                  this.handelScenarioList(this.currentListResponse, this.table.data)
+                )}
               </div>
               {this.getTableComponent()}
               {!this.tableBusy && this.table.data?.length > 0 && (

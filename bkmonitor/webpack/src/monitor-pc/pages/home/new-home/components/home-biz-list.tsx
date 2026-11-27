@@ -24,9 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import {
+  DIRECTORY_SPACE_TYPES,
+  SpaceDirectoryPager,
+  supportsSpaceDirectoryPages,
+} from 'monitor-common/utils/space-directory';
 import { Debounce } from 'monitor-common/utils/utils';
 
 import { SPACE_TYPE_MAP } from '../../../../common/constant';
@@ -47,8 +52,10 @@ interface IEvents {
 }
 interface IProps {
   bizList: ISpaceItem[];
+  excludeIds?: number[];
   isShowCommon?: boolean;
   minWidth?: number;
+  remote?: boolean;
   stickyList?: string[];
   theme?: ThemeType;
   zIndex?: number;
@@ -59,6 +66,8 @@ interface IProps {
  */
 @Component
 export default class HomeBizSelect extends tsc<IProps, IEvents> {
+  @Prop({ default: false, type: Boolean }) remote: boolean;
+  @Prop({ default: () => [], type: Array }) excludeIds: number[];
   @Prop({ default: () => [], type: Array }) bizList: ISpaceItem[];
   @Prop({ default: true, type: Boolean }) isShowCommon: boolean;
   @Prop({ default: null, type: Number }) zIndex: number;
@@ -74,6 +83,27 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
   @Ref() homePopoverRef: any;
   @Ref('typeList') typeListRef: HTMLDivElement;
 
+  pages = new SpaceDirectoryPager();
+  searchVersion = 0;
+  get paged() {
+    return this.remote && supportsSpaceDirectoryPages();
+  }
+  async loadDirectory(append = false) {
+    if (!this.showBizList || !this.paged) return false;
+    const changed = await (
+      append
+        ? this.pages.next()
+        : this.pages.reset(
+            { query: this.keyword, type: this.searchTypeId },
+            { bkBizIds: this.isShowCommon ? this.commonListIds : [], spaceUids: this.stickyList }
+          )
+    ).catch(() => false);
+    if (changed) this.bizListFilter = this.getBizListFilter();
+    return changed;
+  }
+  beforeDestroy() {
+    this.pages.close();
+  }
   showBizList = false;
   keyword = '';
 
@@ -81,7 +111,6 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
 
   storage: Storage = null;
   commonListIds: number[] = [];
-  spaceTypeIdList: { id: string; name: string; styles: any }[] = [];
   searchTypeId = '';
 
   bizListFilter = [];
@@ -107,7 +136,11 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
 
   firstCodeBgColor = '';
 
-  created() {
+  @Watch('bizList')
+  refreshOpenList() {
+    if (this.homePopoverRef?.instance?.state?.isVisible) this.bizListFilter = this.getBizListFilter();
+  }
+  get spaceTypeIdList() {
     const spaceTypeMap: Record<string, any> = {};
     for (const item of this.bizList) {
       spaceTypeMap[item.space_type_id] = 1;
@@ -115,7 +148,9 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
         spaceTypeMap.bcs = 1;
       }
     }
-    this.spaceTypeIdList = Object.keys(spaceTypeMap).map(key => ({
+    return (
+      this.paged ? [...new Set([...DIRECTORY_SPACE_TYPES, ...Object.keys(spaceTypeMap)])] : Object.keys(spaceTypeMap)
+    ).map(key => ({
       id: key,
       name: SPACE_TYPE_MAP[key]?.name || this.$t('未知'),
       styles: (this.theme === 'dark' ? SPACE_TYPE_MAP[key]?.dark : SPACE_TYPE_MAP[key]?.light) || {},
@@ -127,9 +162,24 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
     this.commonListIds = this.storage.get(BIZ_SELECTOR_COMMON_IDS) || [];
   }
 
-  @Debounce(300)
-  handleBizSearch(keyword?: string) {
+  handleBizSearch(keyword = '') {
     this.keyword = keyword;
+    const version = ++this.searchVersion;
+    if (this.paged) {
+      this.pages.close();
+      this.bizListFilter = [];
+      if (!this.showBizList) return;
+    }
+    this.applyBizSearch(version);
+  }
+
+  @Debounce(300)
+  applyBizSearch(version: number) {
+    if (version !== this.searchVersion) return;
+    if (this.paged) {
+      if (this.showBizList) void this.loadDirectory();
+      return;
+    }
     this.bizListFilter = this.getBizListFilter();
   }
 
@@ -182,16 +232,17 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
       return [...preArr, ...nextArr];
     };
 
-    for (const item of this.bizList) {
+    for (const item of this.paged ? this.pages.items : this.bizList) {
+      if (this.paged && this.excludeIds.includes(item.bk_biz_id)) continue;
       let preciseMatch = false;
-      let show = false;
+      let show = this.paged;
       if (this.searchTypeId) {
         show =
           this.searchTypeId === 'bcs'
             ? item.space_type_id === 'bkci' && !!item.space_code
             : item.space_type_id === this.searchTypeId;
       }
-      if ((show && keyword) || (!this.searchTypeId && !show)) {
+      if (!this.paged && ((show && keyword) || (!this.searchTypeId && !show))) {
         preciseMatch =
           item.space_name?.toLocaleLowerCase() === keyword ||
           item.py_text === keyword ||
@@ -258,6 +309,11 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
   }
 
   setPaginationData(isInit = false) {
+    if (this.paged) {
+      this.pagination.data = this.generalList;
+      this.pagination.count = this.pagination.data.length;
+      return;
+    }
     const showData = this.generalList;
     this.pagination.count = showData.length;
     if (isInit) {
@@ -279,7 +335,8 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
     this.bizListFilter = this.getBizListFilter();
     const react = this.$el.getBoundingClientRect();
     this.listWidth = react.width <= this.minWidth ? this.minWidth : react.width;
-    this.showBizList = !this.showBizList;
+    this.showBizList = true;
+    if (this.paged) void this.loadDirectory();
     setTimeout(() => {
       this.menuSearchInput.focus();
     }, 100);
@@ -309,6 +366,11 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
 
   handleSearchType(typeId: string) {
     this.searchTypeId = typeId === this.searchTypeId ? '' : typeId;
+    if (this.paged) {
+      this.bizListFilter = [];
+      void this.loadDirectory();
+      return;
+    }
     this.bizListFilter = this.getBizListFilter();
   }
 
@@ -316,6 +378,10 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
     const el = event.target;
     const { scrollHeight, scrollTop, clientHeight } = el;
     if (Math.ceil(scrollTop) + clientHeight >= scrollHeight) {
+      if (this.paged) {
+        void this.loadDirectory(true);
+        return;
+      }
       this.setPaginationData(false);
       const generalData = this.bizListFilter.find(item => item.id === 'general');
       if (generalData?.children) {
@@ -377,6 +443,7 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
             onShow: this.handleSetListWidth,
             onHide: () => {
               this.showBizList = false;
+              this.pages.close();
               this.handleBizSearch('');
               return true;
             },
@@ -458,6 +525,27 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
                   theme={this.theme}
                   onSelected={this.handleBizChange}
                 />
+                {this.paged && this.pages.hasMore && (
+                  <li>
+                    <button
+                      disabled={this.pages.isLoading}
+                      type='button'
+                      onClick={() => this.loadDirectory(true)}
+                    >
+                      {this.$t('加载更多')}
+                    </button>
+                  </li>
+                )}
+                {this.paged && (this.pages.failed || this.pages.partial) && (
+                  <li>
+                    <button
+                      type='button'
+                      onClick={() => this.loadDirectory()}
+                    >
+                      {this.$t('部分空间未能确认，请重试')}
+                    </button>
+                  </li>
+                )}
               </ul>
             </div>
           </div>

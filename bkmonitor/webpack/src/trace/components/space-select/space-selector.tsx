@@ -39,12 +39,15 @@ import {
 import { useDebounceFn, useEventListener } from '@vueuse/core';
 import { Button, Checkbox, Input } from 'bkui-vue';
 import { bizWithAlertStatistics } from 'monitor-api/modules/home';
+import { DIRECTORY_SPACE_TYPES, supportsSpaceDirectoryPages } from 'monitor-common/utils/space-directory';
+import { canSwitchSpace } from 'monitor-common/utils/space-entry';
 import EmptyStatus, { type EmptyStatusOperationType } from 'trace/components/empty-status/empty-status';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { useTippy } from 'vue-tippy';
 
 import { useAppStore } from '../../store/modules/app';
+import { type DirectoryOption, PagedSpaceOptions } from './paged-space-options';
 import {
   type ILocalSpaceList,
   type IValueStrListItem,
@@ -87,7 +90,7 @@ export default defineComponent({
     const typeListRef = useTemplateRef<HTMLDivElement>('typeListRef');
     const searchInputRef = useTemplateRef<InstanceType<typeof Input>>('searchInput');
 
-    const localValue = shallowRef<number[]>([]);
+    const localValue = shallowRef<(number | string)[]>([]);
     /* 当前的主空间 */
     const localCurrentSpace = shallowRef<number>(null);
     /* 搜索 */
@@ -110,6 +113,7 @@ export default defineComponent({
     const isErr = shallowRef(false);
     /* 是否弹出弹窗 */
     const isOpen = shallowRef(false);
+    let selectionSession = 0;
     /** 键盘高亮项 id */
     const highlightId = shallowRef<null | number | string>(null);
     /** 避免 keydown 与 enter 各触发一次导致多选勾选被抵消 */
@@ -143,13 +147,31 @@ export default defineComponent({
     /** bizWithAlertStatistics 返回的业务名缓存，供已选无权限业务兜底展示 */
     const bizNameMap = shallowRef(new Map<number, string>());
 
+    const remote = props.remote && supportsSpaceDirectoryPages() ? new PagedSpaceOptions() : null;
+    const pageError = shallowRef(false);
+    const lookupError = shallowRef(false);
+    const pageLoading = shallowRef(false);
+    const hasMore = shallowRef(false);
+    let pageGeneration = 0;
+
     initLocalSpaceList();
+    if (remote) void resolveSelected(props.value);
     onUnmounted(() => {
+      ++selectionSession;
+      if (props.remote && remote) closePages();
+      popInstance?.destroy?.();
+      controller?.abort?.();
       unbindKeyboard();
     });
     watch(
       () => props.value,
       val => {
+        if (remote) {
+          localValue.value = [...val];
+          initLocalSpaceList();
+          void resolveSelected(val);
+          return;
+        }
         // value 可能在 setAllowed 完成后才变为目标无权限 biz，需补齐列表项后再同步勾选文案
         ensureSelectedNoAuthSpaces(val);
         handleWatchValue(val);
@@ -165,12 +187,9 @@ export default defineComponent({
       },
       { immediate: true }
     );
-    watch(
-      () => props.needAlarmOption,
-      () => {
-        initLocalSpaceList();
-      }
-    );
+    watch([() => props.spaceList, () => props.needAlarmOption], () => {
+      initLocalSpaceList();
+    });
     watch(
       () => props.needIncidentOption,
       val => {
@@ -182,12 +201,104 @@ export default defineComponent({
       }
     );
 
-    function handleChange() {
-      emit('change', localValue.value);
-    }
     function handleApplyAuth(bizId: number | string) {
       handlePopoverHidden();
       emit('applyAuth', [bizId]);
+    }
+
+    function selectedIds(value: (number | string)[]) {
+      const ids = [...value, props.currentSpace].filter(id => id != null && !isSpecialSpaceId(id)).map(Number);
+      return [...new Set(ids.filter(id => Number.isFinite(id) && id !== 0))];
+    }
+
+    function localRows(value: (number | string)[]) {
+      const rows = remote.rows;
+      const refs = selectedIds(value).map<DirectoryOption>(
+        id =>
+          remote.selected(id) ?? {
+            bk_biz_id: id,
+            id,
+            is_demo: false,
+            space_code: '',
+            space_name: `#${id}`,
+            space_id: String(id),
+            space_type_id: '',
+            space_uid: '',
+            status: '',
+            text: `#${id}`,
+            type_name: '',
+          }
+      );
+      const options = new Map([...refs, ...rows].map(item => [item.bk_biz_id, item]));
+      return [...options.values()];
+    }
+
+    async function resolveSelected(value: (number | string)[]) {
+      const session = selectionSession;
+      try {
+        const current = await remote.resolveSelected(selectedIds(value), props.hasAuthApply);
+        if (current) {
+          lookupError.value = false;
+          initLocalSpaceList();
+        }
+      } catch {
+        if (session === selectionSession) {
+          lookupError.value = true;
+          initLocalSpaceList();
+        }
+      }
+    }
+
+    function closePages() {
+      ++pageGeneration;
+      remote.close();
+      hasMore.value = false;
+      pageLoading.value = false;
+      pageError.value = false;
+    }
+
+    async function loadPage(first: boolean) {
+      if (!isOpen.value || (!first && pageLoading.value)) return;
+      const generation = first ? ++pageGeneration : pageGeneration;
+      remote.retain(selectedIds(localValue.value));
+      pageLoading.value = true;
+      if (first) pageError.value = false;
+      const response = first
+        ? remote.reset({ query: searchValue.value.trim(), type: searchTypeId.value }, props.hasAuthApply)
+        : remote.next(props.hasAuthApply);
+      if (first) initLocalSpaceList();
+      const results = await response;
+      if (generation !== pageGeneration) return;
+      remote.updateRows(first);
+      pageLoading.value = false;
+      hasMore.value = remote.allowed.hasMore || remote.alerts.hasMore;
+      pageError.value =
+        results.some(result => result.status === 'rejected') ||
+        remote.allowed.partial ||
+        remote.alerts.partial ||
+        remote.allowed.failed ||
+        remote.alerts.failed;
+      initLocalSpaceList();
+      if (first || !pagination.data.some(row => isSameSpaceId(row.id, highlightId.value))) resetHighlight(first);
+    }
+
+    function retryPages() {
+      void resolveSelected(localValue.value);
+      void loadPage(true);
+    }
+
+    function handleSearchInput(value: string) {
+      if (remote && isOpen.value) {
+        searchValue.value = value;
+        ++pageGeneration;
+        remote.retain(selectedIds(localValue.value));
+        remote.clearPages();
+        pageError.value = false;
+        pageLoading.value = true;
+        hasMore.value = false;
+        initLocalSpaceList();
+      }
+      handleDebounceSearchChange(value);
     }
 
     function isSpecialSpaceId(id: number | string) {
@@ -213,6 +324,7 @@ export default defineComponent({
      * 不依赖 business_list 是否命中，避免 id 类型不一致 / 接口缺项导致触发器空白
      */
     function ensureSelectedNoAuthSpaces(val: (number | string)[] = []) {
+      if (window.space_list_state === 'deferred') return;
       const existingIds = new Set(localSpaceList.value.map(item => +item.id));
       const missing: ILocalSpaceList[] = [];
       for (const id of val) {
@@ -250,7 +362,7 @@ export default defineComponent({
         return;
       }
       const defaultRadioListIds = defaultRadioList.map(d => d.id);
-      localValue.value = [...val].map(b => (defaultRadioListIds.includes(String(b)) ? b : Number(b))) as any;
+      localValue.value = val.map(b => (defaultRadioListIds.includes(String(b)) ? b : Number(b)));
       const nameList = [];
       const strList = [];
       for (const item of localSpaceList.value) {
@@ -273,7 +385,8 @@ export default defineComponent({
     }
 
     function initLocalSpaceList() {
-      localSpaceList.value = getSpaceList(props.spaceList);
+      const selected = isOpen.value ? localValue.value : props.value;
+      localSpaceList.value = getSpaceList(props.remote && remote ? localRows(selected) : props.spaceList);
       const nullItem = {
         space_name: '',
         isSpecial: true,
@@ -304,13 +417,23 @@ export default defineComponent({
       if (props.needDefaultOptions) {
         localSpaceList.value = [...defaultRadioList.map(d => ({ ...nullItem, ...d })), ...localSpaceList.value] as any;
       }
-      if (props.hasAuthApply) {
-        setAllowed();
-      } else {
-        if (props.value.length && !localValue.value.length) {
-          handleWatchValue(props.value);
+      if (props.remote && remote) {
+        const filtered = Boolean(searchValue.value.trim() || searchTypeId.value);
+        if (!selected.length) {
+          valueStr.value = '';
+          valueStrList.value = [];
         }
-        setPaginationData(true);
+        const visible = new Set(remote.rows.map(row => row.bk_biz_id));
+        for (const item of localSpaceList.value) {
+          item.show = !filtered || visible.has(item.bk_biz_id);
+        }
+        if (props.hasAuthApply) syncNoAuthBizIds();
+      }
+      localValue.value = [];
+      handleWatchValue(selected);
+      setPaginationData(true);
+      if (props.hasAuthApply && !(props.remote && remote) && window.space_list_state !== 'deferred') {
+        setAllowed();
       }
     }
 
@@ -318,6 +441,7 @@ export default defineComponent({
       if (popInstance || props.disabled) {
         return;
       }
+      const session = ++selectionSession;
       if (props.value.length > 1 && !props.multiple) {
         handleChangeChoiceType(true);
       }
@@ -336,11 +460,17 @@ export default defineComponent({
       });
       popInstance?.show?.();
       isOpen.value = true;
+      if (props.remote && remote) {
+        remote.forgetReferences();
+        void resolveSelected(localValue.value);
+        void loadPage(true);
+      }
       sortSpaceList();
       setPaginationData(true);
       resetHighlight(true);
       bindKeyboard();
       setTimeout(() => {
+        if (session !== selectionSession || !isOpen.value) return;
         addMousedownEvent();
         searchInputRef.value?.focus();
       }, 300);
@@ -354,7 +484,11 @@ export default defineComponent({
     }
 
     function handleMousedownRemovePop(event: Event) {
-      const pathsClass = JSON.parse(JSON.stringify(getEventPaths(event).map(item => item.className)));
+      // A loading state can remove the clicked button before the event bubbles to document.
+      const path = event.composedPath?.() ?? getEventPaths(event);
+      const pathsClass = path
+        .map(item => (item as HTMLElement).className)
+        .filter((name): name is string => typeof name === 'string');
       // 关闭侧栏组件时需要关闭弹层
       if (pathsClass.some(c => ['slide-leave', 'bk-sideslider-closer'].some(s => (c?.indexOf(s) || -1) >= 0))) {
         handlePopoverHidden();
@@ -372,13 +506,16 @@ export default defineComponent({
       if (pathsClass.includes(rightIconClassName)) {
         return;
       }
-      if (pathsClass.includes(componentClassNames.pop)) {
+      if (path.includes(wrapRef.value)) {
         return;
       }
       handlePopoverHidden();
     }
 
-    function handlePopoverHidden() {
+    async function handlePopoverHidden() {
+      if (!isOpen.value) return;
+      const session = selectionSession;
+      const isCurrent = () => session === selectionSession;
       popInstance?.hide();
       popInstance?.destroy?.();
       searchValue.value = '';
@@ -387,23 +524,40 @@ export default defineComponent({
       popInstance = null;
       controller?.abort?.();
       isOpen.value = false;
+      if (props.remote && remote) {
+        remote.retain(selectedIds(localValue.value));
+        closePages();
+        localSpaceList.value = localSpaceList.value.filter(item => item.isSpecial || item.isCheck);
+        setPaginationData(true);
+      }
       unbindKeyboard();
       for (const item of localSpaceList.value) {
         item.show = true;
         item.preciseMatch = false;
       }
       triggerRef(localSpaceList);
-      if (needCurSpace.value) {
-        if (+localCurrentSpace.value !== +props.currentSpace) {
-          resetCurBiz(+localCurrentSpace.value);
-        }
+      const value = [...localValue.value];
+      const changed = value.length && JSON.stringify(props.value) !== JSON.stringify(value);
+      const selected = value.filter(v => !specialIds.includes(v));
+      const autoSelect =
+        changed &&
+        props.isAutoSelectCurrentSpace &&
+        selected.length === 1 &&
+        (!(props.remote && remote) || canMakeCurrent(+selected[0]));
+      const nextSpace = autoSelect ? +selected[0] : +localCurrentSpace.value;
+      if ((needCurSpace.value || autoSelect) && nextSpace !== +props.currentSpace) {
+        if (!(await canSwitchSpace(nextSpace, isCurrent)) || !isCurrent()) return;
+        resetCurBiz(nextSpace);
+        localCurrentSpace.value = nextSpace;
       }
-      if (localValue.value.length && JSON.stringify(props.value) !== JSON.stringify(localValue.value)) {
-        handleAutoSetCurBiz();
-        setTimeout(() => {
-          handleChange();
-        }, 50);
+      if (changed) {
+        emit('change', value);
       }
+    }
+
+    function canMakeCurrent(id: number) {
+      const record: DirectoryOption = remote.selected(id);
+      return Boolean(record && !record.noAuth);
     }
 
     function resetCurBiz(curSpace: number) {
@@ -411,18 +565,6 @@ export default defineComponent({
       const searchParams = new URLSearchParams({ bizId: `${curSpace}` });
       const newUrl = `${window.location.pathname}?${searchParams.toString()}#${route.fullPath}`;
       history.replaceState({}, '', newUrl);
-    }
-
-    function handleAutoSetCurBiz() {
-      if (props.isAutoSelectCurrentSpace) {
-        const selected = localValue.value.filter(v => !specialIds.includes(v));
-        if (selected.length === 1) {
-          if (+selected[0] !== localCurrentSpace.value) {
-            resetCurBiz(+selected[0]);
-          }
-          localCurrentSpace.value = +selected[0];
-        }
-      }
     }
 
     function getLocalValue() {
@@ -461,7 +603,9 @@ export default defineComponent({
       const spaceTypeMap: Record<string, any> = {};
       // biome-ignore lint/complexity/noForEach: <explanation>
       spaceList.forEach(item => {
-        const tags = [{ id: item.space_type_id, name: item.type_name, type: item.space_type_id }];
+        const tags = item.space_type_id
+          ? [{ id: item.space_type_id, name: item.type_name, type: item.space_type_id }]
+          : [];
         if (item.space_type_id === 'bkci' && item.space_code) {
           tags.push({ id: 'bcs', name: t('容器项目'), type: 'bcs' });
         }
@@ -475,12 +619,13 @@ export default defineComponent({
         };
         list.push(newItem);
         /* 空间类型 */
-        spaceTypeMap[item.space_type_id] = 1;
+        if (item.space_type_id) spaceTypeMap[item.space_type_id] = 1;
         if (item.space_type_id === 'bkci' && item.space_code) {
           spaceTypeMap.bcs = 1;
         }
       });
-      spaceTypeIdList.value = Object.keys(spaceTypeMap).map(key => ({
+      const types = Object.keys(spaceTypeMap);
+      spaceTypeIdList.value = (remote ? [...new Set([...DIRECTORY_SPACE_TYPES, ...types])] : types).map(key => ({
         id: key,
         name: SPACE_TYPE_MAP[key]?.name || t('未知'),
         styles: SPACE_TYPE_MAP[key]?.light || SPACE_TYPE_MAP.default.light,
@@ -588,9 +733,10 @@ export default defineComponent({
       }
       syncNoAuthBizIds();
       // value 可能已在 await 期间更新，再兜底补一次
-      ensureSelectedNoAuthSpaces(props.value);
+      const selected = isOpen.value ? localValue.value : props.value;
+      ensureSelectedNoAuthSpaces(selected);
       localValue.value = [];
-      handleWatchValue(props.value);
+      handleWatchValue(selected);
       setPaginationData(true);
     }
 
@@ -610,6 +756,10 @@ export default defineComponent({
 
       const showData = prevArr.concat(nextArr);
       pagination.count = showData.length;
+      if (remote) {
+        pagination.data = showData;
+        return;
+      }
       if (isInit) {
         pagination.current = 1;
         pagination.data = showData.slice(0, pagination.limit);
@@ -625,6 +775,10 @@ export default defineComponent({
       }
     }
     function handleSearchChange(value: string) {
+      if (remote) {
+        if (value === searchValue.value) void loadPage(true);
+        return;
+      }
       for (const item of localSpaceList.value) {
         const keyword = value.trim().toLocaleLowerCase();
         const typeShow = (() => {
@@ -706,6 +860,7 @@ export default defineComponent({
     }
 
     function handleSetCurBiz(item: ILocalSpaceList) {
+      if (remote && !canMakeCurrent(item.id)) return;
       localCurrentSpace.value = item.id;
       if (!item.isCheck) {
         handleSelectOption(item);
@@ -728,7 +883,9 @@ export default defineComponent({
       const el = event.target;
       const { scrollHeight, scrollTop, clientHeight } = el;
       if (Math.ceil(scrollTop) + clientHeight >= scrollHeight) {
-        setPaginationData(false);
+        if (remote) {
+          if (remote.allowed.hasMore || remote.alerts.hasMore) void loadPage(false);
+        } else setPaginationData(false);
       }
     }
 
@@ -819,7 +976,7 @@ export default defineComponent({
     }
 
     /** 方向键在可见项间移动；触底且还有分页时先加载再继续 */
-    function moveHighlight(step: number) {
+    async function moveHighlight(step: number) {
       const items = pagination.data;
       if (!items.length) return;
       const index = items.findIndex(item => isSameSpaceId(item.id, highlightId.value));
@@ -833,7 +990,12 @@ export default defineComponent({
         next = 0;
       } else if (next >= items.length) {
         const beforeCount = items.length;
-        setPaginationData(false);
+        if (remote && (remote.allowed.hasMore || remote.alerts.hasMore)) {
+          const generation = pageGeneration;
+          const previous = highlightId.value;
+          await loadPage(false);
+          if (generation !== pageGeneration || !isOpen.value || !isSameSpaceId(highlightId.value, previous)) return;
+        } else setPaginationData(false);
         if (pagination.data.length > beforeCount) {
           next = Math.min(index + step, pagination.data.length - 1);
           highlightId.value = pagination.data[next].id;
@@ -911,6 +1073,14 @@ export default defineComponent({
     }
 
     return {
+      pageError,
+      lookupError,
+      pageLoading,
+      retryPages,
+      hasMore,
+      handleSearchInput,
+      loadNext: () => loadPage(false),
+      canMakeCurrent: (id: number) => !remote || canMakeCurrent(id),
       isErr,
       isOpen,
       valueStrList,
@@ -1006,7 +1176,7 @@ export default defineComponent({
                 v-model={this.searchValue}
                 behavior={'simplicity'}
                 placeholder={this.t('请输入关键字或标签')}
-                onInput={this.handleDebounceSearchChange}
+                onInput={this.handleSearchInput}
               >
                 {{
                   prefix: () => <span class='icon-monitor icon-mc-search' />,
@@ -1142,7 +1312,7 @@ export default defineComponent({
                         ))
                       )}
                     </span>
-                    {this.needCurSpace && (
+                    {this.needCurSpace && this.canMakeCurrent(+item.id) && (
                       <span class='space-hover-btn'>
                         <Button
                           class='auth-button'
@@ -1166,11 +1336,30 @@ export default defineComponent({
                     e.stopPropagation();
                   }}
                 >
-                  <EmptyStatus
-                    type={this.searchValue ? 'search-empty' : 'empty'}
-                    onOperation={this.handleOperation}
-                  />
+                  {!this.pageLoading && !this.pageError && !this.hasMore && (
+                    <EmptyStatus
+                      type={this.searchValue ? 'search-empty' : 'empty'}
+                      onOperation={this.handleOperation}
+                    />
+                  )}
                 </div>
+              )}
+              {this.pageLoading && <div>{this.t('加载中...')}</div>}
+              {this.hasMore && !this.pageLoading && (
+                <Button
+                  text
+                  onClick={this.loadNext}
+                >
+                  {this.t('加载更多...')}
+                </Button>
+              )}
+              {(this.pageError || this.lookupError) && (
+                <Button
+                  text
+                  onClick={this.retryPages}
+                >
+                  {this.t('部分空间未能确认，请重试')}
+                </Button>
               )}
             </div>
           </div>

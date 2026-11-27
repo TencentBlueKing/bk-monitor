@@ -24,17 +24,19 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, shallowRef } from 'vue';
+import { computed, shallowRef, watch } from 'vue';
 
 import dayjs from 'dayjs';
 import { checkAllowed } from 'monitor-api/modules/iam';
 import { promqlToQueryConfig } from 'monitor-api/modules/strategies';
 import { docCookies, LANGUAGE_COOKIE_KEY, random } from 'monitor-common/utils';
+import { getAuthorizedSpaceContext, resolveSelectedSpaces } from 'monitor-common/utils/space-selection';
 import { useRoute } from 'vue-router';
 
 import { EMode } from '../../../components/retrieval-filter/typing';
 import { AlarmType, AlertAllActionEnum, MY_ALARM_BIZ_ID, MY_AUTH_BIZ_ID } from '../typings/constants';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
+import { useAppStore } from '@/store/modules/app';
 import { useAuthorityStore } from '@/store/modules/authority';
 
 const SPACE_APPLY_ACTION_IDS = [
@@ -72,6 +74,7 @@ const LEGACY_BATCH_ACTION_MAP: Record<string, AlertAllActionEnum> = {
 export function useLegacyEventCenterCompat() {
   const route = useRoute();
   const alarmStore = useAlarmCenterStore();
+  const appStore = useAppStore();
 
   /** 是否需要自动展开第一条数据的详情 */
   const shouldAutoOpenFirstDetail = shallowRef(false);
@@ -208,30 +211,36 @@ export function useLegacyEventCenterCompat() {
       alarmStore.alarmType === AlarmType.ALERT && alarmStore.filterMode === EMode.queryString && isActionIdQueryEntry;
   }
 
-  /** 计算业务权限提示展示状态 */
-  function computeShowPermissionTips() {
-    const ids = alarmStore.bizIds || [];
-    if (!ids.length) {
-      showPermissionTips.value = false;
-      return;
+  const deniedIds = shallowRef<number[]>([]);
+  let permissionRevision = 0;
+  async function computeShowPermissionTips() {
+    const revision = ++permissionRevision;
+    const ids = (alarmStore.bizIds || []).map(Number).filter(id => ![MY_AUTH_BIZ_ID, MY_ALARM_BIZ_ID].includes(id));
+    deniedIds.value = [];
+    showPermissionTips.value = false;
+    if (!ids.length) return;
+    try {
+      const known = await resolveSelectedSpaces(ids, appStore.bizList, true);
+      if (revision !== permissionRevision) return;
+      const authorized = new Set(known.map(item => item.bk_biz_id));
+      deniedIds.value = ids.filter(id => !authorized.has(id));
+      showPermissionTips.value = !!deniedIds.value.length;
+    } catch {
+      // A failed lookup cannot establish denial. The next filter change retries.
     }
-    showPermissionTips.value = ids
-      .filter(id => ![MY_AUTH_BIZ_ID, MY_ALARM_BIZ_ID].includes(+id))
-      .some(id => !window.space_list?.some(item => +item.id === +id));
   }
 
+  watch(() => appStore.bizList, computeShowPermissionTips);
+
   function dismissPermissionTips() {
+    permissionRevision++;
     showPermissionTips.value = false;
   }
 
-  /** 申请无权限业务的访问权限 */
   async function handleApplyPermission() {
-    const ids = (alarmStore.bizIds || [])
-      .filter(id => ![MY_AUTH_BIZ_ID, MY_ALARM_BIZ_ID].includes(+id))
-      .filter(id => !window.space_list?.some(item => +item.id === +id));
+    const ids = deniedIds.value;
     if (!ids.length) return;
-    // 当前 cc_biz_id 可能就是无权限业务，需用有权限业务作为请求上下文，否则 checkAllowed 会 403
-    const requestBizId = window.space_list?.find(item => !item.is_demo)?.bk_biz_id;
+    const requestBizId = await getAuthorizedSpaceContext(window.space_list || []);
     const resources = ids.map(id => ({ id: Number(id), type: 'space' }));
     const applyObj = await checkAllowed({
       action_ids: SPACE_APPLY_ACTION_IDS,

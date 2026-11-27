@@ -73,6 +73,8 @@ interface ShowLoginModalOption {
   maskZIndex?: number;
   width?: number;
 }
+import type { querySpaceDirectory } from 'monitor-common/utils/space-directory';
+
 declare global {
   interface HTMLElement {
     ___zrEVENTSAVED?: null | Record<string, any>; // echarts zrender instance
@@ -136,9 +138,9 @@ declare global {
     enable_create_chat_group: boolean;
     enable_issue_ai_analysis: boolean;
     enable_message_queue: boolean;
+    enable_multi_tenant_mode?: boolean;
     // 多租户用户中心是否开启
     esb_disabled?: boolean;
-    enable_multi_tenant_mode?: boolean;
     FEATURE_TOGGLE?: Record<string, 'off' | 'on'>;
     footer_version: string;
     graph_watermark?: boolean;
@@ -155,6 +157,7 @@ declare global {
     message_queue_dsn: string;
     monitor_managers: string[];
     page_title: string;
+    querySpaceDirectory?: typeof querySpaceDirectory;
     rawDocument: Document;
     rawWindow: Window;
     /*
@@ -165,7 +168,10 @@ declare global {
     site_url: string;
     slimit: number;
     source_app: string;
+    space_access?: 'allowed' | 'denied' | 'error' | 'not_found';
     space_list: ISpaceItem[];
+    space_list_page_supported?: boolean;
+    space_list_state?: 'deferred' | 'full';
     space_uid: string;
     static_url: string;
     tapd_oauth_base_url?: string;
@@ -179,6 +185,7 @@ declare global {
     username: string;
     Vue?: any;
     wxwork_bot_send_image?: boolean;
+    loadSpaceDirectory?: () => Promise<ISpaceItem[]>;
     showLoginModal: (option: ShowLoginModalOption) => void;
     __bk_zIndex_manager: {
       nextZIndex: () => number;

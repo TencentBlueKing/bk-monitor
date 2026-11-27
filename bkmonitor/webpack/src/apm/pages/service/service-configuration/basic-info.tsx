@@ -34,6 +34,7 @@ import {
   uriregularVerify,
 } from 'monitor-api/modules/apm_service';
 import ChangeRcord from 'monitor-pc/components/change-record/change-record';
+import FormSpaceSelect from 'monitor-pc/components/form-space-select';
 
 import PanelItem from '../../../components/panel-item/panel-item';
 import * as authorityMap from '../../home/authority-map';
@@ -174,13 +175,6 @@ export default class BasicInfo extends tsc<object> {
       },
     ],
   };
-
-  get bizSelectList() {
-    return this.$store.getters.bizList.map(el => ({
-      id: el.id,
-      name: el.text,
-    }));
-  }
 
   created() {
     const { query } = this.$route;
@@ -675,14 +669,13 @@ export default class BasicInfo extends tsc<object> {
                       {this.localRelationInfo.logType === 'bk_log' ? (
                         <div class='relation-log-select relation-log-form-item'>
                           <bk-form-item property='relatedBizId'>
-                            <bk-select
-                              vModel={this.localRelationInfo.relatedBizId}
-                              display-key='name'
-                              id-Key='id'
-                              list={this.bizSelectList}
-                              enable-virtual-scroll
-                              searchable
-                              onChange={v => this.handleLogBizChange(v)}
+                            <FormSpaceSelect
+                              showIdentifier={false}
+                              value={this.localRelationInfo.relatedBizId}
+                              onChange={v => {
+                                this.localRelationInfo.relatedBizId = v;
+                                this.handleLogBizChange(v);
+                              }}
                             />
                           </bk-form-item>
                           <bk-form-item property='logValue'>
@@ -742,14 +735,13 @@ export default class BasicInfo extends tsc<object> {
               <div class='content'>
                 {this.isEditing ? (
                   <div class='edit-form-item app-form-item'>
-                    <bk-select
-                      vModel={this.localRelationInfo.bizId}
-                      display-key='name'
-                      id-Key='id'
-                      list={this.bizSelectList}
-                      enable-virtual-scroll
-                      searchable
-                      onChange={v => this.handleBizChange(v)}
+                    <FormSpaceSelect
+                      showIdentifier={false}
+                      value={this.localRelationInfo.bizId}
+                      onChange={v => {
+                        this.localRelationInfo.bizId = v;
+                        this.handleBizChange(v);
+                      }}
                     />
                     <bk-form
                       ref='appForm'

@@ -23,9 +23,20 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export const assignWindowField = (data: Record<string, any>, isLowerCase = true) => {
-  Object.assign(
-    window,
-    ...Object.entries(data).map(([key, value]) => ({ [isLowerCase ? key.toLowerCase() : key]: value }))
-  );
-};
+import { supportsSpaceDirectoryPages } from './space-directory';
+import { resolveSelectedSpaces } from './space-selection';
+
+import type { ISpaceItem } from '../typings';
+
+export function eventSpaceId(id: number, resolved: Record<number, string>, legacy: ISpaceItem[]) {
+  if (supportsSpaceDirectoryPages()) return resolved[id] || id;
+  return legacy.find(space => +space.bk_biz_id === +id)?.space_id || id;
+}
+
+export async function resolveEventSpaceIds(events: { bk_biz_id?: number }[]): Promise<Record<number, string>> {
+  if (!supportsSpaceDirectoryPages()) return {};
+  // For CMDB businesses the event's business ID already is the public space ID.
+  const ids = events.map(event => Number(event.bk_biz_id)).filter(id => id < 0);
+  const spaces = await resolveSelectedSpaces(ids).catch(() => []);
+  return Object.fromEntries(spaces.map(space => [space.bk_biz_id, space.space_id]));
+}
