@@ -383,18 +383,21 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         if not type_names:
             return
         pinyin_patterns = ()
+        phonetic_predicate = "s.space_name REGEXP %s"
         if search_pinyin:
             connection = connections["monitor_api"]
-            # MySQL 5.7's regex engine is byte-oriented. Keep phonetic matching in Python there.
             bounded = space_uids or (biz_ids is not None and len(biz_ids) <= 500)
-            if (
-                bounded
-                or getattr(connection, "mysql_version", (8, 0)) < (8, 0)
-                or getattr(connection, "mysql_is_mariadb", False)
-            ):
+            if not bounded and not getattr(connection, "mysql_is_mariadb", False):
+                if getattr(connection, "mysql_version", (8, 0)) >= (8, 0):
+                    pinyin_patterns = pinyin_search_patterns(text_filter)
+                else:
+                    from bkmonitor.space.pinyin_mysql5 import pinyin_hex_search_patterns
+
+                    # The legacy regex engine matches bytes. Convert to GB2312 and bind the binary pattern as hex.
+                    phonetic_predicate = "BINARY CONVERT(s.space_name USING gb2312) REGEXP UNHEX(%s)"
+                    pinyin_patterns = pinyin_hex_search_patterns(text_filter)
+            if not pinyin_patterns:
                 text_filter = ""
-            else:
-                pinyin_patterns = pinyin_search_patterns(text_filter)
         if text_filter:
             text = """LOCATE(%s, LOWER(CONCAT_WS(CHAR(0), s.space_name, s.space_id, s.id,
                 IF(s.space_type_id = 'bkcc', s.space_id, CONCAT('-', s.id)), s.space_code,
@@ -406,7 +409,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                 text += " OR s.space_type_id IN (" + ", ".join(["%s"] * len(matching_types)) + ")"
                 params.extend(matching_types)
             if pinyin_patterns:
-                text += " OR (" + " AND ".join(["s.space_name REGEXP %s"] * len(pinyin_patterns)) + ")"
+                text += " OR (" + " AND ".join([phonetic_predicate] * len(pinyin_patterns)) + ")"
                 params.extend(pinyin_patterns)
             conditions.append("(" + text + ")")
         index = "FORCE INDEX (PRIMARY)" if biz_ids is None and not space_uids and not space_type else ""

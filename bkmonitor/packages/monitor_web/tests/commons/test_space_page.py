@@ -240,8 +240,9 @@ def test_legacy_mysql_keeps_complete_phonetic_candidates(mocker, version):
         )
     )
     sql, _ = cursor.execute.call_args.args
-    assert ("REGEXP" in sql) == (version >= (8, 0))
-    assert ("LOCATE" in sql) == (version >= (8, 0))
+    assert "REGEXP" in sql
+    assert ("REGEXP UNHEX(%s)" in sql) == (version < (8, 0))
+    assert "LOCATE" in sql
     assert result == [(4, "bkci", "project", "蓝鲸", "", "研发项目")]
 
 

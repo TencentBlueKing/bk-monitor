@@ -5,10 +5,6 @@ from functools import lru_cache
 from itertools import groupby
 from string import ascii_lowercase
 
-from pypinyin import lazy_pinyin
-from pypinyin.constants import PHRASES_DICT, PINYIN_DICT
-from pypinyin.contrib.tone_convert import to_normal
-
 from bkmonitor.space.pinyin_legacy import SELECTOR_READINGS
 
 _SELECTOR_BY_CHAR = {c: reading for reading, characters in SELECTOR_READINGS.items() for c in characters}
@@ -16,11 +12,16 @@ _SELECTOR_BY_CHAR = {c: reading for reading, characters in SELECTOR_READINGS.ite
 
 @lru_cache(maxsize=8192)
 def selector_reading(character):
+    from pypinyin import lazy_pinyin
+
     return _SELECTOR_BY_CHAR.get(character) or lazy_pinyin(character)[0].lower()
 
 
 @lru_cache(maxsize=1)
 def _letter_codes():
+    from pypinyin.constants import PHRASES_DICT, PINYIN_DICT
+    from pypinyin.contrib.tone_convert import to_normal
+
     # Use every reading, including phrase-specific overrides. The final name match resolves polyphones.
     by_letter = defaultdict(set)
     normalized = {}

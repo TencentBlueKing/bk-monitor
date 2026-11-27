@@ -7,7 +7,6 @@ from functools import lru_cache
 
 from django.core import signing
 from opentelemetry import trace
-from pypinyin import lazy_pinyin
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -50,6 +49,8 @@ class SpacePageRequestSerializer(serializers.Serializer):
 
 @lru_cache(maxsize=8192)
 def _pinyin_part(part):
+    from pypinyin import lazy_pinyin
+
     syllables = lazy_pinyin(part)
     legacy = [selector_reading(char) for char in part]
     return (
