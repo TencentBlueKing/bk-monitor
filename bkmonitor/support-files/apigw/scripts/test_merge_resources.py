@@ -108,6 +108,30 @@ def test_check_unique_operation_ids_ignores_missing_operation_id():
     check_unique_operation_ids(merged)
 
 
+def test_check_openapi_schema_types_rejects_type_list():
+    schema = {"type": "object", "properties": {"limit": {"type": ["string", "null"]}}}
+    merged = {"/user/a/": {"post": {"requestBody": {"content": {"application/json": {"schema": schema}}}}}}
+    with pytest.raises(ValueError, match=r"properties\.limit: OpenAPI 3\.0 schema type must be a string"):
+        merge_resources.check_openapi_schema_types(merged)
+
+    schema["properties"]["limit"] = {"type": "string", "nullable": True}
+    merge_resources.check_openapi_schema_types(merged)
+
+
+def test_independent_user_api_publishes_openapi_nullable():
+    from kernel_api.user_api import build_user_api_paths
+
+    paths = build_user_api_paths(_RESOURCES_DIR / "internal/user")
+    schema = paths["/user/update_third_party_es/"]["post"]["requestBody"]["content"]["application/json"]["schema"]
+    assert schema["properties"]["time_field_unit"]["type"] == "string"
+    assert schema["properties"]["time_field_unit"]["nullable"] is True
+    bk_biz_id = schema["properties"]["indexes"]["items"]["properties"]["bk_biz_id"]
+    assert (bk_biz_id["type"], bk_biz_id["nullable"]) == ("integer", True)
+    limit = paths["/user/analyze_field/"]["post"]["requestBody"]["content"]["application/json"]["schema"]
+    assert (limit["properties"]["limit"]["type"], limit["properties"]["limit"]["nullable"]) == ("string", True)
+    merge_resources.check_openapi_schema_types(paths)
+
+
 def test_alert_mcp_resource_groups_are_disjoint():
     """告警查询与处置 MCP 必须保持独立，查询资源固定为当前 12 个。"""
     query_paths = _load_paths(_ALERT_MCP_FILE)

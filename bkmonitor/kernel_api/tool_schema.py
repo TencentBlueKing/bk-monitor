@@ -39,8 +39,11 @@ def _extract_input_schema(operation: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def _normalize_public_schema(tool_name: str, schema: dict[str, Any]) -> dict[str, Any]:
-    """将原 MCP Schema 收敛为模型可直接使用的 Unified 公共契约。"""
+def _normalize_public_schema(tool_name: str, schema: dict[str, Any], *, draft7: bool = True) -> dict[str, Any]:
+    """将原 MCP Schema 收敛为模型可直接使用的 Unified 公共契约。
+
+    :param draft7: 是否将 ``nullable`` 转为 Draft7 null 类型；网关资源按 OpenAPI 3.0.1 校验，须传 False。
+    """
     result = deepcopy(schema)
     result.setdefault("type", "object")
     properties = result.setdefault("properties", {})
@@ -72,7 +75,8 @@ def _normalize_public_schema(tool_name: str, schema: dict[str, Any]) -> dict[str
         result["required"] = required
     else:
         result.pop("required", None)
-    _normalize_nullable_schemas(result)
+    if draft7:
+        _normalize_nullable_schemas(result)
     _close_object_schemas(result)
     return result
 
