@@ -36,31 +36,17 @@
         <div class="item-container">
           <div class="business-container">
             <verify-input :show-validate.sync="rules.bk_biz_id.validate">
-              <bk-select
+              <form-space-select
                 v-model="node.bk_biz_id"
                 :style="{ background: canSelectBusiness ? '#fafafa' : '#FFFFFF' }"
                 class="business-select"
                 :clearable="false"
                 :disabled="canSelectBusiness"
-                :list="businessList"
                 :placeholder="$t('选择业务')"
-                display-key="text"
-                id-key="id"
-                enable-virtual-scroll
                 @change="handleBusinessOptClick"
                 @toggle="handleBusinessToggle"
-              >
-                <!-- <bk-option
-                  v-for="item in businessList"
-                  :id="item.id"
-                  :key="item.id"
-                  :name="item.text"
-                >
-                  <div @click="handleBusinessOptClick(item.id)">
-                    {{ item.text }}
-                  </div>
-                </bk-option> -->
-              </bk-select>
+                :show-identifier="false"
+              />
             </verify-input>
             <bk-checkbox
               v-model="node.is_common"
@@ -307,6 +293,7 @@
 </template>
 
 <script>
+import FormSpaceSelect from 'monitor-pc/components/form-space-select';
 // import uptimeCheckNodeEditTable from './uptime-check-node-edit-table'
 import { countryList, ispList } from 'monitor-api/modules/commons';
 import {
@@ -330,6 +317,7 @@ import UptimeCheckNodeDone from './uptime-check-node-done';
 export default {
   name: 'UptimeCheckNodeEdit',
   components: {
+    FormSpaceSelect,
     VerifyInput,
     UptimeCheckNodeDone,
     NodeTarget,
@@ -427,9 +415,6 @@ export default {
     };
   },
   computed: {
-    businessList() {
-      return this.$store.getters.bizList;
-    },
     // 只要存在节点id，下一步时，走编辑接口。
     isEdit: {
       get() {

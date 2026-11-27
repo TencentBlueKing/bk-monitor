@@ -29,6 +29,8 @@ function load(file, window, dependencies = {}) {
     'vue-property-decorator': { Component: component, Vue: Base, Emit: noopDecorator, Watch: noopDecorator,
       Prop: noopDecorator, Ref: noopDecorator, Model: noopDecorator },
     'vue-tsx-support': { Component: Base },
+    'monitor-common/utils/space-directory': { supportsSpaceDirectoryPages: () => false },
+    'monitor-common/utils/space-selection': { FormSpacePages: class {} },
     'monitor-common/utils/utils': { deepClone: structuredClone, Debounce: noopDecorator },
     ...dependencies,
   };
@@ -95,17 +97,18 @@ test('full-screen report content resolves space names from the current directory
   assert.equal(vm.getBizName('7'), '7');
 });
 
-test('an uptime node in another space gains its ownership label when the directory arrives', () => {
-  const { window, getters, full } = setup();
-  const editor = load('pages/uptime-check/uptime-check-nodes/uptime-check-node-edit.vue', window, {
-    '../../../mixins/authorityMixin': { default: () => ({}) },
+test('a saved uptime node in another space resolves its ownership label in the disabled field', async () => {
+  const { window, getters } = setup();
+  const Field = load('components/form-space-select.tsx', window, {
+    'monitor-common/utils/space-selection': {
+      FormSpacePages: class { items = []; },
+      resolveSelectedSpaces: async ids => ids.map(space),
+    },
   }).default;
-  const vm = { $store: { getters }, $t: key => key };
-  const state = editor.data.call(vm);
-  const options = () => editor.computed.businessList?.call(vm) ?? state.businessList;
-  assert.deepEqual(options().map(space => space.id), [2]);
-  full(2, 7);
-  assert.equal(options().find(space => space.id === 7)?.text, '7');
+  const field = Object.assign(new Field(), { value: 7, disabled: true, extraOptions: [], $store: { getters }, $t: key => key });
+  await field.resolveValue();
+  assert.equal(field.selected.text, '7');
+  assert.equal(field.render().props.disabled, true);
 });
 
 test('sharing all waits for the full scope; explicitly selected IDs remain usable', async () => {

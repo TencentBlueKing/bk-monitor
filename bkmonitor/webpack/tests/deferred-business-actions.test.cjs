@@ -32,7 +32,12 @@ function fixture() {
     './type': { EScopes: scopes, EClusterType: {} },
     'monitor-api/modules/commons': { registerCluster: async data => { submitted.push(data); return true; } },
     'monitor-api/modules/model': { shareFavorite: async data => submitted.push(data) },
-    vue: { defineComponent: x => x, shallowRef: value => ({ value }), computed: fn => ({ get value() { return fn(); } }), watch() {} },
+    'monitor-common/utils/space-directory': { supportsSpaceDirectoryPages: () => false },
+    'monitor-common/utils/space-selection': { FormSpacePages: class {}, resolveSelectedSpaces: async (ids, rows) => {
+      const records = ids.every(id => rows.some(row => row.id === id)) ? rows : await window.loadSpaceDirectory();
+      return records.filter(row => ids.includes(row.id));
+    } },
+    vue: { reactive: x => x, defineComponent: x => x, shallowRef: value => ({ value }), computed: fn => ({ get value() { return fn(); } }), watch() {} },
     'vue-i18n': { useI18n: () => ({ t }) },
     '@store/modules/app': { useAppStore: () => store },
     '../../../../../hooks/use-favorite-type': { default: () => ({ value: 'trace' }) },
