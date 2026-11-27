@@ -1,0 +1,21 @@
+.rum-field-target {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  font: inherit;
+  vertical-align: middle;
+  color: inherit;
+  text-align: inherit;
+  background: none;
+  border: 0;
+
+  &:is(button) {
+    cursor: pointer;
+
+    &.explore-table-condition-menu:hover {
+      color: var(--rum-field-target-hover-color, #3a84ff);
+    }
+  }
+}

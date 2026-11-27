@@ -358,9 +358,6 @@ export const VIEW_ID_FIELD = 'attributes.view.id';
 /** View 视角的页面 URL 字段：链接列，点击打开 View 详情抽屉 */
 export const VIEW_URL_FIELD = 'attributes.view.url_template';
 
-/** 复合列中使用 URL 文本样式的完整 URL 字段。 */
-export const RUM_FULL_URL_FIELDS: ReadonlySet<string> = new Set(['attributes.view.url', 'attributes.url.full']);
-
 /** Session 视角的行唯一键，同时是跨视角检索该会话的条件字段 */
 export const SESSION_ID_FIELD = 'attributes.session.id';
 

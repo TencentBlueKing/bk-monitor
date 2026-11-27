@@ -71,6 +71,17 @@
     justify-content: flex-end;
   }
 
+  /* 提高复合列覆盖的优先级，让多行布局独立于通用列样式的加载顺序。 */
+  &.common-table .explore-col.rum-composite-col {
+    align-items: flex-start;
+    height: auto;
+    font-family: Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  }
+
+  .rum-empty-text {
+    color: #c4c6cc;
+  }
+
   /* 垂直滚动交由外层 .rum-explore-view 处理，表格内容区仅保留水平滚动 */
   .t-table__content {
     overflow: scroll hidden;
@@ -79,6 +90,10 @@
   .t-table__header {
     th {
       height: 36px;
+
+      &:has(.rum-composite-header) {
+        padding-inline: 12px;
+      }
     }
 
     .__table-custom-setting-col__ {
@@ -86,40 +101,37 @@
     }
   }
 
-  tbody > tr > td {
-    height: 52px;
-  }
+  tbody {
+    > tr {
+      > td {
+        height: 52px;
 
-  .rum-table-append-row {
-    display: flex;
-    height: 52px;
-    border-bottom: 1px solid #f0f1f5;
-  }
+        &:has(.rum-composite-col) {
+          padding: 5px 12px;
+        }
 
-  .rum-table-append-cell {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    padding: 0 16px;
-  }
-
-  .rum-table-append-settings {
-    flex: 0 0 32px;
-  }
-
-  /* 可点击唤起检索条件菜单的单元格（与 trace 检索保持一致） */
-  .explore-table-condition-menu {
-    cursor: pointer;
-
-    &:hover {
-      color: #3a84ff;
+        &:has(.rum-array-col-trigger.is-active) {
+          background-color: #cddffe;
+        }
+      }
     }
   }
 
-  .common-table-ellipsis {
-    &:has(> .explore-table-condition-menu) {
-      &:hover {
-        color: #3a84ff;
+  .rum-table-append-skeleton {
+    > .rum-table-append-row {
+      display: flex;
+      height: 52px;
+      border-bottom: 1px solid #f0f1f5;
+
+      > .rum-table-append-cell {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        padding: 0 16px;
+      }
+
+      > .rum-table-append-settings {
+        flex: 0 0 32px;
       }
     }
   }

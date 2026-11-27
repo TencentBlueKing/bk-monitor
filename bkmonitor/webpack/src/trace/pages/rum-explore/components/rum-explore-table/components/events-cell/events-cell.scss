@@ -1,42 +1,12 @@
-.rum-explore-table {
-  .rum-array-col-trigger {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    cursor: pointer;
+.rum-array-col-trigger {
+  display: flex;
+  align-items: center;
+  width: 100%;
 
-    &:has(.rum-collapse-array-col) {
-      pointer-events: none;
+  // 标签和折叠标识的点击冒泡到这里，外层空白区域不参与命中。
+  pointer-events: none;
 
-      .item-tags,
-      .collapse-tag-visible {
-        pointer-events: auto;
-        cursor: pointer;
-      }
-    }
-
-    .rum-collapse-array-col {
-      &:has(.item-tags:hover),
-      &:has(.collapse-tag:hover) {
-        .item-tags,
-        .collapse-tag {
-          border-bottom-color: #4d4f56;
-        }
-      }
-    }
-
-    &.is-active .rum-collapse-array-col {
-      &:has(.item-tags:hover),
-      &:has(.collapse-tag:hover) {
-        .item-tags,
-        .collapse-tag {
-          border-bottom-color: #3a84ff;
-        }
-      }
-    }
-  }
-
-  td:has(.rum-array-col-trigger.is-active) {
-    background-color: #cddffe;
+  &.is-active {
+    --collapse-array-underline-color: #3a84ff;
   }
 }

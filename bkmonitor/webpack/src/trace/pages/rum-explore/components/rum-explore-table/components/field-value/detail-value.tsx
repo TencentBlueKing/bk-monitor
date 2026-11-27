@@ -23,69 +23,47 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import {
-  RUM_DETAIL_SPAN_TYPES,
-  RumModeEnum,
-  SESSION_ID_FIELD,
-  SPAN_TYPE_FIELD,
-  VIEW_ID_FIELD,
-  VIEW_URL_FIELD,
-} from '../../../../constants';
+import { RUM_DETAIL_SPAN_TYPES, RumModeEnum, SESSION_ID_FIELD, SPAN_TYPE_FIELD } from '../../../../constants';
 import { hasFieldValue } from '../../column-builder/column-layout';
 
-import type { FieldActions, IRumSpanRecord, RumModeType } from '../../../../typings';
+import type { ValueContext } from '../../../../typings';
 import type { TippyContent } from 'vue-tippy';
 
-/** 判断字段是否承担 Span 名称的详情和悬浮提示交互。 */
-export const isSpanName = (mode: RumModeType, fieldName: string) =>
-  mode === RumModeEnum.SPAN && fieldName === 'span_name';
-
-/** 判断当前字段及记录是否具备打开详情的标识。 */
-export const canOpenRecordDetail = (mode: RumModeType, fieldName: string, row: IRumSpanRecord, rowId: string) => {
-  if (isSpanName(mode, fieldName)) {
-    const type = String(row[SPAN_TYPE_FIELD] ?? '');
-    return (
-      !!rowId &&
-      RUM_DETAIL_SPAN_TYPES.has(type) &&
-      (type !== RumModeEnum.SESSION || hasFieldValue(row[SESSION_ID_FIELD]))
-    );
-  }
-  if (mode === RumModeEnum.VIEW && fieldName === VIEW_URL_FIELD) return hasFieldValue(row[VIEW_ID_FIELD]);
-  return mode === RumModeEnum.SESSION && fieldName === SESSION_ID_FIELD && !!rowId;
-};
+import './detail-value.scss';
 
 /**
- * 为 Span 名称生成悬浮事件，提供完整名称与 Span ID。
- * @param row 当前 Span 记录
- * @param label 列标题
- * @param text 已格式化的完整名称
- * @param tools 表格共用的悬浮层控制方法
+ * @description 检查当前行能否打开 Span 详情，会话类型还需提供会话 ID。
+ * @param context 包含当前行和行标识的字段上下文
+ * @returns 详情类型受支持且所需标识齐全时返回 true
  */
-export const spanNameHover = (
-  row: IRumSpanRecord,
-  label: string,
-  text: string,
-  tools: FieldActions['hoverPopoverTools']
-) => {
+export function canOpenSpanDetail({ row, rowId }: ValueContext) {
+  const type = String(row[SPAN_TYPE_FIELD] ?? '');
+  return (
+    !!rowId && RUM_DETAIL_SPAN_TYPES.has(type) && (type !== RumModeEnum.SESSION || hasFieldValue(row[SESSION_ID_FIELD]))
+  );
+}
+
+/**
+ * @description 组装同时展示完整名称和 Span ID 的悬浮提示。
+ * @param context 包含字段别名和 Span 记录的上下文
+ * @param text 格式化后的完整 Span 名称
+ * @param t 用于生成默认字段标题的国际化函数
+ * @returns 悬浮层所需的提示内容和主题
+ */
+export function getSpanNameTooltip({ field, row }: ValueContext, text: string, t: (key: string) => string) {
   return {
-    onMouseenter: (event: MouseEvent) => {
-      tools.showPopover(
-        event,
-        (
-          <div class='span-name-popover-container'>
-            <div class='span-name-popover-item'>
-              <span class='span-name-popover-item-label'>{label}:</span>
-              <span class='span-name-popover-item-value'>{text}</span>
-            </div>
-            <div class='span-name-popover-item'>
-              <span class='span-name-popover-item-label'>Span ID:</span>
-              <span class='span-name-popover-item-value'>{row.span_id || '--'}</span>
-            </div>
-          </div>
-        ) as unknown as TippyContent,
-        { theme: 'rum-span-name-popover max-width-40vw text-wrap padding-0' }
-      );
-    },
-    onMouseleave: tools.clearPopoverTimer,
+    theme: 'rum-span-name-popover max-width-40vw text-wrap padding-0',
+    content: (
+      <div class='span-name-popover-container'>
+        <div class='span-name-popover-item'>
+          <span class='span-name-popover-item-label'>{field?.alias ?? t('Span 名称')}:</span>
+          <span class='span-name-popover-item-value'>{text}</span>
+        </div>
+        <div class='span-name-popover-item'>
+          <span class='span-name-popover-item-label'>Span ID:</span>
+          <span class='span-name-popover-item-value'>{row.span_id || '--'}</span>
+        </div>
+      </div>
+    ) as unknown as TippyContent,
   };
-};
+}

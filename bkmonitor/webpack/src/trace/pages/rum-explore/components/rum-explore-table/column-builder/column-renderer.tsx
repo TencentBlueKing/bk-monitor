@@ -36,9 +36,8 @@ import ColumnHeader from '../components/column-header/column-header';
 import CompositeAction from '../components/composite-cell/composite-action';
 import CompositeCell from '../components/composite-cell/composite-cell';
 import EventsCell from '../components/events-cell/events-cell';
-import { resolveCountField } from '../components/field-value/count-value';
 import FieldValue from '../components/field-value/field-value';
-import { BADGE_PRESENTATIONS } from './badge-presentation';
+import { getFieldRule } from '../field-rules';
 import { hasFieldValue, resolveCompositeRows } from './column-layout';
 
 import type { BaseTableColumn } from '../../../../trace-explore/components/trace-explore-table/typing';
@@ -67,8 +66,9 @@ export const buildRumColumnRenderer = (
 ): Pick<BaseTableColumn, 'align' | 'cellRenderer' | 'title'> => {
   const fieldName = column.colKey;
   const isSpanName = fieldName === 'span_name';
-  const count = !!resolveCountField(mode, fieldName) && !layout.sections;
+  const count = !!getFieldRule(fieldName).byMode?.[mode]?.drillDown && !layout.sections;
   return {
+    /** 在当前视角识别为计数的独立列右对齐。 */
     align: count ? 'right' : column.align,
     title: () =>
       (
@@ -124,7 +124,6 @@ export const buildRumColumnRenderer = (
                 value: member.value,
               }}
               actions={actions}
-              badgePresentation={placement === 'badge' ? BADGE_PRESENTATIONS.get(member.field.name) : undefined}
               ellipsisMode={ellipsisMode}
               mode={mode}
             />

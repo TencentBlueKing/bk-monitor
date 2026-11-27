@@ -25,41 +25,14 @@
  */
 import { type PropType, computed, defineComponent } from 'vue';
 
-import { RumModeEnum, SESSION_ID_FIELD, VIEW_ID_FIELD } from '../../../../constants';
+import { VIEW_ID_FIELD } from '../../../../constants';
 import FieldTarget from './field-target';
 import { EMethod } from '@/components/retrieval-filter/typing';
 
-import type { IRumCountDrillDown, IRumSpanRecord, RumModeType } from '../../../../typings';
+import type { CountDrillDown, IRumCountDrillDown, IRumSpanRecord } from '../../../../typings';
 import type { FieldTargetInfo } from './field-target';
 
-/** 计数的目标视角和用于约束目标记录的 ID 字段。 */
-interface CountDrillDown extends Pick<IRumCountDrillDown, 'spanType' | 'targetMode'> {
-  /** 下钻筛选使用的会话 ID 或页面 ID 字段。 */
-  idField: string;
-}
-
-const sessionTargets = new Map<string, Pick<IRumCountDrillDown, 'spanType' | 'targetMode'>>([
-  ['action_count', { targetMode: RumModeEnum.SPAN, spanType: 'action' }],
-  ['error_count', { targetMode: RumModeEnum.SPAN, spanType: 'error' }],
-  ['view_count', { targetMode: RumModeEnum.VIEW }],
-]);
-const viewCountFields = new Set(['action_count', 'error_count', 'request_count']);
-
-/**
- * 查找当前视角下计数字段对应的下钻目标。
- * @param mode 当前检索视角
- * @param fieldName 计数成员的真实字段名
- * @returns 下钻目标，普通字段返回 undefined
- */
-export const resolveCountField = (mode: RumModeType, fieldName: string): CountDrillDown | undefined => {
-  if (mode === RumModeEnum.SESSION) {
-    const target = sessionTargets.get(fieldName);
-    return target && { ...target, idField: SESSION_ID_FIELD };
-  }
-  if (mode === RumModeEnum.VIEW && viewCountFields.has(fieldName)) {
-    return { targetMode: RumModeEnum.SPAN, idField: VIEW_ID_FIELD };
-  }
-};
+import './count-value.scss';
 
 export default defineComponent({
   name: 'RumCountValue',
@@ -80,20 +53,26 @@ export default defineComponent({
     drillDown: (_payload: IRumCountDrillDown) => true,
   },
   setup(props, { emit }) {
+    /** 仅将数字和非空字符串解析为计数。 */
     const count = computed(() => {
       const { value } = props;
       return typeof value === 'number' || (typeof value === 'string' && value.trim()) ? Number(value) : NaN;
     });
+    /** 根据下钻配置从当前行获取会话或页面 ID。 */
     const id = computed(() => String(props.row[props.drillDown.idField] ?? ''));
+    /** 只有非标签位置的正数计数且 ID 存在时可下钻。 */
     const canDrill = computed(() => Number.isFinite(count.value) && count.value > 0 && !!id.value && !props.badge);
+    /** 普通计数按零值和下钻状态选择样式，标签样式由调用方提供。 */
     const valueClass = computed(() => {
-      if (props.badge) return 'rum-cell-badge';
-      const linkStyle =
-        props.drillDown.idField === VIEW_ID_FIELD ? 'is-link is-danger is-underlined' : 'is-link is-brand';
-      return `rum-count-value ${count.value === 0 ? 'is-zero' : canDrill.value ? linkStyle : ''}`;
+      if (props.badge) return undefined;
+      const drillDownClass = props.drillDown.idField === VIEW_ID_FIELD ? 'is-danger is-underlined' : 'is-brand';
+      return `rum-count-value ${count.value === 0 ? 'is-zero' : canDrill.value ? drillDownClass : ''}`;
     });
 
-    /** 从计数下钻，避免冒泡触发表格行高亮。 */
+    /**
+     * @description 触发计数下钻并阻止点击冒泡到表格行。
+     * @param event 下钻按钮的点击事件
+     */
     const handleDrillDown = (event: MouseEvent) => {
       event.stopPropagation();
       emit('drillDown', {

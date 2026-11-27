@@ -98,6 +98,11 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 允许标签和折叠标识作为外层点击入口。 */
+    clickable: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup(props) {
     /** 省略类名：表格场景按列配置推导，非表格场景回退 ellipsisClass */
@@ -154,7 +159,7 @@ export default defineComponent({
 
     return (
       <CollapseTags
-        class='explore-col collapse-array-col'
+        class={['explore-col collapse-array-col', { 'is-clickable': this.clickable }]}
         v-slots={{
           customTag: this.$slots?.customTag ?? defaultCustomTag,
           /** 折叠标识默认按 [+N] 呈现 */

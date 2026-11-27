@@ -1,77 +1,27 @@
 /* stylelint-disable selector-class-pattern */
-.rum-explore-table {
-  .rum-field-value {
-    display: inline-flex;
-    align-items: center;
+.rum-field-target {
+  > .rum-field-text {
     min-width: 0;
-    max-width: 100%;
-    padding: 0;
-    font: inherit;
-    vertical-align: middle;
-    color: inherit;
-    text-align: inherit;
-    background: none;
-    border: 0;
 
-    &.explore-table-condition-menu:hover {
-      text-decoration: underline;
+    &.rum-field-full-url {
+      font-family: Menlo, Monaco, Consolas, monospace;
+      font-weight: 400;
+    }
+
+    /* 标签允许正文换行，由文本组件决定其他字段的省略方式。 */
+    &--no-ellipsis {
+      overflow: visible;
+      text-overflow: clip;
+      overflow-wrap: anywhere;
+      white-space: normal;
     }
   }
 
-  .rum-field-text {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  /* 徽标是短标签，不参与省略方式，避免出现省略号或裁切 */
-  .rum-field-text--no-ellipsis {
-    overflow: visible;
-    text-overflow: clip;
-  }
-
-  .rum-link-text {
+  &.rum-field-detail-trigger {
     color: #3a84ff;
-    cursor: pointer;
   }
 
-  .rum-empty-text {
-    color: #c4c6cc;
-  }
-
-  .rum-count-value {
-    font-family: Arial, sans-serif;
-    font-size: 12px;
-    line-height: 20px;
-    letter-spacing: 0;
-    white-space: nowrap;
-
-    &.is-zero {
-      color: #c4c6cc;
-    }
-
-    &.is-link {
-      cursor: pointer;
-    }
-
-    &.is-brand {
-      color: #3a84ff;
-    }
-
-    &.is-danger {
-      color: #ea3636;
-    }
-
-    &.is-underlined {
-      font-weight: 700;
-      text-decoration: underline;
-      text-decoration-skip-ink: none;
-      text-underline-offset: 3px;
-    }
-  }
-
-  .rum-rating-value {
+  &.rum-rating-value {
     --rum-rating-color: #4d4f56;
 
     font-size: 12px;
@@ -79,10 +29,6 @@
     line-height: 20px;
     color: var(--rum-rating-color);
     white-space: nowrap;
-
-    &.explore-table-condition-menu:hover {
-      color: var(--rum-rating-color);
-    }
 
     &.is-good {
       --rum-rating-color: #21a380;
@@ -97,11 +43,8 @@
     }
   }
 
-  .rum-icon-text {
-    display: inline-flex;
+  &.rum-icon-text {
     gap: 4px;
-    align-items: center;
-    min-width: 0;
 
     > .rum-cell-icon-content {
       display: inline-flex;
@@ -158,21 +101,17 @@
 
       &.outcome-type-icon-abort {
         color: #8f9fbd;
-        transform: rotate(45deg);
-      }
-    }
-
-    &.is-cache-hit {
-      color: #21a380;
-
-      .icon-mc-check-small {
-        font-size: 20px;
+        transform: translateX(var(--rum-badge-icon-shift, 0%)) rotate(45deg);
       }
     }
   }
 
-  .rum-cell-badge {
+  &.rum-field-tag,
+  &.rum-field-badge {
     flex-shrink: 0;
+  }
+
+  &.rum-field-tag {
     padding: 0 6px;
     font-size: 12px;
     line-height: 18px;
@@ -180,61 +119,88 @@
     white-space: nowrap;
     background: #f0f1f5;
     border-radius: 2px;
+  }
+
+  &.rum-field-badge {
+    $label-scale: 0.88;
+    $label-inset: 0.5 * (1 - $label-scale);
+    $icon-gap: 2px;
+
+    --rum-badge-opacity: 10%;
+    --rum-badge-text-color: var(--rum-badge-color, var(--rum-badge-tint, #7b8ba8));
+    --rum-field-target-hover-color: var(--rum-badge-text-color);
+
+    gap: $icon-gap;
+    justify-content: center;
+    min-height: 16px;
+    padding: 0 3px;
+    font-weight: 500;
+    line-height: 16px;
+    color: var(--rum-badge-text-color);
+    text-align: center;
+    white-space: nowrap;
+    background: color-mix(in srgb, var(--rum-badge-tint, #8f9fbd) var(--rum-badge-opacity), transparent);
+    border-radius: 4px;
 
     &.rum-badge-resource {
-      color: #7955ba;
-      background: #f3effa;
+      --rum-badge-tint: #a07cde;
     }
 
     &.rum-badge-error {
-      color: #d72732;
-      background: #fce8e8;
+      --rum-badge-tint: #e54040;
     }
 
     &.rum-badge-long-task {
-      color: #cf7500;
-      background: #fff3e1;
+      --rum-badge-tint: #eb9a1c;
+      --rum-badge-color: #e58d05;
     }
 
     &.rum-badge-action {
-      color: #b753a5;
-      background: #fbecf7;
+      --rum-badge-tint: #d677c0;
+      --rum-badge-color: #de7cc7;
     }
 
     &.rum-badge-view {
-      color: #3975b6;
-      background: #ecf3fc;
+      --rum-badge-tint: #4f90d1;
     }
 
-    &.explore-table-condition-menu:hover {
-      color: inherit;
+    &.explore-table-condition-menu:is(:hover, :focus-visible) {
+      --rum-badge-opacity: 20%;
+    }
+
+    > .rum-field-text {
+      letter-spacing: -0.36px;
+      transform: scale($label-scale);
+    }
+
+    // 用容器宽度扣掉图标和 gap，按文字的单侧缩放留白移动图标。
+    > :is(.icon-monitor, .rum-cell-icon-content) {
+      --rum-badge-icon-shift: #{-100% * $label-inset};
+
+      position: relative;
+      left: calc(100% * $label-inset - $icon-gap * $label-inset);
+      transform: translateX(var(--rum-badge-icon-shift));
+    }
+
+    .rum-field-badge-icon {
+      display: flex;
+      flex-shrink: 0;
+      align-items: center;
+      justify-content: center;
+      width: 12px;
+      height: 12px;
+      font-size: 10px;
+      font-weight: 400;
+      line-height: 12px;
+
+      &.is-viewport {
+        font-size: 12px;
+      }
     }
   }
 }
 
-.tippy-box[data-theme~='rum-span-name-popover'] {
-  .span-name-popover-container {
-    padding: 8px;
-    font-size: 12px;
-    line-height: 20px;
-
-    .span-name-popover-item {
-      display: flex;
-      column-gap: 4px;
-      align-items: flex-start;
-
-      .span-name-popover-item-label {
-        flex-shrink: 0;
-        width: 72px;
-        color: #c4c6cc;
-        text-align: right;
-      }
-
-      .span-name-popover-item-value {
-        flex: 1;
-        min-width: 0;
-        word-break: break-all;
-      }
-    }
-  }
+.rum-field-badge-item {
+  display: inline-flex;
+  min-width: 0;
 }

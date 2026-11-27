@@ -1,4 +1,7 @@
 .rum-composite-action {
+  $label-scale: 0.8;
+  $label-inset: 50% * (1 - $label-scale);
+
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
@@ -14,9 +17,8 @@
   border-radius: 4px;
 
   .rum-composite-action-label {
-    margin-right: -4px;
     letter-spacing: -0.36px;
-    transform: scale(0.8);
+    transform: scale($label-scale);
   }
 
   .rum-composite-action-icon {
@@ -28,6 +30,13 @@
     height: 12px;
     font-size: 8px;
     line-height: 8px;
+  }
+
+  // right 和 translateX 分别以容器和图标宽度为基准，差值对应文字的单侧缩放留白。
+  .rum-composite-action-label + .rum-composite-action-icon {
+    position: relative;
+    right: $label-inset;
+    transform: translateX($label-inset);
   }
 
   &.is-icon-only {
