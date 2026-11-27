@@ -783,6 +783,69 @@ def test_personal_tokens_are_opted_in_and_survive_merge(tmp_path):
     assert "execute_tool" not in enabled
 
 
+def test_personal_token_resources_get_generated_docs(tmp_path):
+    import shutil
+
+    shutil.copytree(_RESOURCES_DIR, tmp_path / "resources")
+    (tmp_path / "docs/zh").mkdir(parents=True)
+    (tmp_path / "docs/zh/search_spaces.md").write_text("hand-written")
+    merge_resources_func(tmp_path / "resources")
+    merged = yaml.safe_load((tmp_path / "resources.yaml").read_text())["paths"]
+
+    names = {
+        operation["operationId"]
+        for methods in merged.values()
+        for operation in methods.values()
+        if operation["tags"] == [merge_resources.PERSONAL_TOKEN_TAG]
+    }
+    assert {path.stem for path in (tmp_path / "docs/zh").glob("*.md")} == names
+    assert (tmp_path / "docs/zh/search_spaces.md").read_text() == "hand-written"
+
+    tree_doc = (tmp_path / "docs/zh/get_dashboard_tree_list.md").read_text()
+    assert "`GET /mcp/get_dashboard_tree_list/`" in tree_doc
+    assert "| bk_biz_id | number | 是 | Business ID 业务ID |" in tree_doc
+
+
+def test_render_resource_doc_flattens_request_body():
+    operation = {
+        "description": "demo",
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["filters"],
+                        "oneOf": [{"required": ["a"]}, {"required": ["b"]}],
+                        "properties": {
+                            "filters": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "required": ["op"],
+                                    "properties": {
+                                        "op": {"type": "string", "enum": ["eq", "ne"], "description": "a|b"}
+                                    },
+                                },
+                            },
+                            "ids": {"type": "array", "items": {"oneOf": [{"type": "string"}, {"type": "integer"}]}},
+                            "limit": {"type": "integer", "default": 10},
+                        },
+                    }
+                }
+            }
+        },
+    }
+
+    doc = merge_resources.render_resource_doc("/mcp/demo/", "post", operation)
+
+    assert "`POST /mcp/demo/`" in doc
+    assert "| filters | array[object] | 是 |  |" in doc
+    assert '| filters[].op | string | 是 | a\\|b 可选值：`"eq"`、`"ne"` |' in doc
+    assert "| ids | array[string / integer] | 否 |  |" in doc
+    assert "| limit | integer | 否 | 默认值：`10` |" in doc
+    assert "部分参数存在组合约束" in doc
+
+
 def test_shared_read_backends_move_only_mcp_resources(tmp_path):
     """Check the generated gateway deployment input; original app paths stay intact."""
     import shutil
