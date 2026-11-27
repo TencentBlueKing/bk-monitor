@@ -209,6 +209,8 @@ class EnhancedGetContextResource(Resource):
     def format_basic_context(request, spaces, biz_id, space_access=None):
         context = get_basic_context(request, spaces, biz_id, space_access=space_access)
         context["SPACE_LIST_STATE"] = "deferred" if space_access is not None else "full"
+        if space_access is not None and hasattr(SpaceApi, "read_space_page_candidates"):
+            context["SPACE_LIST_PAGE_SUPPORTED"] = True
         context["CSRF_TOKEN"] = get_token(request)
 
         field_formatter(context)
@@ -273,6 +275,7 @@ class EnhancedGetContextResource(Resource):
             "PLATFORM",
             "SPACE_LIST",
             "SPACE_LIST_STATE",
+            "SPACE_LIST_PAGE_SUPPORTED",
             "SPACE_ACCESS",
             "SITE_URL",
             "STATIC_URL",
