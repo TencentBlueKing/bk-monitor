@@ -8,7 +8,7 @@ const scopes = { allSpace: 'all-space', currentSpace: 'current-space', multiSpac
 const t = value => value;
 const row = id => ({ id, bk_biz_id: id, space_id: String(id), space_type_id: 'bkcc', space_name: String(id), type_name: '业务' });
 const h = (type, props, ...children) => ({ type, props: props ?? {}, children: children.flat(Infinity) });
-function load(file, deps, window) {
+function loadModule(file, deps, window) {
   const source = fs.readFileSync(path.resolve(__dirname, '../src', file), 'utf8');
   const code = ts.transpileModule(source, { compilerOptions: {
     module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React,
@@ -16,7 +16,10 @@ function load(file, deps, window) {
   } }).outputText;
   const exports = {};
   new Function('require', 'exports', 'window', 'h', 'fragment', code)(id => deps[id] ?? {}, exports, window, h, 'fragment');
-  return exports.default;
+  return exports;
+}
+function load(file, deps, window) {
+  return loadModule(file, deps, window).default;
 }
 function find(node, type) {
   if (node?.type === type) return node;
@@ -48,6 +51,45 @@ function fixture() {
 }
 const clusterPath = 'monitor-pc/pages/resource-register/cluster-config.tsx';
 const sharePath = 'trace/pages/trace-explore/components/favorite-box/components/group-tree/components/render-favorite/components/share-favorite.tsx';
+
+test('opening resource registration space types renders authorized options from the shared directory', async () => {
+  const { window, deps, messages } = fixture();
+  const queries = [];
+  window.space_list_page_supported = true;
+  deps['monitor-api/modules/commons'].listSpaces = async params => {
+    queries.push(params);
+    return { items: params.type === 'bkcc' ? [row(2)] : [], next_cursor: null };
+  };
+  deps['monitor-common/utils'] = { random: () => 'fixture' };
+  deps['monitor-common/utils/space-directory'] = loadModule('monitor-common/utils/space-directory.ts', deps, window);
+  deps['../../common/constant'] = { SPACE_TYPE_MAP: { bkcc: { name: '业务' } } };
+  deps['./type'].EClusterType = { ES: 'elasticsearch' };
+  deps['../type'] = { EScopes: scopes, EsSpaceScopes: [] };
+  const More = load('monitor-pc/pages/resource-register/cluster-config/cluster-more-config.tsx', deps, window);
+  deps['./cluster-config/cluster-more-config'] = { default: More };
+  const Cluster = load(clusterPath, deps, window);
+  const cluster = Object.assign(new Cluster(), {
+    selectedType: 'elasticsearch', rowConfig: { operationType: 'add' }, $t: t, $tc: t, $bkMessage: m => messages.push(m),
+  });
+  const moreProps = () => find(cluster.render(), More).props;
+  const more = Object.assign(new More(), {
+    selectedType: 'elasticsearch', $tc: t, spaceTypes: [],
+    $emit(event, open) {
+      assert.equal(event, 'openSpaceTypes');
+      return moreProps().onOpenSpaceTypes.call(cluster, open);
+    },
+  });
+  more.localFormData.elasticsearch.scope = scopes.spaceType;
+  const menu = () => find(more.render(), 'bk-select');
+  await menu().props.onToggle(false);
+  assert.equal(queries.length, 0);
+  await menu().props.onToggle(true);
+  assert.deepEqual(messages, []);
+  assert.deepEqual(queries.map(q => q.type).sort(), ['bcs', 'bkcc', 'bkci', 'bksaas', 'default']);
+  assert.ok(queries.every(q => q.mode === 'page' && q.page_size === 1));
+  more.spaceTypes = moreProps().spaceTypes;
+  assert.deepEqual(menu().children.map(option => [option.props.id, option.props.name]), [['bkcc', '业务']]);
+});
 
 test('resource submit resolves every selected space and never posts a partial scope', async () => {
   const { window, store, submitted, deps } = fixture();
