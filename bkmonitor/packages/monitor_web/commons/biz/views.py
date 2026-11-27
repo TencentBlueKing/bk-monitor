@@ -8,12 +8,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from functools import wraps
-
+from django.http import HttpRequest
+from django.middleware.gzip import GZipMiddleware
 from django.utils.cache import patch_vary_headers
-from django.utils.decorators import method_decorator
-from django.utils.http import parse_header_parameters
-from django.views.decorators.gzip import gzip_page
+from django.utils.decorators import decorator_from_middleware, method_decorator
+from django.utils.text import compress_string
+from werkzeug.http import parse_accept_header
 
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
@@ -43,39 +43,43 @@ class FetchBusinessInfoViewSet(ResourceViewSet):
     ]
 
 
-def _gzip_space_directory(view):
-    compressed_view = gzip_page(view)
-
-    @wraps(view)
-    def negotiated(request, *args, **kwargs):
+class _SpaceDirectoryGZipMiddleware(GZipMiddleware):
+    def process_response(self, request, response):
         if request.method != "GET":
-            return view(request, *args, **kwargs)
-
-        selected_view = view
-        # Django's gzip_page checks for a gzip token even when its quality is zero.
-        for coding in request.headers.get("Accept-Encoding", "").split(","):
-            name, parameters = parse_header_parameters(coding)
-            if name != "gzip":
-                continue
-            try:
-                quality = float(parameters.get("q", "1"))
-            except ValueError:
-                break
-            if 0 < quality <= 1:
-                selected_view = compressed_view
-            break
-
-        response = selected_view(request, *args, **kwargs)
+            return response
         patch_vary_headers(response, ("Accept-Encoding",))
-        return response
+        encodings = parse_accept_header(request.headers.get("Accept-Encoding"))
+        identity_allowed = "identity" not in encodings or encodings["identity"] > 0
+        if encodings.best_match(("gzip", "identity")) != "gzip":
+            if not identity_allowed:
+                response.status_code = 406
+                response.content = b""
+                response["Content-Length"] = "0"
+            return response
 
-    return negotiated
+        # GZipMiddleware checks for the literal lowercase token rather than negotiating the header.
+        gzip_request = HttpRequest()
+        gzip_request.META["HTTP_ACCEPT_ENCODING"] = "gzip"
+        response = super().process_response(gzip_request, response)
+        if not identity_allowed and not response.has_header("Content-Encoding"):
+            # Django may skip compression for short bodies or when gzip would increase their size.
+            response.content = compress_string(response.content, max_random_bytes=self.max_random_bytes)
+            response["Content-Length"] = str(len(response.content))
+            response["Content-Encoding"] = "gzip"
+            etag = response.get("ETag", "")
+            if etag.startswith('"'):
+                response["ETag"] = f"W/{etag}"
+        return response
 
 
 class ListSpacesViewSet(ResourceViewSet):
     permission_classes = ()
     resource_routes = [
-        ResourceRoute("GET", resource.commons.list_spaces, decorators=[method_decorator(_gzip_space_directory)]),
+        ResourceRoute(
+            "GET",
+            resource.commons.list_spaces,
+            decorators=[method_decorator(decorator_from_middleware(_SpaceDirectoryGZipMiddleware))],
+        ),
     ]
 
 

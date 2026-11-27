@@ -41,40 +41,73 @@ def test_enhanced_context_is_gzipped(mocker):
     assert response.cookies["bk_biz_id"].value == "2"
 
 
+@pytest.fixture
+def directory_get(mocker):
+    def get_directory(encoding):
+        path = "/rest/v2/commons/list_spaces/"
+        request = APIRequestFactory().get(path, **({"HTTP_ACCEPT_ENCODING": encoding} if encoding is not None else {}))
+        force_authenticate(request, user=mocker.Mock(is_authenticated=True))
+        response = resolve(path).func(request)
+        response.render()
+        assert request.headers.get("Accept-Encoding") == encoding
+        assert "accept-encoding" in {item.strip().lower() for item in response["Vary"].split(",")}
+        return response
+
+    return get_directory
+
+
 @pytest.mark.parametrize(
     "accept_encoding,compressed",
     [
         ("gzip, deflate, br", True),
         ("br, gzip;q=0.5", True),
+        ("GZIP, identity;q=0", True),
+        ("*;q=1, identity;q=0", True),
+        ("*;q=0, gzip;q=0.5", True),
         (None, False),
+        ("", False),
         ("identity", False),
         ("br", False),
         ("gzip;q=0, identity", False),
+        ("gzip;q=0, *;q=1", False),
+        ("*;q=1, gzip;q=0", False),
+        ("identity;q=1, gzip;q=0.1", False),
     ],
 )
-def test_list_spaces_negotiates_compression(mocker, accept_encoding, compressed):
+def test_list_spaces_negotiates_compression(mocker, directory_get, accept_encoding, compressed):
     spaces = [{"space_id": str(i), "space_name": f"Space {i}"} for i in range(500)]
     mocker.patch.object(ListSpacesResource, "request", return_value=spaces)
 
-    def get_directory(encoding):
-        path = "/rest/v2/commons/list_spaces/"
-        request = APIRequestFactory().get(path, **({"HTTP_ACCEPT_ENCODING": encoding} if encoding else {}))
-        force_authenticate(request, user=mocker.Mock(is_authenticated=True))
-        response = resolve(path).func(request)
-        response.render()
-        return response
-
-    identity = get_directory(None)
-    response = get_directory(accept_encoding)
+    identity = directory_get(None)
+    response = directory_get(accept_encoding)
     assert response.status_code == identity.status_code == 200
     assert len(identity.content) > 10000
-    assert "accept-encoding" in {item.strip().lower() for item in response["Vary"].split(",")}
     assert response.get("Content-Encoding") == ("gzip" if compressed else None)
     if compressed:
+        assert int(response["Content-Length"]) == len(response.content)
         assert len(response.content) < len(identity.content)
         assert gzip.decompress(response.content) == identity.content
     else:
         assert response.content == identity.content
+
+
+def test_list_spaces_compresses_empty_directory_when_identity_is_forbidden(mocker, directory_get):
+    mocker.patch.object(ListSpacesResource, "request", return_value=[])
+    ordinary = directory_get("gzip")
+    required = directory_get("*, identity;q=0")
+    assert ordinary.status_code == required.status_code == 200
+    assert "Content-Encoding" not in ordinary
+    assert required["Content-Encoding"] == "gzip"
+    assert gzip.decompress(required.content) == ordinary.content
+    assert int(required["Content-Length"]) == len(required.content)
+
+
+@pytest.mark.parametrize("encoding", ["*;q=0", "identity;q=0", "gzip;q=0,*;q=1,identity;q=0"])
+def test_list_spaces_rejects_request_without_an_acceptable_encoding(mocker, directory_get, encoding):
+    mocker.patch.object(ListSpacesResource, "request", return_value=[])
+    response = directory_get(encoding)
+    assert response.status_code == 406
+    assert not response.content
 
 
 def test_neighboring_business_options_route_keeps_its_encoding(mocker):
