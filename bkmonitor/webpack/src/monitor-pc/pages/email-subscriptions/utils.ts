@@ -25,7 +25,8 @@
  */
 // 图表 ID：`{bizId}-{dashboardUid}-{panelId}`。容器/研发等空间 bizId 为负数（如 `-123-uid-*`），不能按第一个 `-` 切分。
 export const splitGraphId = (graphId: string) => {
-  const [, bizId = '', dashboardId = '', panelId = ''] = graphId.match(/^(-?\d+)-(.+)-(.+)$/) || [];
+  const [, bizId = '', dashboardId = '', panelId = ''] =
+    graphId.match(/^(-?\d+(?:,-?\d+)*|[a-zA-Z_]+)-(.+)-([^-]+)$/) || [];
   return {
     bizId,
     dashboardId,

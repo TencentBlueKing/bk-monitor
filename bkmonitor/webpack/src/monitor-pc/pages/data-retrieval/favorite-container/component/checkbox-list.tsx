@@ -46,6 +46,7 @@ interface IEvents {
   onSelected: number;
 }
 interface IProps {
+  allowSelectAll?: boolean;
   checked?: number;
   list: IListItem[];
 }
@@ -56,6 +57,7 @@ interface ITagsItem {
 }
 @Component
 export default class List extends tsc<IProps, IEvents> {
+  @Prop({ type: Boolean, default: true }) allowSelectAll: boolean;
   /** 选中的id */
   @Prop({ type: Number }) checked: number;
   /** 列表数据 */
@@ -98,6 +100,7 @@ export default class List extends tsc<IProps, IEvents> {
                 <bk-checkbox
                   ext-cls={'list-item-checkbox'}
                   checked={this.isSelectAll}
+                  disabled={!this.allowSelectAll}
                   onChange={(status: boolean) => this.handleSelectAll(status)}
                 >
                   <div class={['checkbox-item', { checked: this.selectList.includes('*') }]}>
