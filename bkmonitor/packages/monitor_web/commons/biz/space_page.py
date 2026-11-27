@@ -12,6 +12,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkm_space.api import SpaceApi
+from bkmonitor.space.pinyin import selector_reading
 from iam_engine.exceptions import ProviderUnavailable
 
 CURSOR_SALT = "monitor.space-directory.page.v1"
@@ -50,7 +51,13 @@ class SpacePageRequestSerializer(serializers.Serializer):
 @lru_cache(maxsize=8192)
 def _pinyin_part(part):
     syllables = lazy_pinyin(part)
-    return "".join(syllables).lower(), "".join(s[:1] for s in syllables).lower()
+    legacy = [selector_reading(char) for char in part]
+    return (
+        "".join(syllables).lower(),
+        "".join(s[:1] for s in syllables).lower(),
+        "".join(legacy),
+        "".join(s[:1] for s in legacy),
+    )
 
 
 def _match_rank(pk, kind, sid, name, code, type_name, query, search_pinyin):
@@ -59,10 +66,10 @@ def _match_rank(pk, kind, sid, name, code, type_name, query, search_pinyin):
     if search_pinyin and not name.isascii():
         # Cache Chinese text runs, so numbered or suffixed names share the same conversion.
         pieces = [
-            _pinyin_part(part) if not part.isascii() else (part.lower(), part[:1].lower())
+            _pinyin_part(part) if not part.isascii() else (part.lower(),) * 4
             for part in re.findall(r"[^\x00-\x7f]+|[\x00-\x7f]+", name)
         ]
-        keys.extend(("".join(part[0] for part in pieces), "".join(part[1] for part in pieces)))
+        keys.extend("".join(reading) for reading in zip(*pieces))
     if query in keys:
         return 0
     keys.extend((type_name.lower(), (code or "").lower()))
@@ -97,9 +104,6 @@ def search_space_page(tenant, username, params, access, *, external=False, names
     query_ids = access.ids if access.matches_policy is None else None
     if known_ids is not None:
         query_ids = known_ids if query_ids is None else known_ids.intersection(query_ids)
-    # Very large IN lists cost more than testing membership in the prepared authorization set.
-    if query_ids is not None and len(query_ids) > 2000:
-        query_ids = None
     type_names = SpaceApi.read_space_page_types()
     scanned = 0
     items = []

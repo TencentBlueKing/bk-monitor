@@ -205,6 +205,23 @@ def test_phonetic_prefilter_keeps_polyphones_initials_and_mixed_names(name, term
     assert all(re.search(pattern, name, re.I) for pattern in pinyin_search_patterns(term))
 
 
+@pytest.mark.parametrize(
+    "name,terms",
+    [
+        ("重庆", ["zhongqing", "zq", "chongqing", "cq"]),
+        ("银行", ["yinxing", "yx", "yinhang", "yh"]),
+        ("音乐", ["yinlao", "yl", "yinyue", "yy"]),
+        ("ABC蓝鲸2026", ["abclanjing2026", "abclj2026"]),
+    ],
+)
+def test_search_accepts_original_selector_and_contextual_readings(directory, name, terms):
+    rows, _, _ = directory
+    rows[1] = space(1, name)
+    for term in terms:
+        assert all(re.search(pattern, name, re.I) for pattern in pinyin_search_patterns(term))
+        assert query(query=term)["items"] == [rows[1]]
+
+
 @pytest.mark.parametrize("version", [(5, 7), (8, 0)])
 def test_legacy_mysql_keeps_complete_phonetic_candidates(mocker, version):
     conn = mocker.MagicMock(mysql_version=version, mysql_is_mariadb=False)
@@ -235,3 +252,20 @@ def test_demo_bookmarks_stay_in_the_visible_id_filter(settings):
     )
     assert serial.is_valid(), serial.errors
     assert serial.validated_data["bk_biz_ids"] == {"7", "9"}
+
+
+def test_large_finite_grants_stay_in_sql_and_merge_in_global_keyset_order(mocker):
+    def select(conditions, params, *, limit, type_names, seek):
+        assert any("s.space_id IN" in clause for clause in conditions)
+        assert not seek
+        pk = sorted(int(value) for value in params if isinstance(value, str) and value.isdecimal())
+        return [{"id": value, "bk_biz_id": value} for value in pk if value > params[1]][:limit]
+
+    read = mocker.patch.object(space_api.InjectSpaceApi, "_read_space_rows", side_effect=select)
+    grants = frozenset(str(i) for i in range(130001, 132002))
+    options = {"type_names": {"bkcc": "业务"}}
+    first = space_api.InjectSpaceApi.read_space_page_candidates("tenant", grants, "", 0, 21, **options)
+    second = space_api.InjectSpaceApi.read_space_page_candidates("tenant", grants, "", first[19]["id"], 21, **options)
+    assert [row["id"] for row in first] == list(range(130001, 130022))
+    assert [row["id"] for row in second] == list(range(130021, 130042))
+    assert read.call_count == 4

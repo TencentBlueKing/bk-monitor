@@ -8,9 +8,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import heapq
 import json
 import logging
 import traceback
+from itertools import chain, islice
+from operator import itemgetter
 
 from django.conf import settings
 from django.core.cache import caches
@@ -43,6 +46,15 @@ class Empty:
 
 miss_cache = Empty()
 _space_transform = {}
+
+
+PAGE_GRANT_CHUNK = 2000
+
+
+def _grant_chunks(ids):
+    values = iter(ids)
+    while batch := tuple(islice(values, PAGE_GRANT_CHUNK)):
+        yield batch
 
 
 def enrich_space_display_name(space_dict):
@@ -301,6 +313,29 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
     def read_space_page_candidates(
         cls, tenant, biz_ids, space_type, after_id, limit, *, type_names, space_uids=None, row_ids=None
     ):
+        if biz_ids is not None and len(biz_ids) > PAGE_GRANT_CHUNK:
+            if row_ids:
+                # Hydration already has a bounded primary-key restriction; recheck the entire grant set.
+                selected = cls.read_space_page_candidates(
+                    tenant,
+                    None,
+                    space_type,
+                    after_id,
+                    len(row_ids),
+                    type_names=type_names,
+                    space_uids=space_uids,
+                    row_ids=row_ids,
+                )
+                return [row for row in selected if str(row["bk_biz_id"]) in biz_ids or row["bk_biz_id"] in biz_ids][
+                    :limit
+                ]
+            pages = (
+                cls.read_space_page_candidates(
+                    tenant, chunk, space_type, after_id, limit, type_names=type_names, space_uids=space_uids
+                )
+                for chunk in _grant_chunks(biz_ids)
+            )
+            return heapq.nsmallest(limit, chain.from_iterable(pages), key=itemgetter("id"))
         conditions, params = cls._page_conditions(tenant, biz_ids, space_type, after_id, space_uids)
         if not type_names:
             return []
@@ -314,9 +349,36 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
 
     @classmethod
     def iter_space_search_keys(
-        cls, tenant, biz_ids, space_type, after_id, *, type_names, space_uids=None, text_filter="", search_pinyin=False
+        cls,
+        tenant,
+        biz_ids,
+        space_type,
+        after_id,
+        *,
+        type_names,
+        space_uids=None,
+        text_filter="",
+        search_pinyin=False,
+        window=4096,
     ):
         """Read only the keys used by the selector. Keyset windows bound the DB driver's buffer."""
+        if biz_ids is not None and len(biz_ids) > PAGE_GRANT_CHUNK:
+            streams = (
+                cls.iter_space_search_keys(
+                    tenant,
+                    chunk,
+                    space_type,
+                    after_id,
+                    type_names=type_names,
+                    space_uids=space_uids,
+                    text_filter=text_filter,
+                    search_pinyin=search_pinyin,
+                    window=128,
+                )
+                for chunk in _grant_chunks(biz_ids)
+            )
+            yield from heapq.merge(*streams, key=itemgetter(0))
+            return
         conditions, params = cls._page_conditions(tenant, biz_ids, space_type, after_id, space_uids)
         if not type_names:
             return
@@ -350,7 +412,6 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         index = "FORCE INDEX (PRIMARY)" if biz_ids is None and not space_uids and not space_type else ""
         base = f"""SELECT s.id, s.space_type_id, s.space_id, s.space_name, s.space_code
                    FROM metadata_space s {index} WHERE """ + " AND ".join(conditions)
-        window = 4096
         while True:
             with connections["monitor_api"].cursor() as cursor:
                 cursor.execute(base + " AND s.id > %s ORDER BY s.id LIMIT %s", [*params, after_id, window])
