@@ -68,10 +68,14 @@ def test_show_all_retains_disabled_bkms(spaces, monkeypatch, settings, block_rul
 
 
 @pytest.mark.parametrize("show_all", [False, True])
-def test_external_user_space_list_respects_visibility(spaces, monkeypatch, show_all):
+@pytest.mark.parametrize("legacy", [False, True])
+def test_external_user_space_list_respects_visibility(spaces, monkeypatch, show_all, legacy):
     monkeypatch.setattr(module, "get_request", lambda **kwargs: SimpleNamespace(external_user="external-tester"))
     monkeypatch.setattr(module, "get_request_username", lambda: "tester")
-    monkeypatch.setattr(module.SpaceApi, "list_spaces_dict", Mock(return_value=spaces))
+    if legacy:
+        monkeypatch.setattr(module, "SpaceApi", SimpleNamespace(list_spaces_dict=Mock(return_value=spaces)))
+    else:
+        monkeypatch.setattr(module.SpaceApi, "read_space_records", Mock(return_value=spaces))
     permission_filter = Mock()
     permission_filter.return_value.values_list.return_value.distinct.return_value = [-101, -102, -103, 2]
     monkeypatch.setattr(module.ExternalPermission.objects, "filter", permission_filter)
@@ -92,6 +96,44 @@ def test_space_sql_includes_status(monkeypatch):
     result = InjectSpaceApi.list_spaces_dict(using_cache=False, filters={"status": "disabled"})
     assert "s.status," in cursor.execute.call_args.args[0]
     assert result[0]["status"] == "disabled"
+
+
+def test_complete_records_are_bounded_and_do_not_mutate_space_caches(monkeypatch):
+    from bkmonitor.space import space_api
+
+    cursor = MagicMock()
+    fields = ["id", "bk_tenant_id", "space_type_id", "space_id", "space_name", "type_name", "status", "space_uid"]
+    cursor.description = [(f,) for f in fields]
+    cursor.fetchall.return_value = [(8, "tenant", "bkci", "project", "Project", "CI", "normal", "bkci__project")]
+    cursor.__enter__.return_value = cursor
+    monkeypatch.setattr(space_api, "connections", {"monitor_api": SimpleNamespace(cursor=lambda: cursor)})
+    cache = Mock()
+    monkeypatch.setattr(space_api, "local_mem", cache)
+    monkeypatch.setattr(space_api, "_space_transform", {-12: "bkci__keep"})
+    assert InjectSpaceApi.read_space_records("tenant", []) == []
+    cursor.execute.assert_not_called()
+    records = InjectSpaceApi.read_space_records("tenant", [7, "-8", "007"], first_available=True)
+    sql, params = cursor.execute.call_args.args
+    assert "JOIN" in sql and "s.bk_tenant_id = BINARY %s AND (" in sql
+    assert "s.space_id IN (%s)" in sql and "s.id IN (%s)" in sql
+    assert params[:5] == ["tenant", "bkcc", "7", "bkcc", 8]
+    assert sql.endswith("ORDER BY s.id LIMIT 1")
+    assert records[0]["bk_biz_id"] == -8
+    assert records[0]["display_name"] == "[project]Project (CI)"
+    assert not cache.mock_calls and space_api._space_transform == {-12: "bkci__keep"}
+
+
+def test_uid_record_lookup_matches_exact_tenant_type_and_id(mocker):
+    read = mocker.patch.object(InjectSpaceApi, "_read_space_rows", return_value=[])
+    for malformed in ("", "bkci", "__project", "bkci__"):
+        assert InjectSpaceApi.read_space_records("tenant", space_uid=malformed) == []
+    read.assert_not_called()
+    assert InjectSpaceApi.read_space_records("tenant", space_uid="bkci__project__A") == []
+    read.assert_called_once_with(
+        ["s.bk_tenant_id = BINARY %s", "s.space_type_id = BINARY %s", "s.space_id = BINARY %s"],
+        ["tenant", "bkci", "project__A"],
+        first=False,
+    )
 
 
 def test_gateway_and_backend_route_agree(monkeypatch, settings):

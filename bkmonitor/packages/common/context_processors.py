@@ -196,7 +196,9 @@ def get_core_context(request):
     }
 
 
-def get_basic_context(request, space_list: list[dict[str, Any]], bk_biz_id: int) -> dict[str, Any]:
+def get_basic_context(
+    request, space_list: list[dict[str, Any]], bk_biz_id: int, *, space_access: str | None = None
+) -> dict[str, Any]:
     context: dict[str, Any] = get_core_context(request)
     context.update(
         {
@@ -249,7 +251,9 @@ def get_basic_context(request, space_list: list[dict[str, Any]], bk_biz_id: int)
     allow_biz_ids: set[int] = {space["bk_biz_id"] for space in space_list}
     # 为什么不直接调用接口检查？相比起 CPU 运算，接口请求耗时更不可控，考虑到大部分场景下 bk_biz_id in allow_biz_ids
     # 故利用该条件进行兼枝
-    if bk_biz_id not in allow_biz_ids:
+    if space_access is not None:
+        context["SPACE_ACCESS"] = space_access
+    elif bk_biz_id not in allow_biz_ids:
         try:
             SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
         except BKAPIError:

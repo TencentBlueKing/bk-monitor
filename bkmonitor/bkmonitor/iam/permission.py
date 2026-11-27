@@ -39,9 +39,9 @@ from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.iam import ResourceEnum
 from bkmonitor.iam.action import MINI_ACTION_IDS, ActionEnum, ActionMeta, canonicalize_action_id, get_action_by_id
 from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
-from iam_engine.exceptions import CreatorGrantFailed, PermissionDenied, ProviderError
+from iam_engine.exceptions import CreatorGrantFailed, PermissionDenied, ProviderError, ProviderUnavailable
 from bkmonitor.iam.handlers.grants import PermissionWriteResult, PermissionWriteTargetResult
-from bkmonitor.iam.resource import to_resource_instance
+from bkmonitor.iam.resource import DirectorySpaceInstance, to_resource_instance
 from bkmonitor.iam.backends.v3.client import V3Client
 from iam_engine.provider.requests import (
     ApplyURLRequest,
@@ -900,8 +900,96 @@ class Permission:
         """
         获取有对应action权限的空间列表
         """
-        space_list, _ = self.filter_space_list_by_action_with_scope(action, using_cache)
-        return space_list
+        if not hasattr(SpaceApi, "read_space_records"):
+            # Older pluggable space providers implement the full directory contract.
+            spaces, _ = self.filter_space_list_by_action_with_scope(action, using_cache)
+            return spaces
+        try:
+            return self.list_authorized_space_records(action, using_cache)
+        except (ProviderError, InvalidAuthModeError):
+            logger.exception("[IAM Policy Query Error] failed to list authorized spaces")
+            return []
+
+    def is_space_allowed(self, action, space: dict, *, mode=None) -> bool:
+        """Point decision for a real space. Propagate an unavailable provider to the caller."""
+        if space["bk_tenant_id"] != self.bk_tenant_id:
+            return False
+        instance = DirectorySpaceInstance(
+            type="space",
+            id=str(space["bk_biz_id"]),
+            name=f"[{space['space_type_id']}] {space['space_name']}",
+            tenant_id=self.bk_tenant_id,
+        )
+        with tracer.start_as_current_span("iam.space_admission", record_exception=False) as span:
+            span.set_attribute("iam.space_count", 1)
+            return self._is_allowed_request(
+                SharedRequest(
+                    subject=FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id),
+                    action_id=_to_business_action_id(action),
+                    resources=(instance,),
+                ),
+                mode=mode,
+            )
+
+    def list_authorized_space_records(self, action, using_cache=True, *, first_available=False) -> list[dict]:
+        """Read directory records within the authorized scope; preserve provider errors for admission."""
+
+        def read_directory():
+            with tracer.start_as_current_span("iam.list_spaces", record_exception=False) as span:
+                spaces = SpaceApi.list_spaces_dict(bk_tenant_id=self.bk_tenant_id, using_cache=using_cache)
+                span.set_attribute("iam.space_count", len(spaces))
+                return spaces
+
+        if self.skip_check:
+            if first_available:
+                return SpaceApi.read_space_records(self.bk_tenant_id, first_available=True)
+            return read_directory()
+
+        mode = self.mode_provider.get_mode()
+        candidates = None
+        probe_failed = False
+        if mode is not AuthMode.V4:
+            # The cheapest eligible row also handles wildcard access without enumerating V3/union candidates.
+            if first_available:
+                first = SpaceApi.read_space_records(self.bk_tenant_id, first_available=True)
+                if not first:
+                    return []
+                try:
+                    if self.is_space_allowed(action, first[0], mode=mode):
+                        return first
+                except ProviderUnavailable:
+                    # An unavailable side of a union can still leave other confirmed grants.
+                    probe_failed = True
+            candidates = read_directory()
+        with tracer.start_as_current_span("iam.build_candidates", record_exception=False) as span:
+            ids = frozenset(str(s["bk_biz_id"]) for s in candidates) if candidates is not None else None
+            span.set_attribute("iam.space_count", len(ids) if ids is not None else 0)
+            span.set_attribute("iam.mode", mode.value)
+        with tracer.start_as_current_span("iam.filter_visible", record_exception=False) as span:
+            resolution = self.mode_router.list_authorized_scope(
+                mode,
+                action_id=_to_business_action_id(action),
+                resource_type="space",
+                subject={"type": "user", "id": self.username},
+                candidate_ids=ids,
+            )
+            scope = resolution.scope
+            span.set_attribute("iam.all_granted", scope.is_wildcard)
+            span.set_attribute("iam.visible_count", len(scope.ids))
+        if not scope.ok:
+            raise ProviderUnavailable(scope.reason)
+        if first_available:
+            spaces = SpaceApi.read_space_records(
+                self.bk_tenant_id, None if scope.is_wildcard else scope.ids, first_available=True
+            )
+            if not spaces and (probe_failed or any(not side.ok for side in resolution.provider_scopes)):
+                raise ProviderUnavailable("Incomplete space authorization scope")
+            return spaces
+        if candidates is not None:
+            return candidates if scope.is_wildcard else [s for s in candidates if str(s["bk_biz_id"]) in scope.ids]
+        if scope.is_wildcard:
+            return read_directory()
+        return SpaceApi.read_space_records(self.bk_tenant_id, scope.ids)
 
     def filter_space_list_by_action_with_scope(
         self, action, using_cache=True, candidate_biz_ids: list[int] | None = None

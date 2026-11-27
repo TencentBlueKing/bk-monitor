@@ -10,11 +10,19 @@ specific language governing permissions and limitations under the License.
 
 
 import abc
+from dataclasses import dataclass
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _lazy
 from iam import Resource
 from core.errors.iam import ResourceNotExistError
 from iam_engine.provider.requests import ResourceInstance
+
+
+@dataclass(frozen=True, slots=True)
+class DirectorySpaceInstance(ResourceInstance):
+    """A complete IAM instance built from a tenant-scoped space directory row."""
+
+    tenant_id: str = ""
 
 
 def to_resource_instance(resource) -> ResourceInstance:
