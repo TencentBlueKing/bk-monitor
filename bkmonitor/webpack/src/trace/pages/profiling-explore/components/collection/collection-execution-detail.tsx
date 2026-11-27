@@ -388,7 +388,7 @@ export default defineComponent({
     ];
     return (
       <Sideslider
-        width='min(960px, 100vw)'
+        width='min(80%, 100vw)'
         class='collection-execution-detail'
         beforeClose={() => {
           // 逐层关闭：叠加采集结果详情时先关结果面板

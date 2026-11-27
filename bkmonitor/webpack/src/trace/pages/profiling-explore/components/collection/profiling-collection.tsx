@@ -135,6 +135,8 @@ export default defineComponent({
         </section>
       );
     }
+    // 采集类型筛选项始终取所有采集方法的类型合集
+    const typeOptions = [...new Set(Object.values(c.meta.value.collection_types_by_method || {}).flat())];
     return (
       <section
         class={[
@@ -255,6 +257,11 @@ export default defineComponent({
               // 按任务进入历史时以 task_id 精确定位，historyTaskName 仅供筛选面板回显
               <CollectionHistory
                 key={this.bizId}
+                filterOptions={{
+                  collection_method: c.meta.value.collection_methods,
+                  collection_type: typeOptions,
+                  execution_status: c.meta.value.execution_status_filters,
+                }}
                 bizId={this.bizId}
                 filters={state.history}
                 range={this.range}
@@ -262,7 +269,6 @@ export default defineComponent({
                 readonly={c.readonly}
                 resolveRange={this.resolveRange}
                 revision={this.revision}
-                statusFilters={c.meta.value.execution_status_filters}
                 taskName={state.historyTaskName}
                 timezone={this.timezone}
                 onBusy={value => this.$emit('busy', value)}
@@ -276,6 +282,7 @@ export default defineComponent({
               <CollectionResults
                 key={this.bizId}
                 bizId={this.bizId}
+                filterOptions={{ collection_type: typeOptions }}
                 range={this.range}
                 rangeError={this.rangeError}
                 readonly={c.readonly}

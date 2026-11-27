@@ -78,7 +78,7 @@ export default defineComponent({
     );
     return (
       <Sideslider
-        width='min(640px, 100vw)'
+        width='min(80%, 100vw)'
         class='collection-task-detail'
         isShow={this.show}
         transfer={false}

@@ -149,6 +149,19 @@
       gap: 9px;
     }
 
+    .collection-result-process-select {
+      flex: none;
+      width: 280px;
+
+      /* stylelint-disable-next-line selector-class-pattern */
+      .bk-select--prefix-area {
+        padding: 0 8px;
+        margin-right: 0;
+        color: #4d4f56;
+        background-color: #fafbfd;
+      }
+    }
+
     .profile-table-pane.combined {
       flex: 0 0 58%;
     }

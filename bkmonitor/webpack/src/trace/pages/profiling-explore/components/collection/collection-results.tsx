@@ -60,7 +60,11 @@ import { TraceCellSkeleton } from '@/pages/trace-explore/components/trace-explor
 
 import type { SelectionRange } from '../../types';
 import type { CollectionQueryState } from '../../types/collection';
-import type { CollectionExecutionColumn, CollectionResultSelection } from '../../types/collection-history';
+import type {
+  CollectionColumnFilterOptions,
+  CollectionExecutionColumn,
+  CollectionResultSelection,
+} from '../../types/collection-history';
 import type { CollectionHostResult, CollectionResultsState } from '../../types/collection-results';
 
 import './collection-history.scss';
@@ -94,6 +98,11 @@ export default defineComponent({
     resolveRange: { type: Function as PropType<() => SelectionRange>, default: undefined },
     timezone: { type: String, required: true },
     readonly: Boolean,
+    // 表格列筛选候选项由采集配置 meta 下发
+    filterOptions: {
+      type: Object as PropType<CollectionColumnFilterOptions>,
+      default: (): CollectionColumnFilterOptions => ({}),
+    },
   },
   emits: {
     change: (_value: Partial<CollectionQueryState>) => true,
@@ -174,6 +183,7 @@ export default defineComponent({
         value.task_name ||
         value.process_names.length ||
         value.process_pids.length ||
+        value.collection_type.length ||
         value.status.length
       );
     });
@@ -211,7 +221,7 @@ export default defineComponent({
         if (name) historyTaskName.value = name;
       }
     );
-    // 已生效筛选的摘要：结果列表只有状态列筛选，其余条件来自面板
+    // 已生效筛选的摘要：采集类型与状态来自表格列筛选，其余条件来自面板
     const filterSummary = computed(() => {
       const conditions: string[] = [];
       const append = (label: string, values: string[]) => {
@@ -224,6 +234,10 @@ export default defineComponent({
       append(t('任务'), taskName ? [taskName] : []);
       // 进程名与 PID 共用面板里的「进程」入口，摘要也合并到一项
       append(t('进程'), [...value.process_names, ...value.process_pids]);
+      append(
+        t('采集类型'),
+        value.collection_type.map(type => collectionTypeLabels[type] || type)
+      );
       append(
         t('状态'),
         value.status.map(status => t((resultStatusLabels as Record<string, string>)[status] || status))
@@ -384,6 +398,13 @@ export default defineComponent({
         .filter(key => key !== 'parsing')
         .map(value => ({ value, label: this.t(resultStatusLabels[value]) })),
     };
+    // 采集类型列筛选项来自采集配置 meta，label 复用展示名
+    const labelFilter = (values: string[], labels: Record<string, string>) => ({
+      type: 'multiple' as const,
+      resetValue: [],
+      showConfirmAndReset: true,
+      list: values.map(value => ({ value, label: labels[value] || value })),
+    });
     // 状态列 hover 提示：已取消取后端下发的 message，其余只按 error_type 命中枚举取文案
     const failureMessage = (row: CollectionHostResult): string => {
       if (row.status === 'cancelled') return row.message || '';
@@ -409,6 +430,14 @@ export default defineComponent({
             cell: (_, { row }) => renderHostCell(column, row as CollectionHostResult),
             // 后端下发的状态列同样提供列筛选，与固定列保持一致
             ...(column.type === 'status' ? { sorter: true, filter: statusFilter } : {}),
+            ...(column.field === 'collection_type'
+              ? {
+                  filter: labelFilter(
+                    this.filterOptions.collection_type || [],
+                    collectionTypeLabels as Record<string, string>
+                  ),
+                }
+              : {}),
             ...(column.type === 'text' ? { ellipsis: true } : {}),
           })),
           { colKey: operationField, title: this.t('操作'), width: 176, fixed: 'right', cell: 'operations' },
@@ -420,6 +449,10 @@ export default defineComponent({
             colKey: 'collection_type',
             title: this.t('采集类型'),
             minWidth: 150,
+            filter: labelFilter(
+              this.filterOptions.collection_type || [],
+              collectionTypeLabels as Record<string, string>
+            ),
             cell: (_, { row }) => collectionTypeLabels[row.collection_type] || '--',
           },
           {
@@ -482,10 +515,13 @@ export default defineComponent({
                   }
                 : column
             )}
+            filterValue={{
+              collection_type: this.state.filters.collection_type,
+              status: this.state.filters.status,
+            }}
             data={showSkeleton ? skeletonRows : this.tableRows}
             // 常关内置筛选结果行：筛选结果统一由 firstFullRow 渲染，空态仍由 empty 插槽接管
             filterRow={() => null}
-            filterValue={{ status: this.state.filters.status }}
             headerAffixedTop={resultsTableAffixed}
             horizontalScrollAffixedBottom={resultsTableAffixed}
             hover={!showSkeleton}
@@ -496,7 +532,13 @@ export default defineComponent({
             onBkUiSettingsChange={value => this.changeColumns(value.columns)}
             onColumnResizeChange={context => this.changeColumnWidths(context.columnsWidth)}
             onFilterChange={value =>
-              this.patch({ filters: { ...this.displayFilters, status: (value.status || []) as string[] } })
+              this.patch({
+                filters: {
+                  ...this.displayFilters,
+                  collection_type: (value.collection_type || []) as string[],
+                  status: (value.status || []) as string[],
+                },
+              })
             }
           >
             {{

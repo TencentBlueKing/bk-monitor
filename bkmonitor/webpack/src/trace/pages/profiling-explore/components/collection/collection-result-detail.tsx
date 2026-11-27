@@ -25,7 +25,7 @@
  */
 import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
 
-import { Button, Radio, Sideslider } from 'bkui-vue';
+import { Button, Radio, Select, Sideslider } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { useCollectionResultDetail } from '../../composables/use-collection-result-detail';
@@ -84,15 +84,18 @@ export default defineComponent({
       view = createViewState();
       emit('change', { dataType, view });
     }
+    // 多进程采集合并成一份产物，选中某个进程后图表只展示该进程的样本
+    const pid = shallowRef<number>();
     const d = useCollectionResultDetail({
       bizId: computed(() => props.bizId),
       selection: computed(() => props.selection),
       source: computed(() => props.source),
       dataType: computed(() => props.state.dataType),
       graphMode: computed(() => props.state.view.graphMode),
+      pid,
       onDataType: dataType => emit('change', { dataType }),
     });
-    return { t, fullscreen, d, changeView, changeDataType };
+    return { t, fullscreen, d, pid, changeView, changeDataType };
   },
   render() {
     // 数据被清空后保留侧栏实例等待下次 show，显隐始终由外层 show 控制
@@ -111,7 +114,7 @@ export default defineComponent({
     const processes = row?.processes.map(item => `${item.process_name} (${item.pid})`).join('，') || '--';
     return (
       <Sideslider
-        width={this.fullscreen ? '100%' : '75%'}
+        width={this.fullscreen ? '100%' : '80%'}
         class='collection-result-detail'
         beforeClose={() => !this.busy}
         isShow={this.show}
@@ -240,6 +243,30 @@ export default defineComponent({
                   </div>
                 )}
                 <ProfileVisualization
+                  v-slots={{
+                    'search-prefix': () => {
+                      if (!row?.processes.length) return null;
+                      return (
+                        <Select
+                          class='collection-result-process-select'
+                          modelValue={this.pid}
+                          placeholder={this.t('全部')}
+                          prefix={this.t('进程')}
+                          onChange={value => {
+                            this.pid = value ? Number(value) : undefined;
+                          }}
+                        >
+                          {row.processes.map(item => (
+                            <Select.Option
+                              id={item.pid}
+                              key={item.pid}
+                              name={`${item.process_name} (${item.pid})`}
+                            />
+                          ))}
+                        </Select>
+                      );
+                    },
+                  }}
                   callGraph={d.callGraph.value}
                   data={d.data.value}
                   dataType={d.selectedType.value.split('/')[0]}

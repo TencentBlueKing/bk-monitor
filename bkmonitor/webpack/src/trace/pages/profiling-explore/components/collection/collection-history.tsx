@@ -58,6 +58,7 @@ import { TraceCellSkeleton } from '@/pages/trace-explore/components/trace-explor
 import type { SelectionRange } from '../../types';
 import type { CollectionPayload } from '../../types/collection';
 import type {
+  CollectionColumnFilterOptions,
   CollectionExecution,
   CollectionHistoryFilters,
   CollectionResultSelection,
@@ -97,6 +98,7 @@ const fallbackTaskColumns: CollectionTaskColumn[] = [
 
 // 任务历史默认展示列，其余列可在列设置中开启；用户调整后走本地缓存
 const defaultHistoryFields = [
+  'id',
   'task_name',
   'schedule_type',
   'collection_method',
@@ -125,9 +127,10 @@ export default defineComponent({
     bizId: { type: Number, required: true },
     filters: { type: Object as PropType<CollectionHistoryFilters>, required: true },
     range: { type: Array as unknown as PropType<SelectionRange>, required: true },
-    statusFilters: {
-      type: Array as PropType<string[]>,
-      default: () => Object.keys(executionStatusLabels).filter(status => status !== 'outdate'),
+    // 表格列筛选候选项由采集配置 meta 下发
+    filterOptions: {
+      type: Object as PropType<CollectionColumnFilterOptions>,
+      default: (): CollectionColumnFilterOptions => ({}),
     },
     rangeError: { type: String, default: '' },
     // 按任务 ID 筛选时的任务名，用于筛选面板回显
@@ -265,6 +268,8 @@ export default defineComponent({
         !!props.filters.task_name ||
         !!props.filters.status.length ||
         props.filters.schedule_types.length ||
+        props.filters.collection_method.length ||
+        props.filters.collection_type.length ||
         props.filters.ips.length ||
         props.filters.process_names.length ||
         props.filters.process_pids.length
@@ -297,6 +302,14 @@ export default defineComponent({
       // 进程名与 PID 共用面板里的「进程」入口，摘要也合并到一项
       append(t('进程'), [...props.filters.process_names, ...props.filters.process_pids]);
       append(
+        columnTitle('collection_method', '采集方式'),
+        props.filters.collection_method.map(value => collectionMethodLabels[value] || value)
+      );
+      append(
+        columnTitle('collection_type', '采集类型'),
+        props.filters.collection_type.map(value => collectionTypeLabels[value] || value)
+      );
+      append(
         columnTitle('schedule_type', '执行方式'),
         props.filters.schedule_types.map(value => t((scheduleLabels as Record<string, string>)[value] || value))
       );
@@ -311,7 +324,9 @@ export default defineComponent({
     // 可配置的列 key：业务列 + 表格追加的操作列
     const columnKeys = computed(() => [...taskColumns.value.map(column => column.field), 'operations']);
     // 锁定列：任务名称与操作列是行入口，列设置中置灰且始终显示
-    const lockedColumns = computed(() => ['task_name', 'operations'].filter(field => columnKeys.value.includes(field)));
+    const lockedColumns = computed(() =>
+      ['id', 'task_name', 'operations'].filter(field => columnKeys.value.includes(field))
+    );
     // 默认列取固定字段而非当前可用列，避免后端列未下发时把默认列写死在缓存里
     const { storageColumns, fieldsWidthConfig } = useTableColumnsCache({
       storageKey: historyColumnsStorageKey,
@@ -376,6 +391,9 @@ export default defineComponent({
   render() {
     const { h, c } = this;
     const showSkeleton = h.loading.value && !h.rows.value.length;
+    // meta 未下发状态筛选项时沿用本地枚举兜底
+    const statusFilters =
+      this.filterOptions.execution_status || Object.keys(executionStatusLabels).filter(status => status !== 'outdate');
     // 已知业务字段保留原有渲染形态，其余按列类型兜底
     const renderTaskCell = (column: CollectionTaskColumn, row: CollectionExecution) => {
       const value = (row as unknown as Record<string, unknown>)[column.field];
@@ -399,9 +417,35 @@ export default defineComponent({
           resizable: true,
           ellipsis: column.type === 'text',
           // 任务名称吸附在最左侧；固定列需排在列首，故同时调整列顺序
-          ...(column.field === 'task_name' ? { fixed: 'left' as const } : {}),
+          ...(column.field === 'task_name' || column.field === 'id' ? { fixed: 'left' as const } : {}),
           cell:
             taskColumnSlots.get(column.field) || ((_, { row }) => renderTaskCell(column, row as CollectionExecution)),
+          ...(column.field === 'collection_method'
+            ? {
+                filter: {
+                  type: 'multiple',
+                  resetValue: [],
+                  showConfirmAndReset: true,
+                  list: (this.filterOptions.collection_method || []).map(value => ({
+                    value,
+                    label: collectionMethodLabels[value] || value,
+                  })),
+                },
+              }
+            : {}),
+          ...(column.field === 'collection_type'
+            ? {
+                filter: {
+                  type: 'multiple',
+                  resetValue: [],
+                  showConfirmAndReset: true,
+                  list: (this.filterOptions.collection_type || []).map(value => ({
+                    value,
+                    label: collectionTypeLabels[value] || value,
+                  })),
+                },
+              }
+            : {}),
           ...(column.field === 'schedule_type'
             ? {
                 filter: {
@@ -419,9 +463,10 @@ export default defineComponent({
                   type: 'multiple',
                   resetValue: [],
                   showConfirmAndReset: true,
-                  list: this.statusFilters
-                    .filter(value => Object.hasOwn(executionStatusLabels, value))
-                    .map(value => ({ value, label: this.t(executionStatusLabels[value]) })),
+                  list: statusFilters.map(value => ({
+                    value,
+                    label: this.t(executionStatusLabels[value] || value),
+                  })),
                 },
               }
             : {}),
@@ -436,10 +481,15 @@ export default defineComponent({
         cell: 'operations',
       },
     ];
-    // 任务名称吸附在最左侧，不在首位时前置到列首
+    // id 与任务名称吸附在最左侧；id 列只在接口下发时才前置，回退列没有该字段
+    const idColumn = baseColumns.find(column => column.colKey === 'id');
     const taskNameColumn = baseColumns.find(column => column.colKey === 'task_name');
     const columns = taskNameColumn
-      ? [taskNameColumn, ...baseColumns.filter(column => column !== taskNameColumn)]
+      ? [
+          ...(idColumn ? [idColumn] : []),
+          taskNameColumn,
+          ...baseColumns.filter(column => column !== taskNameColumn && column !== idColumn),
+        ]
       : baseColumns;
     return (
       <section class='collection-tab-panel collection-history-panel'>
@@ -569,6 +619,8 @@ export default defineComponent({
                 : column
             )}
             filterValue={{
+              collection_method: this.filters.collection_method,
+              collection_type: this.filters.collection_type,
               execution_status: this.filters.status,
               schedule_type: this.filters.schedule_types,
             }}
@@ -587,6 +639,8 @@ export default defineComponent({
             onFilterChange={value =>
               this.$emit('change', {
                 ...this.filters,
+                collection_method: (value.collection_method || []) as string[],
+                collection_type: (value.collection_type || []) as string[],
                 status: (value.execution_status || []) as string[],
                 schedule_types: (value.schedule_type || []) as string[],
               })
