@@ -3,10 +3,12 @@ import json
 from types import SimpleNamespace
 
 import pytest
+from django.urls import resolve
 from rest_framework.renderers import JSONRenderer
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from common.context_processors import get_default_biz_id
+from monitor_web.commons.biz.resources import BusinessListOptionResource, ListSpacesResource
 from monitor_web.commons.context import resources, views
 
 
@@ -37,6 +39,56 @@ def test_enhanced_context_is_gzipped(mocker):
     assert response["Content-Encoding"] == "gzip"
     assert json.loads(gzip.decompress(response.content)) == context
     assert response.cookies["bk_biz_id"].value == "2"
+
+
+@pytest.mark.parametrize(
+    "accept_encoding,compressed",
+    [
+        ("gzip, deflate, br", True),
+        ("br, gzip;q=0.5", True),
+        (None, False),
+        ("identity", False),
+        ("br", False),
+        ("gzip;q=0, identity", False),
+    ],
+)
+def test_list_spaces_negotiates_compression(mocker, accept_encoding, compressed):
+    spaces = [{"space_id": str(i), "space_name": f"Space {i}"} for i in range(500)]
+    mocker.patch.object(ListSpacesResource, "request", return_value=spaces)
+
+    def get_directory(encoding):
+        path = "/rest/v2/commons/list_spaces/"
+        request = APIRequestFactory().get(path, **({"HTTP_ACCEPT_ENCODING": encoding} if encoding else {}))
+        force_authenticate(request, user=mocker.Mock(is_authenticated=True))
+        response = resolve(path).func(request)
+        response.render()
+        return response
+
+    identity = get_directory(None)
+    response = get_directory(accept_encoding)
+    assert response.status_code == identity.status_code == 200
+    assert len(identity.content) > 10000
+    assert "accept-encoding" in {item.strip().lower() for item in response["Vary"].split(",")}
+    assert response.get("Content-Encoding") == ("gzip" if compressed else None)
+    if compressed:
+        assert len(response.content) < len(identity.content)
+        assert gzip.decompress(response.content) == identity.content
+    else:
+        assert response.content == identity.content
+
+
+def test_neighboring_business_options_route_keeps_its_encoding(mocker):
+    mocker.patch.object(
+        BusinessListOptionResource, "request", return_value=[{"id": i, "text": "option"} for i in range(500)]
+    )
+    path = "/rest/v2/commons/business_list_option/"
+    request = APIRequestFactory().get(path, HTTP_ACCEPT_ENCODING="gzip")
+    force_authenticate(request, user=mocker.Mock(is_authenticated=True))
+    response = resolve(path).func(request)
+    response.render()
+    assert response.status_code == 200 and len(response.content) > 10000
+    assert "Content-Encoding" not in response
+    assert "accept-encoding" not in response.get("Vary", "").lower()
 
 
 @pytest.fixture

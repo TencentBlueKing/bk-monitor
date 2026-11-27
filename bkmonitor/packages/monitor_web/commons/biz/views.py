@@ -8,6 +8,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from functools import wraps
+
+from django.utils.cache import patch_vary_headers
+from django.utils.decorators import method_decorator
+from django.utils.http import parse_header_parameters
+from django.views.decorators.gzip import gzip_page
+
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from monitor_web.permissions import GlobalSettingPermission
@@ -36,10 +43,39 @@ class FetchBusinessInfoViewSet(ResourceViewSet):
     ]
 
 
+def _gzip_space_directory(view):
+    compressed_view = gzip_page(view)
+
+    @wraps(view)
+    def negotiated(request, *args, **kwargs):
+        if request.method != "GET":
+            return view(request, *args, **kwargs)
+
+        selected_view = view
+        # Django's gzip_page checks for a gzip token even when its quality is zero.
+        for coding in request.headers.get("Accept-Encoding", "").split(","):
+            name, parameters = parse_header_parameters(coding)
+            if name != "gzip":
+                continue
+            try:
+                quality = float(parameters.get("q", "1"))
+            except ValueError:
+                break
+            if 0 < quality <= 1:
+                selected_view = compressed_view
+            break
+
+        response = selected_view(request, *args, **kwargs)
+        patch_vary_headers(response, ("Accept-Encoding",))
+        return response
+
+    return negotiated
+
+
 class ListSpacesViewSet(ResourceViewSet):
     permission_classes = ()
     resource_routes = [
-        ResourceRoute("GET", resource.commons.list_spaces),
+        ResourceRoute("GET", resource.commons.list_spaces, decorators=[method_decorator(_gzip_space_directory)]),
     ]
 
 
