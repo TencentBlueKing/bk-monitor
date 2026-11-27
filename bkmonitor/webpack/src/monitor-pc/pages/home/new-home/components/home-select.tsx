@@ -30,6 +30,8 @@ import { getAlarmCenterRouteLocation } from 'monitor-common/utils/alarm-center-r
 import debounceDecorator from 'monitor-common/utils/debounce-decorator';
 import bus from 'monitor-common/utils/event-bus';
 import { getCmdShortcutKey } from 'monitor-common/utils/navigator';
+import { supportsSpaceDirectoryPages } from 'monitor-common/utils/space-directory';
+import { resolveSelectedSpaces } from 'monitor-common/utils/space-selection';
 import { random } from 'monitor-common/utils/utils';
 import { SPACE_TYPE_MAP } from 'monitor-pc/common/constant';
 
@@ -37,7 +39,8 @@ import { COMMON_ROUTE_LIST } from '../../../../router/router-config';
 import reportLogStore from '../../../../store/modules/report-log';
 import { ESearchPopoverType, ESearchType, flattenRoute, splitHighlightFragments } from '../utils';
 
-import type { IDataItem, IRouteItem, ISearchItem, ISearchListItem } from '../type';
+import type { IRouteItem, ISearchItem, ISearchListItem } from '../type';
+import type { ISpaceItem } from 'monitor-common/typings';
 
 import './home-select.scss';
 
@@ -92,7 +95,8 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   isEmpty = false;
   searchLenArr: number[] = [];
   isComposing = false;
-  currentAbortController: IDataItem = null;
+  currentAbortController: AbortController = null;
+  resultSpaces: ISpaceItem[] = [];
   /** 窗口宽度 */
   windowWidth = 0;
   textareaRow = MIN_ROW;
@@ -115,8 +119,11 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   }
   /** 获取业务类型列表 */
   get spaceTypeIdList() {
+    const spaces: ISpaceItem[] = this.resultSpaces.length
+      ? [...this.$store.getters.bizList, ...this.resultSpaces]
+      : this.$store.getters.bizList;
     const spaceTypeMap: Record<string, number> = {};
-    for (const item of this.$store.getters.bizList) {
+    for (const item of spaces) {
       spaceTypeMap[item.space_type_id] = 1;
       if (item.space_type_id === 'bkci' && item.space_code) {
         spaceTypeMap.bcs = 1;
@@ -126,7 +133,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       id: key,
       name: SPACE_TYPE_MAP[key]?.name || this.$t('未知'),
       styles: SPACE_TYPE_MAP[key]?.light || {},
-      list: this.$store.getters.bizList.filter(item => item.space_type_id === key).map(item => item.bk_biz_id),
+      list: spaces.filter(item => item.space_type_id === key).map(item => Number(item.bk_biz_id)),
     }));
   }
 
@@ -140,6 +147,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     bus.$on('handle-keyup-nav', this.handleKeyupNav);
   }
   beforeDestroy() {
+    this.currentAbortController?.abort();
     document.removeEventListener('click', this.handleClickOutside);
     window.removeEventListener('resize', this.updateWidth);
     window.removeEventListener('blur', this.handleHiddenPopover);
@@ -175,14 +183,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   /** 后台eventStream数据处理 Start */
   /** 解析后台返回的eventStream */
   @debounceDecorator(500)
-  async fetchEventStream(url: string) {
-    // 如果已经存在一个请求，取消请求
-    if (this.currentAbortController) {
-      this.currentAbortController.abort();
-    }
-    this.currentAbortController = new AbortController();
-    const { signal } = this.currentAbortController;
-
+  async fetchEventStream(url: string, signal: AbortSignal) {
+    if (signal.aborted) return;
+    const requested = supportsSpaceDirectoryPages()
+      ? new Set<number>(this.$store.getters.bizList.map(space => Number(space.bk_biz_id)))
+      : null;
+    this.resultSpaces = [];
     this.searchList = [];
     this.highlightedIndex = [-1, -1];
     this.highlightedItem = null;
@@ -202,25 +208,43 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
 
       while (true) {
         const { done, value } = await reader.read();
+        if (signal.aborted) return;
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
 
         let boundary = buffer.indexOf('\n\n');
+        const missing = new Set<number>();
         while (boundary !== -1) {
           const eventString = buffer.substring(0, boundary);
           buffer = buffer.substring(boundary + 2);
-          this.processEvent(eventString);
+          const result = this.processEvent(eventString);
+          if (requested && result) {
+            for (const item of result.items) {
+              const id = Number(item.bk_biz_id);
+              if (Number.isSafeInteger(id) && id !== 0 && !requested.has(id)) {
+                missing.add(id);
+                requested.add(id);
+              }
+            }
+          }
           boundary = buffer.indexOf('\n\n');
         }
+        if (missing.size) void this.loadResultSpaceTypes([...missing], signal);
       }
     } catch (error) {
+      if (signal.aborted) return;
       this.isLoading = false;
       this.searchList = [];
       console.error('Error fetching event stream:', error);
     } finally {
-      this.isLoading = false;
+      if (!signal.aborted) this.isLoading = false;
     }
+  }
+
+  async loadResultSpaceTypes(ids: number[], signal: AbortSignal) {
+    const rows = await resolveSelectedSpaces(ids).catch(() => []);
+    if (!signal.aborted) this.resultSpaces = [...this.resultSpaces, ...rows];
   }
   /** 特殊处理alert_id */
   extractAlertId(str: string) {
@@ -254,7 +278,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     return [...searchList, parsedData];
   }
   /** 处理后台返回的数据 */
-  processEvent(eventString: string) {
+  processEvent(eventString: string): ISearchListItem | undefined {
     try {
       // 事件字符串中是否包含'end'来设置this.isLoading的值，若不包含'end'则设为true，表示正在加载，反之设为false
       this.isLoading = eventString.indexOf('end') < 0;
@@ -270,6 +294,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
         /** 默认选中第一个，直接回车的话就按照第一个跳转 */
         this.highlightedIndex = [0, 0];
         this.getSearchHightItem();
+        return parsedData;
       }
     } catch (error) {
       this.isLoading = false;
@@ -287,7 +312,9 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     if (bizId !== undefined && bizId !== null && bizId !== '') {
       url += `&bk_biz_id=${encodeURIComponent(String(bizId))}`;
     }
-    this.fetchEventStream(url);
+    this.currentAbortController?.abort();
+    this.currentAbortController = new AbortController();
+    this.fetchEventStream(url, this.currentAbortController.signal);
   }
   /* 显示弹出层 */
   handleMousedown() {
@@ -386,7 +413,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
         {this.spaceTypeIdList.length > 0 &&
           this.spaceTypeIdList?.map?.(
             tag =>
-              tag.list.includes(item.bk_biz_id) && (
+              tag.list.includes(Number(item.bk_biz_id)) && (
                 <span
                   key={tag.id}
                   // 支持通过 tag.styles 自定义标签样式（颜色、背景等）
@@ -562,6 +589,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   }
   /** 重置相关的数据 */
   handleResetData() {
+    this.currentAbortController?.abort();
     this.isInput = false;
     this.searchValue = '';
     this.highlightedIndex = [-1, -1];
@@ -597,6 +625,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
     return Math.min(Math.max(calculatedRows, MIN_ROW), MAX_ROW);
   }
   autoResize(event?: Event) {
+    if (event) this.currentAbortController?.abort();
     !this.isComposing && setTimeout(this.handleGetSearchData, 500);
     this.isInput = !!event?.target?.value;
     this.textareaRow = this.limitRows();
