@@ -112,6 +112,19 @@ class AssignRuleMatch:
             "group_name": self.assign_rule.get("group_name", self.assign_rule.get("name", "")),
         }
 
+    def snapshot(self, *, history_only=False):
+        snapshot = {key: value for key, value in self.assign_rule.items() if key not in ("alerts", "suppressed_alerts")}
+        if history_only:
+            # 被压制的规则仅用于展示配置，无需复制动态组展开后的主机全集。
+            if "configured_conditions" in snapshot:
+                snapshot.pop("conditions")
+        else:
+            # 当前配置与同一生效规则的升级进度一起保存，供后续通知使用。
+            for field in ("last_group_index", "last_upgrade_time"):
+                if field in self.assign_rule_snap:
+                    snapshot[field] = self.assign_rule_snap[field]
+        return snapshot
+
     @property
     def rule_id(self):
         return self.assign_rule.get("id")
@@ -426,11 +439,33 @@ class AlertAssignMatchManager(AlertMatchContext):
             conditions.append(condition)
         return {**rule, "conditions": conditions, "configured_conditions": rule["conditions"]}
 
-    def get_matched_rules(self) -> list[AssignRuleMatch]:
+    def get_matched_rules(self, *, record_history=False) -> list[AssignRuleMatch]:
         matched_rules = []
-        audit = self.matched_rule_info["matched_rules"] = []
+        self.matched_rule_info["matched_rules"] = []
+        self.matched_rule_info["rule_snaps"] = {}
         if AssignMode.BY_RULE not in self.assign_mode:
             return matched_rules
+        if record_history:
+            self.matched_rule_info["history_complete"] = True
+        explain = record_history or self.explain
+        settled = False
+        try:
+            for rules, settled in self._match_priority_tiers(explain, record_history):
+                matched_rules.extend(rules)
+                if settled and not explain:
+                    break
+        except Exception:
+            # 已裁决的动作不依赖后续层。补充历史失败时直接保留结果，避免重新取缓存。
+            if not (settled and record_history):
+                raise
+            self._mark_history_incomplete()
+        return matched_rules
+
+    def _mark_history_incomplete(self):
+        self.matched_rule_info["history_complete"] = False
+        logger.exception("alert(%s) failed to collect full dispatch history", self.alert.id)
+
+    def _match_priority_tiers(self, explain, record_history):
         resolved = set()
         attributes_resolved = False
         noise = AssignActionType.NOISE
@@ -443,11 +478,18 @@ class AlertAssignMatchManager(AlertMatchContext):
                 possible = match.actions.keys() - resolved
                 if resolved & ORDINARY_ACTION_TYPES:
                     possible.discard(noise)
-                if not (possible or (not attributes_resolved and match.has_attributes) or self.explain):
+                needed = noise not in resolved and (possible or (not attributes_resolved and match.has_attributes))
+                if not (needed or explain):
                     continue
-                match.assign_rule = self.resolve_conditions(rule)
-                if match.is_matched(self.dimensions):
-                    hits.append(match)
+                try:
+                    match.assign_rule = self.resolve_conditions(rule)
+                    if match.is_matched(self.dimensions):
+                        hits.append(match)
+                except Exception:
+                    if needed or not record_history:
+                        raise
+                    # 本条规则已被压制，其他层仍可能有尚未裁决的动作。
+                    self._mark_history_incomplete()
 
             tier_types = {kind for hit in hits for kind in hit.actions}
             winners = tier_types - resolved
@@ -459,11 +501,14 @@ class AlertAssignMatchManager(AlertMatchContext):
             elif (resolved | tier_types) & ORDINARY_ACTION_TYPES:
                 winners.discard(noise)
 
+            matched_rules = []
             for hit in hits:
                 hit.matched_types = hit.actions.keys() & winners
                 hit.apply_attributes = not attributes_resolved and noise not in resolved and hit.has_attributes
                 if hit.matched_types or hit.apply_attributes:
                     matched_rules.append(hit)
+                elif record_history:
+                    self.matched_rule_info["rule_snaps"][str(hit.rule_id)] = hit.snapshot(history_only=True)
                 suppressed = {}
                 for kind in hit.actions.keys() - hit.matched_types:
                     if noise in resolved and kind != noise:
@@ -472,7 +517,7 @@ class AlertAssignMatchManager(AlertMatchContext):
                         suppressed[kind] = noise_reason
                     else:
                         suppressed[kind] = "higher_priority_same_type"
-                audit.append(
+                self.matched_rule_info["matched_rules"].append(
                     {
                         "rule_id": hit.rule_id,
                         **hit.assign_group(),
@@ -484,9 +529,7 @@ class AlertAssignMatchManager(AlertMatchContext):
 
             resolved.update(winners)
             attributes_resolved |= any(hit.apply_attributes for hit in hits)
-            if not self.explain and (noise in resolved or ORDINARY_ACTION_TYPES <= resolved):
-                break
-        return matched_rules
+            yield matched_rules, noise in resolved or ORDINARY_ACTION_TYPES <= resolved
 
     def get_itsm_actions(self):
         """
@@ -545,12 +588,7 @@ class AlertAssignMatchManager(AlertMatchContext):
                 ai_action = rule_obj.actions[AssignActionType.AI_ANALYSIS]
                 ai_groups.extend(ai_action.get("user_groups", rule_obj.assign_rule.get("user_groups", [])))
             noise |= AssignActionType.NOISE in rule_obj.matched_types
-            rule_snapshot = {key: value for key, value in rule_obj.assign_rule.items() if key != "alerts"}
-            # 配置来自当前命中的规则；升级进度继承自同一条规则的告警快照。
-            for field in ("last_group_index", "last_upgrade_time"):
-                if field in rule_obj.assign_rule_snap:
-                    rule_snapshot[field] = rule_obj.assign_rule_snap[field]
-            new_rule_snaps[str(rule_obj.rule_id)] = rule_snapshot
+            new_rule_snaps[str(rule_obj.rule_id)] = rule_obj.snapshot()
 
         if noise or ai_groups is not None:
             # 老规则通过追加标签触发 AI；显式动作裁决后由告警构造器统一写系统标签。
@@ -568,11 +606,13 @@ class AlertAssignMatchManager(AlertMatchContext):
                 },
                 "severity": min(all_severity, default=0),
                 "additional_tags": additional_tags,
-                "rule_snaps": new_rule_snaps,
                 # 历史消费者只接受一个规则组，保留最高生效组。
                 "group_info": self.matched_rules[0].assign_group(),
             }
         )
+        # 重试和升级只继承生效规则。告警详情另存所有实际命中的配置。
+        self.alert.extra_info["rule_snaps"] = new_rule_snaps
+        self.matched_rule_info["rule_snaps"].update(new_rule_snaps)
 
     def run_match(self):
         """
@@ -584,7 +624,6 @@ class AlertAssignMatchManager(AlertMatchContext):
             if self.severity:
                 self.alert.severity = self.severity
                 self.alert.extra_info["severity_source"] = self.severity_source
-            self.alert.extra_info["rule_snaps"] = self.matched_rule_info["rule_snaps"]
             self.update_assign_tags()
 
     def get_alert_log(self, evaluated_at=None):

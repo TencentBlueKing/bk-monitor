@@ -15,7 +15,9 @@ from unittest.mock import Mock
 import pytest
 from fakeredis import FakeRedis
 
+from alarm_backends.core.alert import Alert
 from alarm_backends.core.cache.assign import AssignCacheManager
+from alarm_backends.service.alert.enricher.rule_assign import AssignInfoEnricher
 from alarm_backends.service.alert.manager.checker.upgrade import UpgradeChecker
 from alarm_backends.service.fta_action.tasks.alert_assign import AlertAssigneeManager, BackendAssignMatchManager
 from bkmonitor.action.alert_assign import AlertAssignMatchManager
@@ -119,7 +121,9 @@ def test_each_type_wins_its_own_tier(monkeypatch, runtime):
     assert result["itsm_actions"] == {42: [4]}
     assert result["dispatch_result"] == {"ai_analysis": {"user_groups": [5, 6, 7]}, "noise": False}
     assert result["severity"] == 2
-    assert set(result["rule_snaps"]) == {"1", "2", "4", "5", "6"}
+    effective_ids = {"1", "2", "4", "5", "6"}
+    assert set(manager.alert.extra_info["rule_snaps"]) == effective_ids
+    assert set(result["rule_snaps"]) == effective_ids
     audit = {hit["rule_id"]: hit for hit in result["matched_rules"]}
     assert audit[3]["suppressed_actions"] == {"noise": "ordinary_at_same_priority"}
     assert audit[6]["action_types"] == ["itsm"]
@@ -139,6 +143,7 @@ def test_high_noise_stops_runtime_and_explains_lower_candidates_in_preview(monke
     cache, _ = cache_rules(monkeypatch, tiers)
     runtime = BackendAssignMatchManager(alert(), cmdb_attrs={})
     runtime.run_match()
+    assert "history_complete" not in runtime.matched_rule_info
     assert cache.mget.call_count == 2
     assert not any("priority_2_90" in key for call in cache.mget.call_args_list for key in call.args[0])
     preview = run_preview(tiers, explain=True)
@@ -150,6 +155,102 @@ def test_high_noise_stops_runtime_and_explains_lower_candidates_in_preview(monke
         "notice": "noise_won",
         "ai_analysis": "noise_won",
     }
+
+
+def test_new_alert_freezes_suppressed_config_without_adding_it_to_runtime_snapshots(monkeypatch):
+    configured = [{"field": "dynamic_group", "method": "eq", "value": ["storage"]}]
+    resolved = [{"field": "bk_host_id", "method": "eq", "value": list(range(3000))}]
+    suppressed = rule(
+        2, 10, action("ai_analysis", user_groups=[41]), conditions=resolved, configured_conditions=configured
+    )
+    tiers = [
+        [rule(1, 20, action("noise", remark="maintenance"))],
+        [suppressed, rule(3, 10, action("notice"), conditions=[{"field": "alert.name", "value": ["other"]}])],
+    ]
+    cache, _ = cache_rules(monkeypatch, tiers)
+    monkeypatch.setattr("alarm_backends.service.fta_action.tasks.alert_assign.get_backend_cmdb_attrs", lambda _: {})
+    alarm = Alert(
+        {
+            "id": "alert-id",
+            "alert_name": "test",
+            "severity": 2,
+            "begin_time": 10,
+            "create_time": 10,
+            "latest_time": 10,
+            "first_anomaly_time": 10,
+            "event": {"bk_biz_id": 2, "bk_host_id": 7, "metric": [], "tags": []},
+            "extra_info": {"custom": "kept"},
+        }
+    )
+    alarm._is_new = True
+    AssignInfoEnricher([alarm]).enrich()
+    stored = alarm.to_document().to_dict()
+    record = stored["extra_info"]["matched_rule_info"]
+    assert stored["extra_info"]["custom"] == "kept"
+    assert stored["extra_info"]["dispatch_evaluation"]["status"] == "matched"
+    assert record["history_complete"] is True
+    assert record["dispatch_result"] == {"ai_analysis": None, "noise": True}
+    assert set(record["rule_snaps"]) == {"1", "2"}
+    assert record["rule_snaps"]["2"]["actions"] == [action("ai_analysis", user_groups=[41])]
+    assert record["rule_snaps"]["2"]["configured_conditions"] == configured
+    assert "conditions" not in record["rule_snaps"]["2"]
+    assert record["matched_rules"][-1] == {
+        "rule_id": 2,
+        "group_id": 10,
+        "group_name": "10",
+        "priority": 10,
+        "action_types": [],
+        "suppressed_actions": {"ai_analysis": "noise_won"},
+    }
+    assert not record["notice_appointees"] and not record["itsm_actions"]
+
+    # 变更当前规则后，重载告警不重建快照，也不产生第二条流水。
+    suppressed["actions"] = [action("notice")]
+    updated_cache, _ = cache_rules(monkeypatch, tiers)
+    reloaded = Alert(stored)
+    AssignInfoEnricher([reloaded]).enrich()
+    assert reloaded.get_extra_info("matched_rule_info") == record
+    assert not reloaded.logs
+    updated_cache.get.assert_not_called()
+    assert cache.mget.call_count == 4
+
+
+def test_history_read_failure_preserves_winning_noise_and_marks_partial_history(monkeypatch):
+    tiers = [[rule(1, 20, action("noise"))], [rule(2, 10, action("notice"))]]
+    cache, values = cache_rules(monkeypatch, tiers)
+    broken_key = AssignCacheManager.GROUP_CACHE_KEY_TEMPLATE.format(bk_biz_id=2, group_id=10)
+
+    def read_batch(keys):
+        if broken_key in keys:
+            cache.get.side_effect = ConnectionError("cache unavailable")
+            cache.mget.side_effect = ConnectionError("cache unavailable")
+            raise ConnectionError("cache unavailable")
+        return [values.get(key) for key in keys]
+
+    cache.mget.side_effect = read_batch
+    manager = BackendAssignMatchManager(alert(), cmdb_attrs={}, record_history=True)
+    manager.run_match()
+    assert manager.matched_rule_info["history_complete"] is False
+    assert manager.matched_rule_info["dispatch_result"] == {"ai_analysis": None, "noise": True}
+    assert [item["rule_id"] for item in manager.matched_rule_info["matched_rules"]] == [1]
+    assert set(manager.alert.extra_info["rule_snaps"]) == {"1"}
+    assert not manager.get_notice_user_groups() and not manager.get_itsm_actions()
+    assert cache.get.call_count == 2  # 全局和业务优先级各读一次，缓存断开后不再回读。
+
+
+def test_invalid_condition_of_suppressed_rule_does_not_block_lower_ai(monkeypatch):
+    tiers = [
+        [rule(1, 30, action("notice"), user_groups=[31])],
+        [rule(2, 20, action("notice"), conditions=[None])],
+        [rule(3, 10, action("ai_analysis", user_groups=[41]))],
+    ]
+    cache_rules(monkeypatch, tiers)
+    manager = BackendAssignMatchManager(alert(), cmdb_attrs={}, record_history=True)
+    manager.run_match()
+    assert manager.matched_rule_info["history_complete"] is False
+    assert manager.matched_rule_info["notice_appointees"] == [31]
+    assert manager.matched_rule_info["dispatch_result"]["ai_analysis"] == {"user_groups": [41]}
+    assert {hit["rule_id"] for hit in manager.matched_rule_info["matched_rules"]} == {1, 3}
 
 
 def test_cold_tiers_use_bulk_reads_and_warm_alert_reuses_global_and_business_rules(monkeypatch):

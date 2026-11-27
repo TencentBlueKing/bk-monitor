@@ -61,13 +61,18 @@ class BackendAssignMatchManager(AlertAssignMatchManager):
         assign_mode=None,
         notice_type=None,
         cmdb_attrs=None,
+        record_history=False,
     ):
         if cmdb_attrs is None:
             cmdb_attrs = get_backend_cmdb_attrs(alert)
         super().__init__(alert, notice_users, group_rules, assign_mode, notice_type, cmdb_attrs)
+        self.record_history = record_history
 
     def iter_priority_rules(self):
         return AssignCacheManager.iter_priority_rules(self.bk_biz_id)
+
+    def get_matched_rules(self):
+        return super().get_matched_rules(record_history=self.record_history)
 
     def resolve_conditions(self, rule):
         # 后台缓存刷新时已将动态分组转换为 bk_host_id。
@@ -129,6 +134,7 @@ class AlertAssigneeManager:
             notice_users=self.get_origin_notice_users(),
             assign_mode=self.assign_mode,
             notice_type=self.notice_type,
+            record_history=self._is_new,
         )
         manager.run_match()
         self.is_matched = bool(manager.matched_rules)
