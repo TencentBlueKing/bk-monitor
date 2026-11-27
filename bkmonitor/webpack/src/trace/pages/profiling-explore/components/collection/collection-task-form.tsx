@@ -420,6 +420,15 @@ export default defineComponent({
                         {fieldError('duration_sec')}
                       </Form.FormItem>
                     )}
+                    {d.method === 'perf' && (
+                      <Form.FormItem
+                        label={this.t('采样频率')}
+                        required
+                      >
+                        {numericField('frequency_hz', 'Hz')}
+                        {fieldError('frequency_hz')}
+                      </Form.FormItem>
+                    )}
                   </div>
                   {d.method === 'golang' && (
                     <div class='collection-form-columns'>
@@ -439,17 +448,6 @@ export default defineComponent({
                       >
                         {numericField('port')}
                         {fieldError('port')}
-                      </Form.FormItem>
-                    </div>
-                  )}
-                  {d.method === 'perf' && (
-                    <div class='collection-form-columns'>
-                      <Form.FormItem
-                        label={this.t('采样频率')}
-                        required
-                      >
-                        {numericField('frequency_hz', 'Hz')}
-                        {fieldError('frequency_hz')}
                       </Form.FormItem>
                     </div>
                   )}
