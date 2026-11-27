@@ -307,3 +307,33 @@ test('retry recovers an incomplete page and reopening verifies the previous sele
   assert.equal(f.state.canMakeCurrent(7), false);
   f.destroy();
 });
+
+test('incomplete normal authorization keeps confirmed rows and retries unresolved IDs before looking up alert-only names', async () => {
+  const f = fixture({ value: [7, 8], hasAuthApply: true });
+  f.take('allowed', { bk_biz_ids: '7,8' }).resolve(page([row(7)], null, true));
+  await tick();
+  assert.deepEqual(f.calls, []);
+  assert.equal(f.state.lookupError, true);
+  assert.deepEqual(
+    f.state.valueStrList.map(item => item.name),
+    ['space 7', '#8']
+  );
+  assert.deepEqual(f.store.noAuthBizIds, []);
+  f.open();
+  f.take('allowed', { bk_biz_ids: '7,8' }).resolve(page([row(7)], null, true));
+  f.take('allowed', { bk_biz_ids: undefined }).resolve(page([row(9)], null, true));
+  f.take('alert', { bk_biz_ids: undefined }).resolve(page());
+  await tick();
+  assert.equal(f.state.pageError, true);
+  assert.deepEqual(f.ids(), [7, 8, 9]);
+  assert.equal(f.state.canMakeCurrent(8), false);
+  f.clickText('部分空间未能确认，请重试');
+  f.take('allowed', { bk_biz_ids: '8' }).resolve(page([row(8)]));
+  f.take('allowed', { bk_biz_ids: undefined }).resolve(page([row(9)]));
+  f.take('alert', { bk_biz_ids: undefined }).resolve(page());
+  await tick();
+  assert.deepEqual(f.calls, []);
+  assert.equal(f.state.pageError || f.state.lookupError, false);
+  assert.equal(f.state.canMakeCurrent(8), true);
+  f.destroy();
+});

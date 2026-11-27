@@ -85,6 +85,7 @@ export class PagedSpaceOptions {
         if (generation !== this.lookupGeneration) return false;
         for (const item of page.items) this.references.set(item.bk_biz_id, item);
         const unseen = batch.filter(id => !this.references.has(id));
+        if (page.partial && unseen.length) throw new Error('Incomplete authorized space lookup');
         if (includeAlerts && unseen.length) {
           const alerts = await queryAlertSpaceDirectory({ bkBizIds: unseen, pageSize: unseen.length });
           if (generation !== this.lookupGeneration) return false;

@@ -274,6 +274,7 @@ export default defineComponent({
       hasMore.value = remote.allowed.hasMore || remote.alerts.hasMore;
       pageError.value =
         results.some(result => result.status === 'rejected') ||
+        remote.allowed.partial ||
         remote.alerts.partial ||
         remote.allowed.failed ||
         remote.alerts.failed;
