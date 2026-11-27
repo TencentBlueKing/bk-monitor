@@ -67,11 +67,7 @@ export default defineComponent({
                 class={['mode-item', { active: this.value === item.value }]}
                 onClick={() => this.handleSelect(item.value)}
               >
-                <span class='mode-text'>
-                  {item.prefix}
-                  <span class='mode-dots'>...</span>
-                  {item.suffix}
-                </span>
+                <span class={`mode-item-icon icon-monitor ${item.icon}`} />
               </div>
               {index < this.modeList.length - 1 && (
                 <span

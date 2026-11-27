@@ -42,12 +42,24 @@ import './ellipsis-text.scss';
 
 /** 中间省略插入的省略号，不参与字符截断计算 */
 const ELLIPSIS_DOT = '...';
-/** 中间省略时尾部保留的字符占比 */
+/** 中间省略时尾部占可用宽度的比例 */
 const TAIL_RATIO = 1 / 3;
 /** 判断能否放下时的容差，抵消 clientWidth 取整与文本宽度亚像素的差异 */
 const WIDTH_TOLERANCE = 0.5;
 /** canvas 粗测可能略小于真实布局宽度，DOM 精测回退次数上限 */
 const DOM_RETRY_LIMIT = 3;
+
+/** 在 [0, max] 内二分出满足限制的最大长度，调用方需保证限制随长度单调（宽度随字符数递增） */
+const maxFittingLength = (max: number, fits: (length: number) => boolean) => {
+  let low = 0;
+  let high = max;
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+    if (fits(middle)) low = middle;
+    else high = middle - 1;
+  }
+  return low;
+};
 
 /** 所有实例共享的隐藏测量节点与 canvas，避免每个单元格都往 body 挂节点 */
 let measureElement: HTMLElement = null;
@@ -186,22 +198,35 @@ export default defineComponent({
       }
       // 按码点切分，避免把 emoji 等代理对截断成乱码
       const chars = Array.from(text);
-      const tailLength = Math.max(1, Math.floor(chars.length * TAIL_RATIO));
-      const tail = chars.slice(-tailLength).join('');
       const limit = Math.max(width - WIDTH_TOLERANCE, 0);
-      const buildText = (headLength: number) => `${chars.slice(0, headLength).join('')}${ELLIPSIS_DOT}${tail}`;
-      let low = 0;
-      let high = chars.length - tailLength;
-      while (low < high) {
-        const middle = Math.ceil((low + high) / 2);
-        if (measurer.byCanvas(buildText(middle)) <= limit) low = middle;
-        else high = middle - 1;
+      const tailOf = (length: number) => (length > 0 ? chars.slice(-length).join('') : '');
+      // 尾段按可用宽度的占比切分：窄列里 1/3 字符的尾段可能吃满整行，把头部挤成 0 字符
+      const tailWidthBudget = Math.max(limit - measurer.byCanvas(ELLIPSIS_DOT), 0) * TAIL_RATIO;
+      let tailLength = maxFittingLength(
+        Math.max(chars.length - 1, 0),
+        length => measurer.byCanvas(tailOf(length)) <= tailWidthBudget
+      );
+      // 单个宽字形可能超出 1/3 预算，但「首字 + 省略号 + 尾字」仍放得下时保留中间省略，避免退化成末尾省略
+      if (tailLength === 0 && chars.length > 1) {
+        const headAndTail = `${chars[0]}${ELLIPSIS_DOT}${tailOf(1)}`;
+        // canvas 与 DOM 都放得下才抬高，否则精测会把头部减到 0，反而退化成开头省略
+        if (measurer.byCanvas(headAndTail) <= limit && measurer.byDom(headAndTail) <= limit) {
+          tailLength = 1;
+        }
       }
+      const buildText = (headLength: number) =>
+        `${chars.slice(0, headLength).join('')}${ELLIPSIS_DOT}${tailOf(tailLength)}`;
+      let head = maxFittingLength(chars.length - tailLength, length => measurer.byCanvas(buildText(length)) <= limit);
       // canvas 宽度与真实布局有偏差时，用共享节点精测并回退
-      let head = low;
       let retry = 0;
       while (head > 0 && retry < DOM_RETRY_LIMIT && measurer.byDom(buildText(head)) > limit) {
         head -= 1;
+        retry += 1;
+      }
+      // 极端窄列下尾段连 1/3 预算都放不下，头部已无字符可减，只能继续收缩尾段
+      retry = 0;
+      while (head === 0 && tailLength > 0 && retry < DOM_RETRY_LIMIT && measurer.byDom(buildText(0)) > limit) {
+        tailLength -= 1;
         retry += 1;
       }
       displayText.value = buildText(head);

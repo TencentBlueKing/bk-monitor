@@ -121,13 +121,13 @@ export const RumEllipsisModeEnum = {
 export type RumEllipsisModeType = (typeof RumEllipsisModeEnum)[keyof typeof RumEllipsisModeEnum];
 
 /**
- * 省略方式选项。示意文案固定为 ab... / a...z / ...yz，不参与 i18n；
- * 省略号单独渲染，便于按设计稿压缩点间距并贴住基线。
+ * 省略方式选项。示意图标按设计稿展示 ab... / a...z / ...yz，不参与 i18n；
+ * 图标字形来自 monitor-icons，颜色与字重由外层模式按钮控制。
  */
-export const RUM_ELLIPSIS_MODE_LIST: { prefix: string; suffix: string; value: RumEllipsisModeType }[] = [
-  { prefix: 'ab', suffix: '', value: RumEllipsisModeEnum.END },
-  { prefix: 'a', suffix: 'z', value: RumEllipsisModeEnum.MIDDLE },
-  { prefix: '', suffix: 'yz', value: RumEllipsisModeEnum.START },
+export const RUM_ELLIPSIS_MODE_LIST: { icon: string; value: RumEllipsisModeType }[] = [
+  { icon: 'icon-a-Property1ab', value: RumEllipsisModeEnum.END },
+  { icon: 'icon-a-Property1az', value: RumEllipsisModeEnum.MIDDLE },
+  { icon: 'icon-a-Property1yz', value: RumEllipsisModeEnum.START },
 ];
 
 /** span 类型对应的字段名，快捷筛选与按类型切列都基于它 */
