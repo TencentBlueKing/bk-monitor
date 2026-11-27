@@ -54,3 +54,26 @@ class TestConsulCluster:
 
         assert len(mock_hash_consul.result_list) == 1
         assert mock_hash_consul.result_list[0]["key"] == DataSource(bk_data_id=12345).consul_config_path
+
+    def test_fta_worker_takeover(self, mocker, settings):
+        settings.FTA_CLEAN_ENABLED = True
+        settings.FTA_CLEAN_ALL = False
+        settings.FTA_CLEAN_DATA_IDS = {42}
+        consul = mocker.patch("metadata.utils.consul_tools.HashConsul").return_value
+        mocker.patch.object(DataSource, "to_json", return_value={})
+        source = DataSource(bk_data_id=42, etl_config="bk_fta_event", is_enable=True, created_from="bkgse")
+        source.refresh_consul_config()
+        consul.put.assert_not_called()
+        source.bk_data_id = 43
+        source.refresh_consul_config()
+        assert consul.put.call_count == 1
+        settings.FTA_CLEAN_ALL = True
+        source.refresh_consul_config()
+        assert consul.put.call_count == 1
+        source.etl_config = "anti_ddos_origin_data"
+        source.refresh_consul_config()
+        assert consul.put.call_count == 2
+        source.etl_config = "bk_fta_event"
+        settings.FTA_CLEAN_ENABLED = False
+        source.refresh_consul_config()
+        assert consul.put.call_count == 3

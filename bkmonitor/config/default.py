@@ -1811,6 +1811,11 @@ BK_MONITOR_API_HOST = os.getenv("BKAPP_BK_MONITOR_API_HOST", "http://monitor.bkm
 # 网关管理员
 APIGW_MANAGERS = f"[{','.join(os.getenv('BKAPP_APIGW_MANAGERS', 'admin').split(','))}]"
 
+# 由 bk-monitor-worker 接管的标准告警源停止发布 Transfer 配置
+FTA_CLEAN_ENABLED = os.getenv("FTA_CLEAN_ENABLED", "false").lower() == "true"
+FTA_CLEAN_ALL = os.getenv("FTA_CLEAN_ALL", "false").lower() == "true"
+FTA_CLEAN_DATA_IDS = {int(value) for value in os.getenv("FTA_CLEAN_DATA_IDS", "").split(",") if value.strip()}
+
 # 是否启用新版的数据链路，默认开启
 ENABLE_V2_VM_DATA_LINK = os.getenv("ENABLE_V2_VM_DATA_LINK", "true").lower() == "true"
 # 插件数据是否启用接入V4链路，默认开启

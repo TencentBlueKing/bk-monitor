@@ -1239,6 +1239,13 @@ class DataSource(models.Model):
             )
             return True
 
+        if (
+            settings.FTA_CLEAN_ENABLED
+            and self.etl_config == "bk_fta_event"
+            and (settings.FTA_CLEAN_ALL or self.bk_data_id in settings.FTA_CLEAN_DATA_IDS)
+        ):
+            return
+
         # transfer不处理data_id 1002--1006的数据，忽略推送到consul
         if self.bk_data_id in IGNORED_CONSUL_SYNC_DATA_IDS:
             logger.info(f"data_id->[{self.bk_data_id}] update config to consul skip.")
