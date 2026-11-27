@@ -95,3 +95,19 @@ test('Trace favorite all waits for the authorized directory, handles failure and
   await find(old().props['v-slots'].footer(), 'button').props.onClick();
   assert.deepEqual(submitted.at(-1).share_bk_biz_ids, [2, -4]);
 });
+
+test('manually checking all confirmed rows of a partial Trace result leaves the all-spaces checkbox clear', () => {
+  const { window, deps } = fixture();
+  deps['monitor-common/utils/space-directory'].supportsSpaceDirectoryPages = () => true;
+  let pages;
+  deps['monitor-common/utils/space-selection'].FormSpacePages = class {
+    constructor() { pages = this; this.failed = true; this.items = [row(7)]; }
+  };
+  const render = load(sharePath, deps, window).setup({ isShow: true, data: {} }, { emit() {} });
+  const selected = find(render(), 'group').props['v-model'];
+  selected.push(7);
+  const all = () => find(render(), deps['bkui-vue'].Checkbox).props.modelValue;
+  assert.equal(all(), false);
+  pages.failed = false;
+  assert.equal(all(), true);
+});

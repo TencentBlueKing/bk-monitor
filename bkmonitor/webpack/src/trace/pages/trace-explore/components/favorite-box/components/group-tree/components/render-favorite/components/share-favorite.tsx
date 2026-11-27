@@ -102,6 +102,7 @@ export default defineComponent({
     });
 
     const isBizSelectAll = computed(() => {
+      if (remote && pages.failed) return false;
       if (remote && pages.hasMore) return lastAllIds === shareBizIdList.value;
       if (remote ? pages.loading : !loadedSpaces.value && window.space_list_state === 'deferred') return false;
       const selectIdMap = makeMap(shareBizIdList.value);
