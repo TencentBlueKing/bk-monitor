@@ -135,12 +135,8 @@ export default defineComponent({
         </section>
       );
     }
-    // 采集类型筛选项按当前已选采集方式收窄，未选方式时取所有方法的类型
-    const typeOptions = (methods: string[]) => {
-      const byMethod = (c.meta.value.collection_types_by_method || {}) as Record<string, string[]>;
-      const scope = methods.length ? methods : Object.keys(byMethod);
-      return [...new Set(scope.flatMap(method => byMethod[method] || []))];
-    };
+    // 采集类型筛选项始终取所有采集方法的类型合集
+    const typeOptions = [...new Set(Object.values(c.meta.value.collection_types_by_method || {}).flat())];
     return (
       <section
         class={[
@@ -263,7 +259,7 @@ export default defineComponent({
                 key={this.bizId}
                 filterOptions={{
                   collection_method: c.meta.value.collection_methods,
-                  collection_type: typeOptions(state.history.collection_method),
+                  collection_type: typeOptions,
                   execution_status: c.meta.value.execution_status_filters,
                 }}
                 bizId={this.bizId}
@@ -286,7 +282,7 @@ export default defineComponent({
               <CollectionResults
                 key={this.bizId}
                 bizId={this.bizId}
-                filterOptions={{ collection_type: typeOptions(state.results.filters.collection_type) }}
+                filterOptions={{ collection_type: typeOptions }}
                 range={this.range}
                 rangeError={this.rangeError}
                 readonly={c.readonly}

@@ -481,11 +481,15 @@ export default defineComponent({
         cell: 'operations',
       },
     ];
-    // 任务名称吸附在最左侧，不在首位时前置到列首
+    // id 与任务名称吸附在最左侧；id 列只在接口下发时才前置，回退列没有该字段
     const idColumn = baseColumns.find(column => column.colKey === 'id');
     const taskNameColumn = baseColumns.find(column => column.colKey === 'task_name');
     const columns = taskNameColumn
-      ? [idColumn, taskNameColumn, ...baseColumns.filter(column => column !== taskNameColumn && column !== idColumn)]
+      ? [
+          ...(idColumn ? [idColumn] : []),
+          taskNameColumn,
+          ...baseColumns.filter(column => column !== taskNameColumn && column !== idColumn),
+        ]
       : baseColumns;
     return (
       <section class='collection-tab-panel collection-history-panel'>
