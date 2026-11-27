@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { checkClusterHealth, registerCluster, updateRegisteredCluster } from 'monitor-api/modules/commons';
 import { random } from 'monitor-common/utils';
-import { directorySpaceTypes, querySpaceDirectory } from 'monitor-common/utils/space-directory';
+import { DIRECTORY_SPACE_TYPES, querySpaceDirectory } from 'monitor-common/utils/space-directory';
 import { resolveSelectedSpaces } from 'monitor-common/utils/space-selection';
 
 import { SPACE_TYPE_MAP } from '../../common/constant';
@@ -253,7 +253,7 @@ export default class ClusterConfig extends tsc<object> {
     if (!open) return;
     try {
       const types = await Promise.all(
-        [...new Set([...directorySpaceTypes, ...Object.keys(SPACE_TYPE_MAP)])].map(async type => {
+        [...new Set([...DIRECTORY_SPACE_TYPES, ...Object.keys(SPACE_TYPE_MAP)])].map(async type => {
           const { items } = await querySpaceDirectory({ type, pageSize: 1 });
           return items.length ? type : null;
         })
