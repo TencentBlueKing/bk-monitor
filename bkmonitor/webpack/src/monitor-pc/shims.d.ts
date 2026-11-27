@@ -73,6 +73,8 @@ interface ShowLoginModalOption {
   maskZIndex?: number;
   width?: number;
 }
+import type { querySpaceDirectory } from 'monitor-common/utils/space-directory';
+
 declare global {
   interface HTMLElement {
     ___zrEVENTSAVED?: null | Record<string, any>; // echarts zrender instance
@@ -155,6 +157,7 @@ declare global {
     message_queue_dsn: string;
     monitor_managers: string[];
     page_title: string;
+    querySpaceDirectory?: typeof querySpaceDirectory;
     rawDocument: Document;
     rawWindow: Window;
     /*
@@ -167,6 +170,7 @@ declare global {
     source_app: string;
     space_access?: 'allowed' | 'denied' | 'error' | 'not_found';
     space_list: ISpaceItem[];
+    space_list_page_supported?: boolean;
     space_list_state?: 'deferred' | 'full';
     space_uid: string;
     static_url: string;

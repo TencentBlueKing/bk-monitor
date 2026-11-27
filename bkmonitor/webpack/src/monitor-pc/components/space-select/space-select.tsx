@@ -28,6 +28,13 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { bizWithAlertStatistics } from 'monitor-api/modules/home';
 import { Debounce } from 'monitor-common/utils';
+import {
+  DIRECTORY_SPACE_TYPES,
+  queryAlertSpaceDirectory,
+  querySpaceDirectory,
+  SpaceDirectoryPager,
+  supportsSpaceDirectoryPages,
+} from 'monitor-common/utils/space-directory';
 import { canSwitchSpace } from 'monitor-common/utils/space-entry';
 
 import { getEventPaths } from '../../utils';
@@ -58,6 +65,7 @@ interface IProps {
   needAuthorityOption?: boolean;
   needDefaultOptions?: boolean;
   needIncidentOption?: boolean;
+  remote?: boolean;
   spaceList?: ISpaceItem[];
   value?: string[];
   onChange?: (value: number[]) => void;
@@ -94,6 +102,7 @@ export default class SpaceSelect extends tsc<
   /* 当前的主空间（勾选的第一个空间） */
   @Prop({ default: () => null, type: [Number, String] }) currentSpace: number;
   /* 所有空间列表 */
+  @Prop({ default: false, type: Boolean }) remote: boolean;
   @Prop({ default: () => [], type: Array }) spaceList: ISpaceItem[];
   /* 是否为多选 */
   @Prop({ default: true, type: Boolean }) multiple: boolean;
@@ -124,6 +133,54 @@ export default class SpaceSelect extends tsc<
   searchValue = '';
   /* 空间列表 */
   localSpaceList: ILocalSpaceList[] = [];
+  pages = new SpaceDirectoryPager();
+  alertPages = new SpaceDirectoryPager(queryAlertSpaceDirectory);
+  selectedRows: ISpaceItem[] = [];
+  selectedRequest = 0;
+
+  get paged() {
+    return this.remote && supportsSpaceDirectoryPages();
+  }
+
+  async resolveSelection(value: number[]) {
+    const request = ++this.selectedRequest;
+    if (!this.paged) return;
+    const selected = new Set(value);
+    const known = new Map<number, ISpaceItem>();
+    for (const row of [...this.selectedRows, ...this.alertPages.items, ...this.spaceList, ...this.pages.items]) {
+      if (selected.has(row.id)) known.set(row.id, row);
+    }
+    this.selectedRows = [...known.values()];
+    const found = new Set(this.selectedRows.map(row => row.id));
+    const missing = value.filter(id => Number.isFinite(id) && !specialIds.includes(id) && !found.has(id));
+    for (let i = 0; i < missing.length; i += 100) {
+      const ids = missing.slice(i, i + 100);
+      const page = await querySpaceDirectory({ bkBizIds: ids, pageSize: 100 }).catch(() => null);
+      if (request !== this.selectedRequest || !page) return;
+      this.selectedRows.push(...page.items);
+      if (this.hasAuthApply) {
+        const allowed = new Set(page.items.map(row => row.id));
+        const remaining = ids.filter(id => !allowed.has(id));
+        if (remaining.length) {
+          const alerts = await queryAlertSpaceDirectory({ bkBizIds: remaining, pageSize: 100 }).catch(() => null);
+          if (request !== this.selectedRequest || !alerts) return;
+          this.selectedRows.push(...alerts.items);
+        }
+      }
+    }
+    if (missing.length) this.initLocalSpaceList();
+  }
+
+  async loadDirectory(append = false) {
+    if (!this.isOpen || !this.paged) return false;
+    const options = { query: this.searchValue, type: this.searchTypeId };
+    const pagers = this.hasAuthApply ? [this.pages, this.alertPages] : [this.pages];
+    const changed = (
+      await Promise.all(pagers.map(pager => (append ? pager.next() : pager.reset(options)).catch(() => false)))
+    ).some(Boolean);
+    if (changed) this.initLocalSpaceList();
+    return changed;
+  }
   /* 空间类型列表 */
   spaceTypeIdList = [];
   /* 当前选中的空间类型 */
@@ -167,10 +224,12 @@ export default class SpaceSelect extends tsc<
     return this.currentSpace !== null;
   }
   @Watch('value')
+  valueChanged(v: number[]) {
+    this.handleWatchValue(v);
+    void this.resolveSelection(this.localValue);
+  }
+
   handleWatchValue(v: number[]) {
-    if (JSON.stringify(v) === JSON.stringify(this.localValue)) {
-      return;
-    }
     const defaultRadioListIds = defaultRadioList.map(d => d.id);
     this.localValue = [...v].map(b => (defaultRadioListIds.includes(String(b)) ? b : Number(b)));
     const nameList = [];
@@ -187,6 +246,15 @@ export default class SpaceSelect extends tsc<
         });
       }
     });
+    if (this.paged) {
+      const known = new Set(this.localSpaceList.map(item => item.id));
+      for (const id of this.localValue) {
+        if (!known.has(id)) {
+          nameList.push(String(id));
+          strList.push({ name: String(id), id: '' });
+        }
+      }
+    }
     this.valueStr = nameList.join(',');
     this.valueStrList = strList;
     this.sortSpaceList();
@@ -201,7 +269,19 @@ export default class SpaceSelect extends tsc<
   @Watch('spaceList')
   initLocalSpaceList() {
     const selected = this.isOpen ? this.localValue : this.value;
-    this.localSpaceList = this.getSpaceList(this.spaceList);
+    const records = this.paged
+      ? [
+          ...new Map(
+            [
+              ...this.selectedRows,
+              ...this.alertPages.items,
+              ...this.spaceList.filter(row => selected.includes(row.id)),
+              ...this.pages.items,
+            ].map(row => [row.id, row])
+          ).values(),
+        ]
+      : this.spaceList;
+    this.localSpaceList = this.getSpaceList(records);
     const nullItem = {
       space_name: '',
       isSpecial: true,
@@ -242,8 +322,12 @@ export default class SpaceSelect extends tsc<
     }
     this.localValue = [];
     this.handleWatchValue(selected);
+    if (this.paged && (this.searchValue || this.searchTypeId)) {
+      const visible = new Set([...this.pages.items, ...this.alertPages.items].map(row => row.id));
+      for (const row of this.localSpaceList) row.show = visible.has(row.id);
+    }
     this.setPaginationData(true);
-    if (this.hasAuthApply && window.space_list_state !== 'deferred') {
+    if (!this.paged && this.hasAuthApply && window.space_list_state !== 'deferred') {
       this.setAllowed();
     }
   }
@@ -258,6 +342,7 @@ export default class SpaceSelect extends tsc<
   }
   created() {
     this.initLocalSpaceList();
+    void this.resolveSelection(this.localValue);
   }
   /* 获取权限信息 */
   async setAllowed() {
@@ -347,6 +432,10 @@ export default class SpaceSelect extends tsc<
     }
     showData.push(...prevArr, ...nextArr);
     this.pagination.count = showData.length;
+    if (this.paged) {
+      this.pagination.data = showData;
+      return;
+    }
     if (isInit) {
       this.pagination.current = 1;
       this.pagination.data = showData.slice(0, this.pagination.limit);
@@ -363,6 +452,11 @@ export default class SpaceSelect extends tsc<
   }
   destroyed() {
     this.selectionSession++;
+    this.selectedRequest++;
+    if (this.paged) {
+      this.pages.close();
+      this.alertPages.close();
+    }
     this.popInstance?.destroy?.();
     this.controller?.abort?.();
   }
@@ -391,7 +485,9 @@ export default class SpaceSelect extends tsc<
         spaceTypeMap.bcs = 1;
       }
     });
-    this.spaceTypeIdList = Object.keys(spaceTypeMap).map(key => ({
+    this.spaceTypeIdList = (
+      this.paged ? [...new Set([...DIRECTORY_SPACE_TYPES, ...Object.keys(spaceTypeMap)])] : Object.keys(spaceTypeMap)
+    ).map(key => ({
       id: key,
       name: SPACE_TYPE_MAP[key]?.name || this.$t('未知'),
       styles: SPACE_TYPE_MAP[key] || SPACE_TYPE_MAP.default,
@@ -418,6 +514,7 @@ export default class SpaceSelect extends tsc<
     });
     this.popInstance?.show?.();
     this.isOpen = true;
+    if (this.paged) void this.loadDirectory();
     this.sortSpaceList();
     this.setPaginationData(true);
     this.resetHighlight(true);
@@ -476,6 +573,10 @@ export default class SpaceSelect extends tsc<
     this.popInstance = null;
     this.controller?.abort?.();
     this.isOpen = false;
+    if (this.paged) {
+      this.pages.close();
+      this.alertPages.close();
+    }
     for (const item of this.localSpaceList) {
       item.show = true;
       item.preciseMatch = false;
@@ -483,7 +584,11 @@ export default class SpaceSelect extends tsc<
     const value = [...this.localValue];
     const changed = value.length && JSON.stringify(this.value) !== JSON.stringify(value);
     const selected = value.filter(v => !specialIds.includes(v));
-    const autoSelect = changed && this.isAutoSelectCurrentSpace && selected.length === 1;
+    const autoSelect =
+      changed &&
+      this.isAutoSelectCurrentSpace &&
+      selected.length === 1 &&
+      (!this.paged || this.localSpaceList.some(row => row.id === selected[0] && !row.noAuth));
     const nextSpace = autoSelect ? +selected[0] : +this.localCurrentSpace;
     if ((this.needCurSpace || autoSelect) && nextSpace !== +this.currentSpace) {
       if (!(await canSwitchSpace(nextSpace, isCurrent)) || !isCurrent()) return;
@@ -495,8 +600,21 @@ export default class SpaceSelect extends tsc<
     }
   }
   /* 搜索 */
-  @Debounce(300)
   handleSearchChange(value: string) {
+    if (this.paged) {
+      this.searchValue = value;
+      this.pages.close();
+      this.alertPages.close();
+      this.pagination.data = [];
+    }
+    this.applySearch(value, this.selectionSession);
+  }
+  @Debounce(300)
+  applySearch(value: string, session: number) {
+    if (this.paged) {
+      if (this.isOpen && session === this.selectionSession) void this.loadDirectory();
+      return;
+    }
     // biome-ignore lint/complexity/noForEach: <explanation>
     this.localSpaceList.forEach(item => {
       const keyword = value.trim().toLocaleLowerCase();
@@ -532,6 +650,7 @@ export default class SpaceSelect extends tsc<
     }
   }
   selectOption(item: ILocalSpaceList, v: boolean) {
+    if (this.paged && (!this.multiple || specialIds.includes(item.id))) this.localValue = [];
     if (this.multiple) {
       for (const space of this.localSpaceList) {
         if (specialIds.includes(item.id)) {
@@ -576,6 +695,7 @@ export default class SpaceSelect extends tsc<
    * @param item
    */
   handleSetCurBiz(item: ILocalSpaceList) {
+    if (this.paged && item.noAuth) return;
     this.localCurrentSpace = item.id;
     if (!item.isCheck) {
       this.handleSelectOption(item);
@@ -592,6 +712,7 @@ export default class SpaceSelect extends tsc<
   }
   /* 获取当前选中的值 */
   getLocalValue() {
+    this.selectedRequest++;
     const value = [];
     const valueList = [];
     const strList = [];
@@ -607,6 +728,12 @@ export default class SpaceSelect extends tsc<
     }
     this.valueStr = valueList.join(',');
     this.valueStrList = strList;
+    if (this.paged) {
+      const displayed = new Set(this.localSpaceList.map(row => row.id));
+      value.push(...this.localValue.filter(id => !displayed.has(id)));
+      const selected = new Set(value);
+      this.selectedRows = this.localSpaceList.filter(row => selected.has(row.id) && !row.isSpecial);
+    }
     this.localValue = value;
     this.isErr = !this.localValue.length;
     this.sortSpaceList();
@@ -642,6 +769,10 @@ export default class SpaceSelect extends tsc<
     const el = event.target;
     const { scrollHeight, scrollTop, clientHeight } = el;
     if (Math.ceil(scrollTop) + clientHeight >= scrollHeight) {
+      if (this.paged) {
+        void this.loadDirectory(true);
+        return;
+      }
       this.setPaginationData(false);
     }
   }
@@ -718,7 +849,7 @@ export default class SpaceSelect extends tsc<
   }
 
   /** 方向键在可见项间移动；触底且还有分页时先加载再继续 */
-  moveHighlight(step: number) {
+  async moveHighlight(step: number) {
     const items = this.pagination.data;
     if (!items.length) return;
     const index = items.findIndex(item => this.isSameSpaceId(item.id, this.highlightId));
@@ -732,6 +863,13 @@ export default class SpaceSelect extends tsc<
       next = 0;
     } else if (next >= items.length) {
       const beforeCount = items.length;
+      if (this.paged && (this.pages.hasMore || this.alertPages.hasMore)) {
+        if (await this.loadDirectory(true)) {
+          this.highlightId = this.pagination.data[index + 1]?.id ?? this.highlightId;
+          this.scrollHighlightIntoView();
+        }
+        return;
+      }
       this.setPaginationData(false);
       if (this.pagination.data.length > beforeCount) {
         next = Math.min(index + step, this.pagination.data.length - 1);
@@ -967,7 +1105,7 @@ export default class SpaceSelect extends tsc<
                       ))
                     )}
                   </span>
-                  {this.needCurSpace && (
+                  {this.needCurSpace && !(this.paged && item.noAuth) && (
                     <span class='space-hover-btn'>
                       <bk-button
                         class='auth-button'
@@ -985,6 +1123,23 @@ export default class SpaceSelect extends tsc<
                   )}
                 </div>
               ))}
+              {this.paged && (this.pages.hasMore || this.alertPages.hasMore) && (
+                <button
+                  disabled={this.pages.isLoading || this.alertPages.isLoading}
+                  type='button'
+                  onClick={() => this.loadDirectory(true)}
+                >
+                  {this.$t('加载更多')}
+                </button>
+              )}
+              {this.paged && (this.pages.failed || this.alertPages.failed || this.alertPages.partial) && (
+                <button
+                  type='button'
+                  onClick={() => this.loadDirectory()}
+                >
+                  {this.$t('部分空间未能确认，请重试')}
+                </button>
+              )}
             </div>
           </div>
         </div>

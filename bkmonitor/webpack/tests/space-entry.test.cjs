@@ -101,6 +101,15 @@ function setup({ url = '?bizId=17#/settings', recent, build, token, child, respo
 }
 
 for (const shell of ['monitor-pc', 'trace', 'apm', 'fta-solutions']) {
+  test(shell + ' mounts on a paged backend without fetching a directory', async () => {
+    const h = setup({ response: { ...basic(17), SPACE_LIST_PAGE_SUPPORTED: true } });
+    h.mount(shell);
+    await flush();
+    assert.deepEqual(h.mounts, ['app']);
+    assert.deepEqual(h.requests.map(r => r.name), ['basic', 'extra']);
+    assert.deepEqual(h.window.space_list.map(row => row.id), [17]);
+  });
+
   test(shell + ' mounts with the admitted space, then fills the directory', async () => {
     const h = setup();
     h.mount(shell);
