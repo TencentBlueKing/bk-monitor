@@ -61,7 +61,7 @@ export default defineComponent({
     /** 所选空间总数（guide 模式下用于展示 count） */
     totalCount: {
       type: Number,
-      default: 0,
+      default: undefined,
     },
     /** 是否展示"一键开启"按钮 */
     showEnableButton: {
@@ -123,6 +123,7 @@ export default defineComponent({
     };
 
     return () => {
+      const spaceCount = props.totalCount ?? props.spaceList.length;
       const hasProductDoc = !!props.productDocLink?.trim();
       const hasWxCsLink = !!props.wxCsLink?.trim();
       const darkLinkDescKeypath = hasProductDoc
@@ -171,6 +172,8 @@ export default defineComponent({
             <div class='empty-content'>
               {props.isDarkTheme ? (
                 renderEmptyTagTitle(currentSpace || props.spaceList[0])
+              ) : props.mode === 'guide' && props.totalCount === undefined ? (
+                <div class='empty-title'>{t('接入指引')}</div>
               ) : props.mode === 'guide' ? (
                 <div class='empty-title'>
                   <i18n-t
@@ -180,7 +183,7 @@ export default defineComponent({
                     {{ count: () => <span class='space-count'>{props.totalCount}</span> }}
                   </i18n-t>
                 </div>
-              ) : props.spaceList.length === 1 ? (
+              ) : spaceCount === 1 ? (
                 renderEmptyTagTitle(props.spaceList[0])
               ) : (
                 <div class='empty-title'>
@@ -188,7 +191,7 @@ export default defineComponent({
                     keypath='当前所选 {count} 个空间未开启故障分析功能'
                     tag='span'
                   >
-                    {{ count: () => <span class='space-count error'>{props.spaceList.length}</span> }}
+                    {{ count: () => <span class='space-count error'>{spaceCount}</span> }}
                   </i18n-t>
                 </div>
               )}

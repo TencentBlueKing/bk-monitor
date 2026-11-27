@@ -166,3 +166,82 @@ test('partial results retain confirmed names, prevent false denial and stop sele
   await pages.retryOrNext();
   assert.deepEqual(await pages.allMatching(),[7]);
 });
+
+function incidentVue() {
+  const vue = require('../src/trace/node_modules/vue');
+  const scope = vue.effectScope();
+  let mount, dispose;
+  return {
+    vue: {...vue, onMounted: fn => { mount = fn; }, onBeforeUnmount: fn => { dispose = fn; }},
+    run: fn => scope.run(fn), mount: () => mount(), close: () => { dispose?.(); scope.stop(); },
+  };
+}
+test('incident tab counts both virtual scopes with zero directory calls; concrete and legacy scopes retain exact authorized names', async t => {
+  const target = {...row(-12),space_type_id:'bkci',space_id:'project',space_uid:'bkci__project'};
+  let partial = false;
+  const h = setup([], () => ({items:partial ? [] : [target], next_cursor:null, partial}));
+  const v = incidentVue(); t.after(v.close);
+  const alarm = v.vue.reactive({alarmType:'incident',bizIds:[-1]});
+  const app = v.vue.reactive({bizList:[row(2)],noAuthBizIds:[]});
+  const total = v.vue.ref(132338), enabled = v.vue.ref([2,2]);
+  const make = load('trace/pages/alarm-center/composables/use-incident-guide-scope.ts', h.window, {
+    ...h.deps, vue:v.vue, '../typings/constants':{AlarmType:{INCIDENT:'incident'},MY_AUTH_BIZ_ID:-1,MY_ALARM_BIZ_ID:-2},
+    '@/store/modules/alarm-center':{useAlarmCenterStore:()=>alarm}, '@/store/modules/app':{useAppStore:()=>app},
+  }).useIncidentGuideScope;
+  const ui = v.run(() => make(total,enabled,v.vue.ref(true)));
+  assert.equal(ui.showAccessGuideTip.value,true); assert.equal(ui.accessGuideTipCount.value,132337);
+  alarm.bizIds=[-2]; total.value=undefined; await tick();
+  assert.equal(ui.accessGuideTipCount.value,undefined); assert.equal(ui.showAccessGuideTip.value,false);
+  assert.equal(h.calls.length,0);
+  alarm.bizIds=[2,-12]; await tick();
+  assert.deepEqual(h.calls.map(q=>q.bk_biz_ids),['-12']);
+  assert.equal(ui.sidesliderSpaceList.value[1].space_uid,'bkci__project');
+  assert.equal(ui.accessGuideTipCount.value,1); assert.equal(ui.showAccessGuideTip.value,true);
+  partial=true; alarm.bizIds=[-12]; await tick(); assert.equal(ui.guideLookupFailed.value,true);
+  assert.equal(ui.showDataAccessDirect.value,false);
+  partial=false; ui.reloadGuideSpaces(); await tick(); assert.equal(ui.showDataAccessDirect.value,true);
+  h.window.space_list_page_supported=false; app.bizList=[row(2),target,row(9)]; app.noAuthBizIds=[9]; alarm.bizIds=[-1]; await tick();
+  assert.deepEqual(ui.sidesliderSpaceList.value.map(r=>r.id),[2,-12]); assert.equal(ui.accessGuideTipCount.value,1);
+  assert.equal(h.calls.length,3);
+});
+test('opening an incident guide reads one bounded page and handles a sparse cursor, search and retry without losing the selection', async t => {
+  const h=setup([], ({cursor,query}) => query ? {items:[row(12)],next_cursor:null}
+    : cursor ? {items:[row(7)],next_cursor:null} : {items:[],next_cursor:'second'});
+  const v=incidentVue(); t.after(v.close);
+  const Select=Object.assign(()=>{}, {Option:'option'});
+  const component=load('trace/pages/alarm-center/components/paged-incident-guide.tsx',h.window,{
+    ...h.deps, vue:v.vue, 'vue-i18n':{useI18n:()=>({t:key=>key})},
+    'bkui-vue':{Select,Button:'button',Loading:'loading'}, '../../../components/data-access':{default:'access'},
+  }).default;
+  const render=v.run(()=>component.setup({authorizedSpaceCount:290,enabledBizIds:[7]}, {emit(){}}));
+  assert.deepEqual(h.calls,[]); await v.mount(); assert.equal(h.calls.length,1); assert.equal(h.calls[0].page_size,100);
+  h.fail('second'); await render().children[0].props.onClick(); assert.equal(render().children[0].children[0],'重试');
+  h.fail(undefined); await render().children[0].props.onClick();
+  assert.equal(render().props.totalCount,290); assert.equal(render().props.spaceList[0].id,7);
+  const select=()=>render().props['v-slots'].spacePicker().children[0];
+  await select().props.remoteMethod('12'); assert.equal(render().props.spaceList[0].id,7);
+  select().props['onUpdate:modelValue']('12'); assert.equal(render().props.spaceList[0].id,12);
+  assert.deepEqual(h.calls.map(q=>[q.cursor,q.query]),[[undefined,undefined],['second',undefined],['second',undefined],[undefined,'12']]);
+});
+test('the incident knowledge link uses the selected authorized non-CMDB scope, including topology snapshots with just a business ID', async t => {
+  const target={...row(-12),space_type_id:'bkci',space_id:'test-project',space_uid:'bkci__test-project'};
+  const h=setup([],()=>({items:[target],next_cursor:null}));
+  const urls=[]; Object.assign(h.window,{bk_incident_saas_host:'https://incident.example.test/',open:url=>urls.push(url)});
+  function find(node, predicate) {
+    if (!node || typeof node !== 'object') return;
+    if (predicate(node)) return node;
+    for (const item of node.children || []) { const found=find(item,predicate); if(found)return found; }
+  }
+  for (const space of [target,{bk_biz_id:-12,space_id:-12,space_name:'from snapshot'}]) {
+    const v=incidentVue(); t.after(v.close);
+    const data=load('trace/components/data-access/index.tsx',h.window,{
+      ...h.deps,vue:v.vue,'vue-i18n':{useI18n:()=>({t:key=>key})},'../../store/modules/app':{useAppStore:()=>({bizList:[row(2)]})},
+      'monitor-api/modules/incident':{fetchConfigList:async()=>({objects:[{content:{config:[{name:'knowledge'}]}}]}),fetchGlobalVariables:async()=>({})},
+    }).default;
+    const render=v.run(()=>data.setup({spaceList:[space],enabledBizIds:[],forceUnmetCells:{}},{slots:{},emit(){}}));
+    v.mount(); await tick();
+    find(render(), el=>el.type==='th' && el.props.key==='knowledge').props.onClick();
+  }
+  assert.deepEqual(urls, Array(2).fill('https://incident.example.test/bkci_test-project/space/setting/knowledge'));
+  assert.deepEqual(h.calls.map(q=>q.bk_biz_ids),['-12']);
+});

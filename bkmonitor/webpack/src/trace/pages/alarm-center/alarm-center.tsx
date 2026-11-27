@@ -12,7 +12,6 @@ import {
 
 import { commonPageSizeSet, convertDurationArray, copyText, tryURLDecodeParse } from 'monitor-common/utils';
 import { safeDecodeQueryString } from 'monitor-common/utils/alarm-center-router';
-import { supportsSpaceDirectoryPages } from 'monitor-common/utils/space-directory';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -38,7 +37,6 @@ import { supportsSpaceDirectoryPages } from 'monitor-common/utils/space-director
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { resolveSelectedSpaces } from 'monitor-common/utils/space-selection';
 import FavoriteBox, {
   type IFavorite,
   type IFavoriteGroup,
@@ -47,7 +45,7 @@ import FavoriteBox, {
 import VueJsonPretty from 'vue-json-pretty';
 import { useRoute, useRouter } from 'vue-router';
 
-import DataAccess, { type SpaceInfo } from '../../components/data-access';
+import DataAccess from '../../components/data-access';
 import { appendQueryStringCondition } from '../../components/retrieval-filter/query-string-utils';
 import { EFieldType, EMode } from '../../components/retrieval-filter/typing';
 import { mergeWhereList } from '../../components/retrieval-filter/utils';
@@ -63,9 +61,11 @@ import AlarmTable from './components/alarm-table/alarm-table';
 import AlarmTrendChart from './components/alarm-trend-chart/alarm-trend-chart';
 import AlertOperationDialogs from './components/alert-operation-dialogs/alert-operation-dialogs';
 import BizPermissionTips from './components/biz-permission-tips/biz-permission-tips';
+import PagedIncidentGuide from './components/paged-incident-guide';
 import QuickFiltering from './components/quick-filtering';
 import { useAlarmTable } from './composables/use-alarm-table';
 import { useAlertDialogs } from './composables/use-alert-dialogs';
+import { useIncidentGuideScope } from './composables/use-incident-guide-scope';
 import { useLegacyEventCenterCompat } from './composables/use-legacy-event-center-compat';
 import { useQuickFilter } from './composables/use-quick-filter';
 import { useAlarmTableColumns } from './composables/use-table-columns';
@@ -81,21 +81,16 @@ import {
   CAN_AUTO_SHOW_ALERT_DIALOG_ACTIONS,
   CONTENT_SCROLL_ELEMENT_CLASS_NAME,
   getDefaultAlarmCenterBizIds,
-  MY_ALARM_BIZ_ID,
-  MY_AUTH_BIZ_ID,
 } from './typings';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 import { useAppStore } from '@/store/modules/app';
 
 import type { SelectOptions } from '@blueking/tdesign-ui/.';
-import type { ISpaceItem } from 'monitor-common/typings';
 
 const ALARM_CENTER_SHOW_FAVORITE = 'ALARM_CENTER_SHOW_FAVORITE';
 
-import { Alert, Message, Sideslider } from 'bkui-vue';
+import { Alert, Button, Message, Sideslider } from 'bkui-vue';
 import dayjs from 'dayjs';
-import difference from 'lodash/difference';
-import intersection from 'lodash/intersection';
 import { traceGenerateQueryString } from 'monitor-api/modules/apm_trace';
 import { handleTransformToTimestamp } from 'trace/components/time-range/utils';
 import { useI18n } from 'vue-i18n';
@@ -163,7 +158,8 @@ export default defineComponent({
       handleQuickFilteringOperation,
     } = useQuickFilter();
 
-    const { data, loading, hasLoaded, total, page, pageSize, ordering, enabledSpaces, wxCsLink } = useAlarmTable();
+    const { data, loading, hasLoaded, total, page, pageSize, ordering, enabledSpaces, authorizedSpaceCount, wxCsLink } =
+      useAlarmTable();
     const contentKey = computed(() => JSON.stringify([alarmStore.alarmType, alarmStore.bizIds]));
     watch(loading, value => {
       if (value) selectedRowKeys.value = [];
@@ -187,96 +183,18 @@ export default defineComponent({
       total: total.value,
     }));
 
-    /** 是否为"我有权限/我有故障"虚拟业务 */
-    const isVirtualBiz = computed(() => alarmStore.bizIds?.some(id => [MY_AUTH_BIZ_ID, MY_ALARM_BIZ_ID].includes(id)));
-
-    /** 已选空间中已开启故障分析功能的 bizId 列表（与 enabledSpaces 取交集） */
-    const connectedBizIds = computed(() => intersection(alarmStore.bizIds, enabledSpaces.value));
-
-    /** 已选空间中未开启故障分析功能的 bizId 列表（与 enabledSpaces 取差集） */
-    const unconnectedBizIds = computed(() => difference(alarmStore.bizIds, enabledSpaces.value));
-
-    // The incident onboarding view needs the exact count and names of its eligible spaces.
-    const incidentSpaces = shallowRef<ISpaceItem[]>([]);
-    watch(
-      () => [alarmStore.alarmType, alarmStore.bizIds, appStore.bizList] as const,
-      async ([type, ids], _, onCleanup) => {
-        let active = true;
-        onCleanup(() => {
-          active = false;
-        });
-        incidentSpaces.value = [];
-        if (type !== AlarmType.INCIDENT || !ids?.length || !supportsSpaceDirectoryPages()) return;
-        try {
-          const spaces = isVirtualBiz.value
-            ? await window.loadSpaceDirectory()
-            : await resolveSelectedSpaces(ids, appStore.bizList);
-          if (active) incidentSpaces.value = spaces;
-        } catch {
-          // Preserve the incident results if optional onboarding information is unavailable.
-        }
-      },
-      { immediate: true }
-    );
-
-    /** 排除无权限空间后的业务列表 */
-    const authorizedBizList = computed(() => {
-      const spaces = supportsSpaceDirectoryPages() ? incidentSpaces.value : appStore.bizList;
-      if (!appStore.noAuthBizIds.length) return spaces;
-      return spaces.filter(({ bk_biz_id }) => !appStore.noAuthBizIds.includes(bk_biz_id));
-    });
-
-    /** 将 bizList 转换为 SpaceInfo[]，可按 bizId 过滤（已排除无权限空间） */
-    const toSpaceInfoList = (filterFn?: (bk_biz_id: number) => boolean): SpaceInfo[] => {
-      return authorizedBizList.value
-        .filter(({ bk_biz_id }) => !filterFn || filterFn(bk_biz_id))
-        .map(({ space_name, space_id, bk_biz_id }) => ({ space_name, space_id: space_id, bk_biz_id }));
-    };
-
-    /** 未开启故障分析功能的空间列表 */
-    const unconnectedSpaceList = computed(() => {
-      if (!unconnectedBizIds.value?.length) return null;
-      const result = toSpaceInfoList(id => unconnectedBizIds.value.includes(id));
-      return result.length ? result : null;
-    });
-
-    /** ============ 页面展示逻辑（接入指引提示 / 数据接入组件） ============ */
-
-    /** 是否展示接入指引提示：1. 虚拟业务并且不是全部都开启了故障分析功能；2. 混合选择（部分已开启故障分析功能，部分未开启） */
-    const showAccessGuideTip = computed(
-      () =>
-        alarmStore.alarmType === AlarmType.INCIDENT &&
-        !!alarmStore.bizIds?.length &&
-        hasLoaded.value &&
-        ((isVirtualBiz.value &&
-          intersection(
-            authorizedBizList.value.map(({ bk_biz_id }) => bk_biz_id),
-            enabledSpaces.value
-          ).length < authorizedBizList.value.length) ||
-          (connectedBizIds.value.length > 0 && unconnectedBizIds.value.length > 0 && !!unconnectedSpaceList.value))
-    );
-
-    /** 是否直接展示数据接入组件（非侧滑）：1. 单选未开启故障分析功能；2. 多选（全部未开启故障分析功能） */
-    const showDataAccessDirect = computed(
-      () =>
-        alarmStore.alarmType === AlarmType.INCIDENT &&
-        !!alarmStore.bizIds?.length &&
-        hasLoaded.value &&
-        !isVirtualBiz.value &&
-        connectedBizIds.value.length === 0 &&
-        unconnectedBizIds.value.length > 0 &&
-        !!unconnectedSpaceList.value
-    );
-
-    /** 接入指引提示中的未接入空间数量 */
-    const accessGuideTipCount = computed(() => {
-      if (isVirtualBiz.value) {
-        return authorizedBizList.value.length - enabledSpaces.value.length;
-      }
-      return unconnectedSpaceList.value?.length ?? 0;
-    });
-
-    /** ============ 侧滑数据接入 ============ */
+    const {
+      accessGuideTipCount,
+      pagedVirtualGuide,
+      showAccessGuideTip,
+      showDataAccessDirect,
+      sidesliderSpaceList,
+      sidesliderTotal,
+      sidesliderMode,
+      unconnectedSpaceList,
+      reloadGuideSpaces,
+      guideLookupFailed,
+    } = useIncidentGuideScope(authorizedSpaceCount, enabledSpaces, hasLoaded);
 
     /** 接入指引侧滑是否显示 */
     const showAccessGuide = shallowRef(false);
@@ -285,28 +203,6 @@ export default defineComponent({
     /** 接入指引来源：'tip'-来自告警提示点击，'header'-来自头部点击 */
     const accessGuideFrom = shallowRef<'header' | 'tip'>('tip');
 
-    /** 侧滑数据接入的空间列表 */
-    const sidesliderSpaceList = computed(() => {
-      // 虚拟业务：展示全部有权限空间
-      if (isVirtualBiz.value) {
-        return toSpaceInfoList();
-      }
-      // 非虚拟业务：展示用户所选的空间（与业务下拉框一致）
-      return toSpaceInfoList(id => alarmStore.bizIds.includes(id));
-    });
-    /** 侧滑数据接入的所选空间总数 */
-    const sidesliderTotal = computed(() => sidesliderSpaceList.value?.length ?? 0);
-
-    /** 侧滑数据接入的展示模式：全部未开启功能用 empty（文案与外部一致），否则用 guide */
-    const sidesliderMode = computed(() => {
-      if (isVirtualBiz.value) {
-        // 虚拟业务：无已开启功能的空间时用 empty 模式
-        return enabledSpaces.value.length === 0 ? 'empty' : 'guide';
-      }
-      // 所有选中空间都未开启故障分析功能 → empty 模式
-      if (connectedBizIds.value.length === 0 && unconnectedBizIds.value.length > 0) return 'empty';
-      return 'guide';
-    });
     const {
       tableColumns: tableSourceColumns,
       storageColumns,
@@ -1192,6 +1088,10 @@ export default defineComponent({
       dataAccessKey,
       accessGuideTipCount,
       accessGuideFrom,
+      pagedVirtualGuide,
+      reloadGuideSpaces,
+      guideLookupFailed,
+      authorizedSpaceCount,
       sidesliderSpaceList,
       sidesliderTotal,
       sidesliderMode,
@@ -1694,15 +1594,33 @@ export default defineComponent({
           title={this.$t('接入指引')}
           onUpdate:isShow={(v: boolean) => (this.showAccessGuide = v)}
         >
-          <DataAccess
-            key={this.dataAccessKey}
-            enabledBizIds={this.enabledSpaces}
-            mode={this.sidesliderMode}
-            spaceList={this.sidesliderSpaceList}
-            totalCount={this.sidesliderTotal}
-            wxCsLink={this.wxCsLink}
-            onEnabled={() => this.handleBizIdsChange(this.alarmStore.bizIds)}
-          />
+          {this.showAccessGuide &&
+            (this.pagedVirtualGuide ? (
+              <PagedIncidentGuide
+                key={this.dataAccessKey}
+                authorizedSpaceCount={this.authorizedSpaceCount}
+                enabledBizIds={this.enabledSpaces}
+                wxCsLink={this.wxCsLink}
+                onEnabled={() => this.handleBizIdsChange(this.alarmStore.bizIds)}
+              />
+            ) : this.sidesliderSpaceList.length > 0 ? (
+              <DataAccess
+                key={this.dataAccessKey}
+                enabledBizIds={this.enabledSpaces}
+                mode={this.sidesliderMode}
+                spaceList={this.sidesliderSpaceList}
+                totalCount={this.sidesliderTotal}
+                wxCsLink={this.wxCsLink}
+                onEnabled={() => this.handleBizIdsChange(this.alarmStore.bizIds)}
+              />
+            ) : this.guideLookupFailed ? (
+              <Button
+                text
+                onClick={this.reloadGuideSpaces}
+              >
+                {this.$t('重试')}
+              </Button>
+            ) : null)}
         </Sideslider>
         <EditFavorite
           key={this.favoriteType}

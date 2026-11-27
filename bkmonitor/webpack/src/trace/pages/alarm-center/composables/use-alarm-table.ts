@@ -55,6 +55,7 @@ export function useAlarmTable() {
   const hasLoaded = shallowRef(false);
   /** 已开启故障分析功能的空间 bizId 列表（incident 场景专用） */
   const enabledSpaces = deepRef<number[]>([]);
+  const authorizedSpaceCount = shallowRef<number>();
   /** BK助手链接 */
   const wxCsLink = shallowRef('');
   /** 请求中止控制器 */
@@ -77,6 +78,7 @@ export function useAlarmTable() {
       data.value = [];
       total.value = 0;
       enabledSpaces.value = [];
+      authorizedSpaceCount.value = undefined;
       hasLoaded.value = false;
     }
     const service = alarmStore.alarmService;
@@ -96,6 +98,7 @@ export function useAlarmTable() {
       total.value = res.total;
       data.value = res.data;
       enabledSpaces.value = (res.enabled_spaces ?? []).map(Number);
+      authorizedSpaceCount.value = res.authorized_space_count;
       wxCsLink.value = res.wx_cs_link ?? '';
       hasLoaded.value = true;
       const currentData = data.value as (ActionTableItem | AlertTableItem | IncidentTableItem)[];
@@ -173,6 +176,7 @@ export function useAlarmTable() {
     hasLoaded,
     ordering,
     enabledSpaces,
+    authorizedSpaceCount,
     wxCsLink,
   };
 }
