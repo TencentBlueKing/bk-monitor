@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from django.utils.translation import gettext_lazy as _
 
-from semconv.rum.constants import RumSpanType, SdkLanguage, OutcomeType
+from semconv.rum.constants import RumSpanType, SdkLanguage
 from semconv.rum.field import FieldSpec
 
 # ── 领域无关字段 ──────────────────────────────────────────────────────
@@ -41,4 +41,3 @@ EXCEPTION_STACKTRACE = FieldSpec(field_name="exception.stacktrace", field_alias=
 USER_ID = FieldSpec(field_name="user.id", field_alias=_("用户"))
 TAB_ID = FieldSpec(field_name="tab.id", field_alias=_("标签页 ID"))
 SPAN_TYPE = FieldSpec(field_name="span_type", field_alias=_("事件类型"), option_values=RumSpanType)
-OUTCOME_TYPE = FieldSpec(field_name="outcome.type", field_alias=_("结果"), option_values=OutcomeType)

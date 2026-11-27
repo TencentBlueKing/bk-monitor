@@ -13,7 +13,7 @@ from rum_web.handlers.builder.span.base import SpanBuilder, SpanOverview, named
 
 
 class ActionSpanOverview(SpanOverview):
-    BADGES = named("elapsed_time", "attributes.action.type", "attributes.outcome.type")
+    BADGES = named("elapsed_time", "attributes.action.type", "status.code")
 
 
 class ActionKeyInfoSection(KeyInfoSection):

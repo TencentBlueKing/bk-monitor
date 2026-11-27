@@ -87,7 +87,7 @@ class ResourceSpanOverview(SpanOverview):
 
 
 DURATION = group("duration", "elapsed_time")
-HTTP_RESULT = group("http_result", "attributes.http.response.status_code", "attributes.outcome.type")
+HTTP_RESULT = group("http_result", "attributes.http.response.status_code", "status.code")
 TRANSFER = group(
     "transfer",
     "attributes.resource.transfer_size",

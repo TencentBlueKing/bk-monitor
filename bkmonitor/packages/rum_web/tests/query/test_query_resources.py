@@ -236,6 +236,12 @@ class TestViewConfigProtocol:
         assert isinstance(resident_fields, list)
         for field_name in resident_fields:
             assert isinstance(field_name, str)
+        assert "status.code" in resident_fields
+        assert "attributes.outcome.type" not in resident_fields
+        fields = {field["field_name"]: field for field in view_config_result["fields"]}
+        assert fields["status.code"]["field_type"] == "long"
+        assert [option["value"] for option in fields["status.code"]["option_values"]] == [0, 1, 2]
+        assert "attributes.outcome.type" not in fields
 
     def test_view_config_nested_field_origin_field_is_top_level(self, view_config_result):
         """嵌套字段的 origin_field 应为顶层字段名"""
