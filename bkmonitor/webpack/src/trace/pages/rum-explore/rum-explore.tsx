@@ -139,8 +139,8 @@ export default defineComponent({
     const residentKeysReadyId = shallowRef('');
     /** 目标 tab 的常驻字段还没解析完时先挡住检索栏，避免空条件先挂上再回填 */
     const residentProjecting = shallowRef(false);
-    /** 视图配置失败时没能完成的投影所属的切换代数，配置恢复后据此补一次 */
-    let pendingProjectionSeq = 0;
+    /** 视图配置失败时没能完成的投影所属的切换代数，配置恢复后据此补一次；切换代数从 1 开始，-1 表示空闲 */
+    let pendingProjectionSeq = -1;
     /** 调整常驻字段列表时，组件会先抛出值变化；用这份快照把「移除字段」和「清空值」分开 */
     let residentCacheBeforeFieldEdit: null | Record<string, IWhereItem> = null;
     const applicationList = shallowRef<IRumApplication[]>([]);
@@ -335,9 +335,9 @@ export default defineComponent({
         if (!ready) return;
         const seq = modeChangeSeq;
         const allKeys = await resolveAllResidentKeys(seq);
-        if (disposed || seq !== modeChangeSeq || pendingProjectionSeq !== seq) return;
+        if (disposed || seq !== modeChangeSeq || pendingProjectionSeq < 0 || pendingProjectionSeq !== seq) return;
         // 失败期间 where 没有投影，检索栏不能以空条件挂上；这里按目标视角字段补一次
-        pendingProjectionSeq = 0;
+        pendingProjectionSeq = -1;
         projectModeQuery(allKeys);
         residentProjecting.value = false;
         queryCtx.handleQuery();
@@ -466,7 +466,7 @@ export default defineComponent({
 
     function invalidateResidentProjection() {
       modeChangeSeq += 1;
-      pendingProjectionSeq = 0;
+      pendingProjectionSeq = -1;
       residentProjecting.value = false;
     }
 
@@ -492,7 +492,7 @@ export default defineComponent({
     async function handleModeChange(mode: RumModeType, shouldQuery = true) {
       const seq = ++modeChangeSeq;
       // 新的切换接管投影：上一次配置失败留下的待补状态作废，共用缓存保持不动
-      pendingProjectionSeq = 0;
+      pendingProjectionSeq = -1;
       // 切走前把当前 tab 的检索条件写回共用缓存；上一次切换未完成时 where 正等待回填，不能拿空值覆盖缓存
       if (!residentProjecting.value) {
         queryCtx.saveWhereValueCache(viewConfigCtx.retrievalFields.value.map(field => field.name));
