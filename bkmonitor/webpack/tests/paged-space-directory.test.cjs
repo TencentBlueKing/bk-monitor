@@ -130,6 +130,14 @@ test('alert context stays distinct from view permission, including partial resul
   assert.equal(pager.failed, true);
   assert.equal(pager.nextCursor, 'more');
   assert.equal(pager.isLoading, false);
+  const resume = pager.next();
+  h.alerts[2].resolve({ items: [], next_cursor: null });
+  await resume;
+  assert.equal(pager.partial, true);
+  const retry = pager.reset({ bkBizIds: [90, 18] });
+  h.alerts[3].resolve({ items: [], next_cursor: null });
+  await retry;
+  assert.equal(pager.partial, false);
 });
 
 test('a rolling downgrade during cursor pagination resumes past known records without repeating full reads', async () => {
@@ -283,5 +291,3 @@ test('home selector excludes existing tabs after a remote search without filteri
   await result;
   assert.deepEqual(c.bizListFilter.flatMap(group => group.children.map(row => row.id)), [77]);
 });
-
-

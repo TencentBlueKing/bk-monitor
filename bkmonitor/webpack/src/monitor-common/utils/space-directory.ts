@@ -162,7 +162,7 @@ export class SpaceDirectoryPager {
       }
       this.items = this.items.concat(additions);
       this.cursor = page.nextCursor;
-      this.partial = page.partial === true || saved.some(result => result.partial);
+      this.partial ||= page.partial === true || saved.some(result => result.partial);
       this.failed = false;
       return true;
     } catch (error) {
