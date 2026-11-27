@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -42,6 +43,20 @@ def make_search_mock(hits=()):
 def make_handler(begin_time=ALERT_CREATE_TIME, trigger_condition=None):
     """走完整展示参数路径，构造过程不会读取告警正文"""
     return AlertLogHandler(ALERT_ID, begin_time=begin_time, trigger_condition=trigger_condition)
+
+
+def test_action_record_keeps_observed_dispatch_decision():
+    evaluation = {"status": "matched", "evaluated_at": ALERT_CREATE_TIME, "dispatch_result": {"noise": True}}
+    hit = FakeHit(
+        op_type=AlertLog.OpType.ACTION,
+        event_id=123,
+        create_time=ALERT_CREATE_TIME,
+        description=json.dumps({"text": "matched", "action_plugin_type": "assign", "dispatch_evaluation": evaluation}),
+    )
+    handler = make_handler()
+    handler.handle_hit(hit)
+    assert handler.log_records[0]["dispatch_evaluation"] == evaluation
+    assert handler.log_records[0]["contents"] == ["matched"]
 
 
 class TestBuildSearchObject:

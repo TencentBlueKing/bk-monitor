@@ -52,6 +52,8 @@ class AlertLog(BaseDocument):
         ACTION = "ACTION"
         # 通知降噪
         NOISE_REDUCE = "NOISE_REDUCE"
+        # 告警分派标记噪声
+        DISPATCH_NOISE = "DISPATCH_NOISE"
         # 告警QOS
         ACTION_QOS = "ACTION_QOS"
 

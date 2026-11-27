@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 from django.utils import timezone, translation
+from rest_framework.exceptions import ValidationError
 
 from alarm_backends.core.cache.cmdb import BusinessManager, HostManager
 from alarm_backends.core.cache.strategy import StrategyCacheManager
@@ -258,6 +259,33 @@ def test_old_assignment_task_without_effective_alerts_does_not_make_up_content(a
     tasks.notify_to_appointee(data)
 
     assert assignment.created == []
+    assignment.params_api.assert_not_called()
+    assignment.sms.assert_not_called()
+
+
+def test_noise_rejects_manual_assign_batch_demo_and_previously_queued_notification(assignment, mocker):
+    data = make_data(count=2)
+    noise = make_alert("alert-2")
+    noise.extra_info = {"matched_rule_info": {"dispatch_result": {"noise": True}}}
+    assignment.mget.return_value = [make_alert(), noise]
+    logs = mocker.patch.object(frontend_resources.AlertLog, "bulk_create")
+    queued = mocker.patch.object(tasks.notify_to_appointee, "delay")
+    mocker.patch.object(frontend_resources, "get_request_username", return_value="operator")
+    mocker.patch.object(frontend_resources, "get_user_display_name", side_effect=lambda name: name)
+    with pytest.raises(ValidationError, match="噪声"):
+        frontend_resources.AssignAlertResource().perform_request(data)
+    with pytest.raises(ValidationError, match="噪声"):
+        backend_resources.BatchCreateActionResource()._create_actions({}, [[make_alert()], [noise]])
+    mocker.patch.object(frontend_resources.ActionPlugin.objects, "get")
+    mocker.patch.object(frontend_resources, "ActionPluginSlz")
+    with pytest.raises(ValidationError, match="噪声"):
+        frontend_resources.CreateDemoActionResource().perform_request(
+            {"plugin_id": 1, "bk_biz_id": 2, "alert_id": noise.id}
+        )
+    tasks.notify_to_appointee(data)
+    assert not assignment.created
+    logs.assert_not_called()
+    queued.assert_not_called()
     assignment.params_api.assert_not_called()
     assignment.sms.assert_not_called()
 

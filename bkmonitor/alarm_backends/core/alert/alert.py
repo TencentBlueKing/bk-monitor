@@ -34,7 +34,7 @@ from bkmonitor.models import ActionInstance
 from bkmonitor.utils import extended_json
 from bkmonitor.utils.common_utils import count_md5
 from constants.action import ActionSignal, AssignMode
-from constants.alert import EventStatus
+from constants.alert import AI_ANALYZE_TAG, EventStatus
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataTypeLabel
 from core.prometheus import metrics
@@ -583,6 +583,11 @@ class Alert:
         return self.data.get("assign_tags")
 
     @property
+    def is_dispatch_noise(self) -> bool:
+        match = self.get_extra_info("matched_rule_info") or {}
+        return (match.get("dispatch_result") or {}).get("noise") is True
+
+    @property
     def is_ack_signal(self):
         # 是否为ack_signal
         return (
@@ -728,6 +733,8 @@ class Alert:
         all_tags = {item["key"]: item for item in self.data.get("assign_tags", [])}
         new_tags = {item["key"]: item for item in value}
         all_tags.update(new_tags)
+        if self.is_dispatch_noise:
+            all_tags.pop(AI_ANALYZE_TAG, None)
         self.data["assign_tags"] = list(all_tags.values())
         self.update_top_event_tags(value)
 
@@ -737,6 +744,8 @@ class Alert:
         event_tags = {item["key"]: item for item in self.data["event"]["tags"]}
         additional_tags = {item["key"]: item for item in value}
         event_tags.update(additional_tags)
+        if self.is_dispatch_noise:
+            event_tags.pop(AI_ANALYZE_TAG, None)
         self.data["event"]["tags"] = list(event_tags.values())
 
     def to_document(self, include_all_fields=True):

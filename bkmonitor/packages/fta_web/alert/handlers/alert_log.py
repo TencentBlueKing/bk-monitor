@@ -43,6 +43,7 @@ class AlertLogHandler:
         AlertLog.OpType.SEVERITY_UP: _lazy("告警级别调整"),
         AlertLog.OpType.ACTION: _lazy("处理动作"),
         AlertLog.OpType.ALERT_QOS: _lazy("告警流控"),
+        AlertLog.OpType.DISPATCH_NOISE: _lazy("标记噪声"),
         AlertLog.OpType.EVENT_DROP: _lazy("事件忽略"),
         AlertLog.OpType.USER_ACTION: _lazy("用户操作"),
     }
@@ -407,6 +408,8 @@ class AlertLogHandler:
                 "action_plugin_type": content.get("action_plugin_type"),
             }
         )
+        if "dispatch_evaluation" in content:
+            record["dispatch_evaluation"] = content["dispatch_evaluation"]
         # router_info 供前端拼接路由，拼接好的 url 用于第三方跳转
         if "router_info" in content:
             record["router_info"] = content["router_info"]

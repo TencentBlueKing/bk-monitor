@@ -52,7 +52,7 @@ from constants.action import (
 )
 from core.drf_resource import Resource, api, resource
 from fta_web.action.tasks import notify_to_appointee, scheduled_register_bk_plugin
-from fta_web.action.utils import filter_alerts_by_biz, parse_bk_plugin_deployed_info
+from fta_web.action.utils import filter_alerts_by_biz, parse_bk_plugin_deployed_info, validate_action_alerts
 
 logger = logging.getLogger(__name__)
 
@@ -620,6 +620,7 @@ class AssignAlertResource(Resource):
         alerts = filter_alerts_by_biz(
             AlertDocument.mget(validated_request_data["alert_ids"]), validated_request_data["bk_biz_id"]
         )
+        validate_action_alerts(alerts)
         alert_ids = validated_request_data["alert_ids"] = [alert.id for alert in alerts]
         current_time = int(time.time())
         validated_request_data["current_time"] = current_time
@@ -762,6 +763,7 @@ class CreateDemoActionResource(Resource):
             matched = filter_alerts_by_biz(AlertDocument.mget([alert_id]), action_config["bk_biz_id"])
             if not matched:
                 raise PermissionDenied(_("告警不存在"))
+            validate_action_alerts(matched)
             alerts = [alert.id for alert in matched]
         else:
             alerts = []

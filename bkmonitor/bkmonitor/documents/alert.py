@@ -261,6 +261,11 @@ class AlertDocument(BaseDocument):
         return matched_rule_info.get("group_info") or {}
 
     @property
+    def is_dispatch_noise(self) -> bool:
+        match = getattr(self.extra_info, "matched_rule_info", None)
+        return getattr(getattr(match, "dispatch_result", None), "noise", False) is True
+
+    @property
     def agg_dimensions(self):
         if not self.extra_info or "agg_dimensions" not in self.extra_info:
             return []

@@ -61,6 +61,7 @@ def build_match_alert():
 
 def build_create_action_case(subscription_notify_info):
     alert = mock.MagicMock()
+    alert.is_dispatch_noise = False
     alert.id = "alert-id"
     alert.to_dict.return_value = {}
     alert.is_no_data.return_value = False
@@ -96,6 +97,7 @@ def build_create_action_case(subscription_notify_info):
 
     assignee_manager = mock.MagicMock()
     assignee_manager.is_matched = False
+    assignee_manager.overrides_notice = False
     assignee_manager.match_manager = None
     assignee_manager.get_assignees.return_value = []
     assignee_manager.get_notify_info.side_effect = lambda user_type=UserGroupType.MAIN: {}
@@ -561,12 +563,22 @@ def test_configured_user_group_keeps_parent_notice_when_current_receivers_are_em
 def test_matched_assignment_keeps_parent_notice_when_current_receivers_are_empty():
     processor, _, assignee_manager = build_create_action_case(({}, {}))
     assignee_manager.is_matched = True
+    assignee_manager.overrides_notice = True
 
     noise_reduce_processor = run_create_action_case(processor)
 
     processor.do_create_action.assert_called_once()
     assert processor.do_create_action.call_args.kwargs["notice_info"] == ({}, {})
     noise_reduce_processor.assert_called_once()
+
+
+def test_ai_only_match_does_not_start_parent_notice_without_recipients():
+    processor, _, assignee_manager = build_create_action_case(({}, {}))
+    assignee_manager.is_matched = True
+
+    run_create_action_case(processor)
+
+    processor.do_create_action.assert_not_called()
 
 
 def test_subscription_follower_is_recorded_without_assignment_match_manager():

@@ -754,7 +754,7 @@ def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwr
     for record in assign_group_records:
         if not isinstance(record["obj"], BatchSaveAssignRulesSlz):
             continue
-        data = record["obj"].save(record["obj"].data)
+        data = record["obj"].save(record["obj"].validated_data)
         AlertAssignGroup.objects.filter(bk_biz_id=bk_biz_id, id=data["assign_group_id"]).update(
             app=app, snippet=record["snippet"], hash=record["hash"], path=record["path"]
         )

@@ -78,6 +78,17 @@ def notify_to_appointee(validated_request_data):
         logger.info("[notify appointee] finished due to no receivers, request data %s", validated_request_data)
         return
 
+    # 历史队列可能已经保存了按原批次合并的收件人和正文，不能直接拆出噪声告警后继续发送。
+    alerts = filter_alerts_by_biz(
+        AlertDocument.mget(
+            alert_ids,
+            fields=["id", "event.bk_biz_id", "alert_name", "severity", "extra_info.matched_rule_info.dispatch_result"],
+        ),
+        validated_request_data["bk_biz_id"],
+    )
+    if not alerts or any(alert.is_dispatch_noise for alert in alerts):
+        return
+
     sms_template_mode = get_sms_template_mode()
     if (
         sms_template_mode == "standard"
@@ -85,12 +96,6 @@ def notify_to_appointee(validated_request_data):
         and "sms_assign_alert" not in validated_request_data
     ):
         # 兼容切换前已入队的任务；补读时沿用分派入口的业务范围过滤。
-        alerts = filter_alerts_by_biz(AlertDocument.mget(alert_ids), validated_request_data["bk_biz_id"])
-        if not alerts:
-            logger.info(
-                "[notify appointee] finished due to no alerts in business, request data %s", validated_request_data
-            )
-            return
         validated_request_data["sms_assign_alert"] = {
             "name": alerts[0].alert_name,
             "severity": alerts[0].severity,

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import time
 
@@ -19,7 +19,7 @@ from alarm_backends.service.fta_action.tasks.alert_assign import (
     BackendAssignMatchManager,
 )
 from bkmonitor.action.alert_assign import UpgradeRuleMatch
-from constants.action import ActionNoticeType, AssignMode
+from constants.action import ActionNoticeType, ActionPluginType, AssignMode
 from core.prometheus import metrics
 
 logger = logging.getLogger("alert.manager")
@@ -45,6 +45,8 @@ class UpgradeChecker(BaseChecker):
         return upgrade_rule.need_upgrade(latest_upgrade_interval or alert_doc.duration, last_group_index)
 
     def check(self, alert: Alert):
+        if alert.is_dispatch_noise:
+            return
         alert_doc = alert.to_document()
         notice_relation = alert_doc.strategy.get("notice", {}) if alert_doc.strategy else {}
         upgrade_notice = {
@@ -78,7 +80,7 @@ class UpgradeChecker(BaseChecker):
                 logger.exception(
                     "[assign failed] alert(%s) strategy(%s) detail: %s", alert_doc.id, alert_doc.strategy_id, str(error)
                 )
-            matched_rules = assign_manager.get_matched_rules()
+            matched_rules = [rule for rule in assign_manager.get_matched_rules() if rule.overrides_notice]
             need_upgrade = False
             if not matched_rules and AssignMode.ONLY_NOTICE in assign_mode:
                 # 如果没有适配上规则，并且支持默认通知，则判断默认通知是否需要升级
@@ -86,7 +88,7 @@ class UpgradeChecker(BaseChecker):
             else:
                 for rule in matched_rules:
                     rule_group_id = rule.assign_rule["assign_group_id"]
-                    if rule.need_upgrade:
+                    if ActionPluginType.NOTICE in rule.matched_types and rule.need_upgrade:
                         need_upgrade = True
                         break
 

@@ -31,7 +31,7 @@ class ActionHandleChecker(BaseChecker):
         """
         进行告警异常时的通知处理检测
         """
-        if not alert.is_handled:
+        if not alert.is_handled or alert.is_dispatch_noise:
             # step 1: 判断当前告警是否已经处理，如果没有处理过的，不走周期检测逻辑
             return
 

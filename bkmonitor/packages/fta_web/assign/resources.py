@@ -14,6 +14,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from itertools import chain
 
+from django.db import router, transaction
 from rest_framework import serializers
 
 from bkmonitor.action.alert_assign import AlertAssignMatchManager
@@ -23,6 +24,7 @@ from bkmonitor.action.serializers import (
     BatchAssignRulesSlz,
     BatchSaveAssignRulesSlz,
 )
+from bkmonitor.action.serializers.assign import split_dispatch_actions
 from bkmonitor.documents import AlertDocument
 from bkmonitor.models import AlertAssignGroup, AlertAssignRule
 from bkmonitor.utils.common_utils import count_md5
@@ -42,45 +44,22 @@ class BatchUpdateResource(Resource, metaclass=abc.ABCMeta):
         settings = serializers.JSONField(label="属性配置", default={}, required=False)
 
     def perform_request(self, validated_request_data):
-        new_rules = []
-        existed_rules = []
-        group_id = validated_request_data["assign_group_id"]
-        for rule in validated_request_data["rules"]:
-            rule_id = rule.pop("id", None)
-            if rule_id:
-                existed_rules.append(rule_id)
-                AlertAssignRule.objects.filter(id=rule_id, assign_group_id=group_id).update(**rule)
-                continue
-            new_rules.append(AlertAssignRule(**rule))
-        aborted_rules = list(
-            AlertAssignRule.objects.filter(assign_group_id=group_id)
-            .exclude(id__in=existed_rules)
-            .values_list("id", flat=True)
-        )
-        if aborted_rules:
-            # 删除掉已有的废弃的规则
-            AlertAssignRule.objects.filter(assign_group_id=group_id, id__in=aborted_rules).delete()
-
-        AlertAssignRule.objects.bulk_create(new_rules)
-
-        new_rules = AlertAssignRule.objects.filter(assign_group_id=group_id).values_list("id", flat=True)
-        group = AlertAssignGroup.objects.get(id=group_id)
-        group.name = validated_request_data.get("group_name") or group.name
-        group.priority = validated_request_data.get("priority") or group.priority
-        group.settings = validated_request_data.get("settings", {})
-        group.hash = ""
-        group.snippet = ""
-        group.save()
-        return {
-            "bk_biz_id": validated_request_data["bk_biz_id"],
-            "assign_group_id": group_id,
-            "rules": list(new_rules),
-            "aborted_rules": aborted_rules,
-        }
+        with transaction.atomic(using=router.db_for_write(AlertAssignGroup)):
+            group_id = validated_request_data["assign_group_id"]
+            group = AlertAssignGroup.objects.select_for_update().get(id=group_id)
+            result = BatchSaveAssignRulesSlz.save_rules(group, validated_request_data["rules"])
+            group.name = validated_request_data.get("group_name") or group.name
+            group.priority = validated_request_data["priority"]
+            group.settings = validated_request_data.get("settings", {})
+            group.hash = ""
+            group.snippet = ""
+            group.save()
+            return result
 
 
 class MatchDebugResource(Resource, metaclass=abc.ABCMeta):
     class RequestSerializer(BatchAssignRulesSlz):
+        assign_group_id = serializers.IntegerField(label="规则组ID", required=False, allow_null=True, default=None)
         exclude_groups = serializers.ListField(label="排除的规则组", child=serializers.IntegerField(), default=[])
         days = serializers.IntegerField(label="调试周期", default=7)
         start_time = serializers.IntegerField(label="调试开始时间", default=0)
@@ -91,7 +70,9 @@ class MatchDebugResource(Resource, metaclass=abc.ABCMeta):
     def compare_rules(group_id, debug_rules):
         existed_rules = {
             rule["id"]: rule
-            for rule in AssignRuleSlz(instance=AlertAssignRule.objects.filter(assign_group_id=group_id), many=True).data
+            for rule in AssignRuleSlz(
+                instance=AlertAssignRule.objects.filter(assign_group_id=group_id), many=True, context={"for_match": True}
+            ).data
         }
         for rule in debug_rules:
             if not rule.get("id") or rule["id"] not in existed_rules:
@@ -99,7 +80,8 @@ class MatchDebugResource(Resource, metaclass=abc.ABCMeta):
                 rule.update(is_changed=True)
                 continue
             rule_md5 = count_md5(rule)
-            rule_db_md5 = count_md5(existed_rules[rule["id"]])
+            # 单条规则读取含 user_type 等批量编辑器不写的字段；只比较本次实际提交内容。
+            rule_db_md5 = count_md5({key: existed_rules[rule["id"]].get(key) for key in rule})
             if rule_md5 != rule_db_md5:
                 rule.update(is_changed=True)
             else:
@@ -161,7 +143,7 @@ class MatchDebugResource(Resource, metaclass=abc.ABCMeta):
 
         # step2 获取当前DB存储的所有规则，并替换掉当前的告警规则
         # 2.1 获取到所有的规则组内容
-        group_id = validated_request_data.get("assign_group_id", 0)
+        group_id = validated_request_data.get("assign_group_id")
         group_name = validated_request_data.get("group_name", "")
         priority = validated_request_data.get("priority", 0)
         exclude_groups = validated_request_data.get("exclude_groups") or []
@@ -178,30 +160,36 @@ class MatchDebugResource(Resource, metaclass=abc.ABCMeta):
 
         group_rules = defaultdict(list)
         priority_rules = defaultdict(list)
-        if group_id:
-            self.compare_rules(group_id, validated_request_data["rules"])
-            group_rules[group_id] = validated_request_data["rules"]
-            groups[group_id]["priority"] = priority
-            groups[group_id]["name"] = group_name
-            priority_rules[priority] = validated_request_data["rules"]
+        draft_rules = validated_request_data["rules"]
+        if group_id in groups or (group_id is None and draft_rules):
+            if group_id is None:
+                groups[None] = {}
+                for rule in draft_rules:
+                    rule["is_changed"] = True
+            else:
+                self.compare_rules(group_id, draft_rules)
+            group_rules[group_id] = draft_rules
+            groups[group_id].update(priority=priority, name=group_name)
+            for index, rule in enumerate(draft_rules, start=1):
+                # 尚未保存的草稿没有数据库 ID，用请求内唯一负值关联调试明细。
+                if not rule.get("id"):
+                    rule["id"] = -index
+                rule.update(priority=priority, group_name=group_name)
+            priority_rules[priority].extend(draft_rules)
 
         # 2.2 获取所有的规则
-        rules_queryset = AlertAssignRule.objects.filter(bk_biz_id__in=[bk_biz_id, GLOBAL_BIZ_ID]).exclude(
-            assign_group_id=group_id
+        saved_group_ids = [saved_id for saved_id in groups if saved_id != group_id]
+        rules_queryset = AlertAssignRule.objects.filter(
+            bk_biz_id__in=[bk_biz_id, GLOBAL_BIZ_ID], assign_group_id__in=saved_group_ids
         )
-        if exclude_groups or group_id:
-            exclude_groups.append(group_id)
-            rules_queryset = rules_queryset.exclude(assign_group_id__in=exclude_groups)
-        rules = AssignRuleSlz(instance=rules_queryset, many=True).data
+        rules = AssignRuleSlz(instance=rules_queryset, many=True, context={"for_match": True}).data
 
         # 2.3 通过优先级和组名进行排序
         for rule in rules:
-            rule["alerts"] = []
             rule.update(groups[rule["assign_group_id"]])
+            rule["group_name"] = groups[rule["assign_group_id"]]["name"]
             priority_rules[rule["priority"]].append(rule)
             group_rules[rule["assign_group_id"]].append(rule)
-        for rule in validated_request_data["rules"]:
-            rule["alerts"] = []
         sorted_priorities = sorted(priority_rules.keys(), reverse=True)
         sorted_priority_rules = [priority_rules[sorted_priority] for sorted_priority in sorted_priorities]
 
@@ -209,7 +197,9 @@ class MatchDebugResource(Resource, metaclass=abc.ABCMeta):
         matched_alerts = []
         # 组级命中统计与规则级明细保持同一口径：同一告警命中组内多条规则时逐次累加（不按告警去重），
         # 否则组头「共 N 条」会小于组内各规则「命中 N 条」之和
-        matched_group_alert_count = defaultdict(int)
+        rule_alerts = defaultdict(list)
+        suppressed_alerts = defaultdict(list)
+        dynamic_group_hosts = {}
         for alert in alerts:
             origin_severity = alert.severity
             alert_manager = AlertAssignMatchManager(
@@ -218,7 +208,11 @@ class MatchDebugResource(Resource, metaclass=abc.ABCMeta):
                 group_rules=sorted_priority_rules,
                 assign_mode=[AssignMode.BY_RULE],
                 cmdb_attrs=self.get_alert_cmdb_attributes(alert),
+                explain=True,
+                dynamic_group_hosts=dynamic_group_hosts,
             )
+            # 调试根据当前草稿重新判定；历史命中快照只用于线上通知重试。
+            alert_manager.rule_snaps = {}
             alert_manager.run_match()
             if not alert_manager.matched_rules:
                 # 没有适配到任何规则
@@ -231,11 +225,17 @@ class MatchDebugResource(Resource, metaclass=abc.ABCMeta):
                 "content": getattr(alert.event, "description", ""),
                 "metrics": [{"id": metric_id} for metric_id in alert.event.metric],
             }
-            for matched_rule in alert_manager.matched_rules:
-                alert_dict = alert.to_dict()
-                alert_dict["origin_severity"] = origin_severity
-                matched_rule.assign_rule["alerts"].append(alert_info)
-            matched_group_alert_count[alert_manager.matched_group_info["group_id"]] += len(alert_manager.matched_rules)
+            effective_rule_ids = {rule.rule_id for rule in alert_manager.matched_rules}
+            for decision in alert_manager.matched_rule_info["matched_rules"]:
+                bucket = rule_alerts if decision["rule_id"] in effective_rule_ids else suppressed_alerts
+                bucket[decision["rule_id"]].append(
+                    {
+                        **alert_info,
+                        "action_types": decision["action_types"],
+                        "suppressed_actions": decision["suppressed_actions"],
+                        "dispatch_result": alert_manager.matched_rule_info["dispatch_result"],
+                    }
+                )
             matched_alerts.append(alert_info)
 
         MetricTranslator(bk_biz_ids=[bk_biz_id]).translate_from_dict(
@@ -248,10 +248,17 @@ class MatchDebugResource(Resource, metaclass=abc.ABCMeta):
                 group_info = groups.get(rule_group_id, {})
                 if group_info["priority"] != sorted_priority:
                     continue
+                for rule in rules:
+                    rule_id = rule["id"]
+                    rule["alerts"] = rule_alerts[rule_id]
+                    rule["suppressed_alerts"] = suppressed_alerts[rule_id]
+                    rule["actions"], rule["dispatch_config"] = split_dispatch_actions(rule.get("actions", []))
+                    if rule_id < 0:
+                        rule.pop("id")
                 response_data.append(
                     {
                         "group_id": rule_group_id,
-                        "alerts_count": matched_group_alert_count.get(rule_group_id, 0),
+                        "alerts_count": sum(len(rule["alerts"]) for rule in rules),
                         "group_name": group_info.get("name", rule_group_id),
                         "priority": group_info.get("priority", 0),
                         "rules": rules,

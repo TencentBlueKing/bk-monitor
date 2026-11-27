@@ -44,7 +44,7 @@ from bkmonitor.views import serializers
 from constants.action import GLOBAL_BIZ_ID, ActionSignal, ChatMessageType
 from core.drf_resource import Resource
 from core.errors.alert import AlertNotFoundError
-from fta_web.action.utils import filter_alerts_by_biz
+from fta_web.action.utils import filter_alerts_by_biz, validate_action_alerts
 
 try:
     # 后台接口，需要引用后台代码
@@ -110,6 +110,7 @@ class BatchCreateActionResource(Resource):
         return self._create_actions(validated_request_data, alert_groups)
 
     def _create_actions(self, validated_request_data, alert_groups):
+        validate_action_alerts(alert for group in alert_groups for alert in group)
         operate_data_list = validated_request_data["operate_data_list"]
         creator = validated_request_data["creator"]
         batch_uuid = count_md5([json.dumps(operate_data_list), int(datetime.now().timestamp())])
