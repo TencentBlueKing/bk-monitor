@@ -102,7 +102,6 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   storage: Storage = null;
   /** 常用业务id */
   commonListIds: number[] = [];
-  spaceTypeIdList: { id: string; name: string; styles: any }[] = [];
   searchTypeId = '';
   bizBgColor = '';
 
@@ -136,6 +135,14 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   created() {
     this.localValue = this.value;
     this.bizBgColor = this.$store.getters.bizBgColor || this.getRandomColor();
+
+    this.getFirstCodeBgColor();
+  }
+  @Watch('bizList')
+  refreshOpenList() {
+    if (this.popoverRef?.instance?.state?.isVisible) this.bizListFilter = this.getBizListFilter();
+  }
+  get spaceTypeIdList() {
     const spaceTypeMap: Record<string, any> = {};
     for (const item of this.bizList) {
       spaceTypeMap[item.space_type_id] = 1;
@@ -143,13 +150,13 @@ export default class BizSelect extends tsc<IProps, IEvents> {
         spaceTypeMap.bcs = 1;
       }
     }
-    this.spaceTypeIdList = Object.keys(spaceTypeMap).map(key => ({
+    return Object.keys(spaceTypeMap).map(key => ({
       id: key,
       name: SPACE_TYPE_MAP[key]?.name || this.$t('未知'),
       styles: (this.theme === 'dark' ? SPACE_TYPE_MAP[key]?.dark : SPACE_TYPE_MAP[key]?.light) || {},
     }));
-    this.getFirstCodeBgColor();
   }
+
   mounted() {
     this.storage = new Storage();
     this.commonListIds = this.storage.get(BIZ_SELECTOR_COMMON_IDS) || [];

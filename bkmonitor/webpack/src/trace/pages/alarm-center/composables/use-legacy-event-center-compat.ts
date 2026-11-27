@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, shallowRef } from 'vue';
+import { computed, shallowRef, watch } from 'vue';
 
 import dayjs from 'dayjs';
 import { checkAllowed } from 'monitor-api/modules/iam';
@@ -35,6 +35,7 @@ import { useRoute } from 'vue-router';
 import { EMode } from '../../../components/retrieval-filter/typing';
 import { AlarmType, AlertAllActionEnum, MY_ALARM_BIZ_ID, MY_AUTH_BIZ_ID } from '../typings/constants';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
+import { useAppStore } from '@/store/modules/app';
 import { useAuthorityStore } from '@/store/modules/authority';
 
 const SPACE_APPLY_ACTION_IDS = [
@@ -72,6 +73,7 @@ const LEGACY_BATCH_ACTION_MAP: Record<string, AlertAllActionEnum> = {
 export function useLegacyEventCenterCompat() {
   const route = useRoute();
   const alarmStore = useAlarmCenterStore();
+  const appStore = useAppStore();
 
   /** 是否需要自动展开第一条数据的详情 */
   const shouldAutoOpenFirstDetail = shallowRef(false);
@@ -211,7 +213,7 @@ export function useLegacyEventCenterCompat() {
   /** 计算业务权限提示展示状态 */
   function computeShowPermissionTips() {
     const ids = alarmStore.bizIds || [];
-    if (!ids.length) {
+    if (!ids.length || window.space_list_state === 'deferred') {
       showPermissionTips.value = false;
       return;
     }
@@ -219,6 +221,8 @@ export function useLegacyEventCenterCompat() {
       .filter(id => ![MY_AUTH_BIZ_ID, MY_ALARM_BIZ_ID].includes(+id))
       .some(id => !window.space_list?.some(item => +item.id === +id));
   }
+
+  watch(() => appStore.bizList, computeShowPermissionTips);
 
   function dismissPermissionTips() {
     showPermissionTips.value = false;

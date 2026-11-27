@@ -34,12 +34,20 @@ import { createApp } from 'vue';
 import Api from 'monitor-api/api';
 import { type VueInstance, setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-worker';
-import { getUrlParam, mergeSpaceList, parseBizId, resolveEntryBizId, setGlobalBizId } from 'monitor-common/utils';
+import { getUrlParam } from 'monitor-common/utils';
+import {
+  applyBasicSpaceContext,
+  assignWindowField,
+  getBasicSpaceContext,
+  hydrateSpaceDirectory,
+  initializeSpaceEntry,
+} from 'monitor-common/utils/space-entry';
 
 import { bkUiMessage } from './common/message';
 import directives from './directive/index';
 import App from './pages/app';
 import router from './router/router';
+import { useAppStore } from './store/modules/app';
 import { useAuthorityStore } from './store/modules/authority';
 import store from './store/store';
 import 'monitor-pc/common/global-login';
@@ -49,13 +57,11 @@ import './static/scss/global.scss';
 import 'monitor-pc/static/css/reset.scss';
 import 'monitor-static/icons/monitor-icons.css';
 import '@blueking/tdesign-ui/vue3/index.css';
-import { assignWindowField } from 'monitor-common/utils/assign-window';
 import { userDisplayNameConfigure } from 'monitor-pc/common/user-display-name';
 
 // import 'monitor-pc/tailwind.css';
 window.source_app = 'trace';
 const spaceUid = getUrlParam('space_uid');
-const bizId = parseBizId(getUrlParam('bizId'));
 if (process.env.NODE_ENV === 'development') {
   window.site_url = '/';
 }
@@ -68,23 +74,16 @@ if (window.__POWERED_BY_BK_WEWEB__) {
     $Message: bkUiMessage,
     $authorityStore: useAuthorityStore(),
   } as any;
+  hydrateSpaceDirectory(spaces => {
+    useAppStore().bizList = spaces;
+  }, window.rawWindow);
   // 微前端模式下，主动卸载当前 vue 实例
   window.__BK_WEWEB_DATA__?.setUnmountCallback?.(() => app.unmount());
 } else {
-  Api.model
-    .enhancedContext({
-      space_uid: spaceUid || undefined,
-      bk_biz_id: !spaceUid ? resolveEntryBizId(bizId) || process.env.defaultBizId : undefined,
-      context_type: 'basic',
-    })
+  getBasicSpaceContext()
     .then(data => {
-      assignWindowField(data);
-      mergeSpaceList(window.space_list);
-      window.username = window.uin;
-      window.user_name = window.uin;
-      window.cc_biz_id = parseBizId(window.bk_biz_id);
-      window.bk_log_search_url = data.BKLOGSEARCH_HOST;
-      setGlobalBizId();
+      applyBasicSpaceContext(data);
+      if (initializeSpaceEntry(data) === false) return;
       userDisplayNameConfigure();
       const app = createApp(App);
       setVue(app as VueInstance);
@@ -94,6 +93,9 @@ if (window.__POWERED_BY_BK_WEWEB__) {
         $Message: bkUiMessage,
         $authorityStore: useAuthorityStore(),
       } as any;
+      hydrateSpaceDirectory(spaces => {
+        useAppStore().bizList = spaces;
+      });
       Api.model
         .enhancedContext({
           space_uid: spaceUid || undefined,

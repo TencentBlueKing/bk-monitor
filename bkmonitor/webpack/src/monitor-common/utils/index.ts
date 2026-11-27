@@ -117,6 +117,7 @@ export const getBizRouteHref = (hashPath: string, bizId: null | number | string 
 // 设置全局业务ID
 export const setGlobalBizId = () => {
   let bizId: number | string = parseBizId(getUrlParam('bizId'));
+  if (bizId === -1) bizId = Number.NaN;
   const hasRouteHash = getUrlParam('routeHash');
   const isEmailSubscriptions = location.hash.indexOf('email-subscriptions') > -1;
   const isNoBusiness = location.hash.indexOf('no-business') > -1;

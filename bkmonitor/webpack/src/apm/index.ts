@@ -37,9 +37,16 @@ import 'monitor-ui/directive/index';
 import Api from 'monitor-api/api';
 import { type VueInstance, setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-worker';
-import { getUrlParam, mergeSpaceList, parseBizId, resolveEntryBizId, setGlobalBizId } from 'monitor-common/utils';
-import { assignWindowField } from 'monitor-common/utils/assign-window';
+import { getUrlParam } from 'monitor-common/utils';
 import { isAidevEmbed } from 'monitor-common/utils/global-feature-map';
+import {
+  applyBasicSpaceContext,
+  assignWindowField,
+  getBasicSpaceContext,
+  hydrateSpaceDirectory,
+  initializeSpaceEntry,
+  isAidevPermissionPending,
+} from 'monitor-common/utils/space-entry';
 import { userDisplayNameConfigure } from 'monitor-pc/common/user-display-name';
 import { dispatchApmK8sCacheFlush } from 'monitor-pc/pages/monitor-k8s/monitor-k8s-apm';
 
@@ -57,19 +64,6 @@ import 'monitor-static/icons/monitor-icons.css';
 Vue.config.devtools = process.env.NODE_ENV === 'development';
 window.source_app = 'apm';
 const spaceUid = getUrlParam('space_uid');
-const bizId = parseBizId(getUrlParam('bizId'));
-
-/** URL 指定的业务或空间是否已经出现在当前用户的空间列表。没有 bizId 时按 space_uid 判断。 */
-const hasRequestedBizAccess = () => {
-  const spaceList = window.space_list || [];
-  if (Number.isFinite(bizId)) {
-    return spaceList.some(item => +item.bk_biz_id === bizId);
-  }
-  if (spaceUid) {
-    return spaceList.some(item => item.space_uid === spaceUid);
-  }
-  return true;
-};
 
 setVue(Vue as VueInstance);
 if (process.env.NODE_ENV === 'development') {
@@ -78,7 +72,8 @@ if (process.env.NODE_ENV === 'development') {
 if (window.__POWERED_BY_BK_WEWEB__) {
   window.bk_biz_id = window.rawWindow.bk_biz_id;
   window.cc_biz_id = window.rawWindow.bk_biz_id;
-  const bizList = window.__BK_WEWEB_DATA__?.$baseStore?.getters.bizList || window.space_list || [];
+  const baseStore = window.__BK_WEWEB_DATA__?.$baseStore;
+  const bizList = baseStore?.getters.bizList || window.space_list || [];
   store.commit('app/SET_APP_STATE', {
     userName: window.user_name,
     bizId: window.cc_biz_id,
@@ -98,26 +93,25 @@ if (window.__POWERED_BY_BK_WEWEB__) {
   Vue.prototype.$bus = new Vue();
   Vue.prototype.$api = Api;
   Vue.prototype.$authorityStore = Authority;
-  window.__BK_WEWEB_DATA__?.setUnmountCallback?.(() => app.$destroy());
+  const unwatch = baseStore?.watch(
+    (_state, getters) => getters.bizList,
+    bizList => {
+      window.space_list = bizList;
+      store.commit('app/SET_APP_STATE', { bizList });
+    }
+  );
+  window.__BK_WEWEB_DATA__?.setUnmountCallback?.(() => {
+    unwatch?.();
+    app.$destroy();
+  });
   /** 在 APM 作为微应用嵌入 monitor-pc 时，向父页面注册一个「离开前回调 */
   window.__BK_WEWEB_DATA__?.registerApmLeaveHandler?.(dispatchApmK8sCacheFlush);
 } else {
-  Api.model
-    .enhancedContext({
-      space_uid: spaceUid || undefined,
-      bk_biz_id: !spaceUid ? resolveEntryBizId(bizId) || process.env.defaultBizId : undefined,
-      context_type: 'basic',
-    })
+  getBasicSpaceContext()
     .then(data => {
-      assignWindowField(data);
-      mergeSpaceList(window.space_list);
-      window.username = window.uin;
-      window.user_name = window.uin;
-      window.cc_biz_id = parseBizId(window.bk_biz_id);
-      window.bk_log_search_url = data.BKLOGSEARCH_HOST;
-      // AIDev 嵌入时，业务还不在空间列表里说明权限尚未同步。
-      // 直接展示等待页，避免 setGlobalBizId 跳到 APM 没有的 no-business 路由。
-      if (isAidevEmbed() && !hasRequestedBizAccess()) {
+      applyBasicSpaceContext(data);
+      // AIDev 的授权仍在同步时展示可刷新的等待页。
+      if (isAidevEmbed() && isAidevPermissionPending(data)) {
         new Vue({
           el: '#app',
           i18n,
@@ -125,7 +119,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
         });
         return;
       }
-      const bizId = setGlobalBizId();
+      const bizId = initializeSpaceEntry(data);
       if (bizId === false) return;
       userDisplayNameConfigure();
       store.commit('app/SET_APP_STATE', {
@@ -147,6 +141,7 @@ if (window.__POWERED_BY_BK_WEWEB__) {
       Vue.prototype.$bus = new Vue();
       Vue.prototype.$api = Api;
       Vue.prototype.$authorityStore = Authority;
+      hydrateSpaceDirectory(bizList => store.commit('app/SET_APP_STATE', { bizList }));
       Api.model
         .enhancedContext({
           space_uid: spaceUid || undefined,

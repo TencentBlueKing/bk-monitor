@@ -158,9 +158,9 @@ export const request = (method: RequestMethod, url: string): RequestFunction => 
     }
 
     if (methodType === 'get') {
-      if (hasBizId && !('bk_biz_id' in data)) {
+      if (config.needBiz && hasBizId && !('bk_biz_id' in data)) {
         (data as Record<string, any>).bk_biz_id = parsedBizId;
-      } else if (window.space_uid) {
+      } else if (config.needBiz && window.space_uid) {
         (data as Record<string, any>).space_uid = window.space_uid;
       }
 

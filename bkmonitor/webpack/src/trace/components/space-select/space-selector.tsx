@@ -39,6 +39,7 @@ import {
 import { useDebounceFn, useEventListener } from '@vueuse/core';
 import { Button, Checkbox, Input } from 'bkui-vue';
 import { bizWithAlertStatistics } from 'monitor-api/modules/home';
+import { canSwitchSpace } from 'monitor-common/utils/space-entry';
 import EmptyStatus, { type EmptyStatusOperationType } from 'trace/components/empty-status/empty-status';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
@@ -165,12 +166,9 @@ export default defineComponent({
       },
       { immediate: true }
     );
-    watch(
-      () => props.needAlarmOption,
-      () => {
-        initLocalSpaceList();
-      }
-    );
+    watch([() => props.spaceList, () => props.needAlarmOption], () => {
+      initLocalSpaceList();
+    });
     watch(
       () => props.needIncidentOption,
       val => {
@@ -213,6 +211,7 @@ export default defineComponent({
      * 不依赖 business_list 是否命中，避免 id 类型不一致 / 接口缺项导致触发器空白
      */
     function ensureSelectedNoAuthSpaces(val: (number | string)[] = []) {
+      if (window.space_list_state === 'deferred') return;
       const existingIds = new Set(localSpaceList.value.map(item => +item.id));
       const missing: ILocalSpaceList[] = [];
       for (const id of val) {
@@ -273,6 +272,7 @@ export default defineComponent({
     }
 
     function initLocalSpaceList() {
+      const selected = isOpen.value ? localValue.value : props.value;
       localSpaceList.value = getSpaceList(props.spaceList);
       const nullItem = {
         space_name: '',
@@ -304,13 +304,11 @@ export default defineComponent({
       if (props.needDefaultOptions) {
         localSpaceList.value = [...defaultRadioList.map(d => ({ ...nullItem, ...d })), ...localSpaceList.value] as any;
       }
-      if (props.hasAuthApply) {
+      localValue.value = [];
+      handleWatchValue(selected);
+      setPaginationData(true);
+      if (props.hasAuthApply && window.space_list_state !== 'deferred') {
         setAllowed();
-      } else {
-        if (props.value.length && !localValue.value.length) {
-          handleWatchValue(props.value);
-        }
-        setPaginationData(true);
       }
     }
 
@@ -378,7 +376,7 @@ export default defineComponent({
       handlePopoverHidden();
     }
 
-    function handlePopoverHidden() {
+    async function handlePopoverHidden() {
       popInstance?.hide();
       popInstance?.destroy?.();
       searchValue.value = '';
@@ -393,13 +391,16 @@ export default defineComponent({
         item.preciseMatch = false;
       }
       triggerRef(localSpaceList);
-      if (needCurSpace.value) {
-        if (+localCurrentSpace.value !== +props.currentSpace) {
-          resetCurBiz(+localCurrentSpace.value);
-        }
+      const changed = localValue.value.length && JSON.stringify(props.value) !== JSON.stringify(localValue.value);
+      const selected = localValue.value.filter(v => !specialIds.includes(v));
+      const autoSelect = changed && props.isAutoSelectCurrentSpace && selected.length === 1;
+      const nextSpace = autoSelect ? +selected[0] : +localCurrentSpace.value;
+      if ((needCurSpace.value || autoSelect) && nextSpace !== +props.currentSpace) {
+        if (!(await canSwitchSpace(nextSpace))) return;
+        resetCurBiz(nextSpace);
+        localCurrentSpace.value = nextSpace;
       }
-      if (localValue.value.length && JSON.stringify(props.value) !== JSON.stringify(localValue.value)) {
-        handleAutoSetCurBiz();
+      if (changed) {
         setTimeout(() => {
           handleChange();
         }, 50);
@@ -411,18 +412,6 @@ export default defineComponent({
       const searchParams = new URLSearchParams({ bizId: `${curSpace}` });
       const newUrl = `${window.location.pathname}?${searchParams.toString()}#${route.fullPath}`;
       history.replaceState({}, '', newUrl);
-    }
-
-    function handleAutoSetCurBiz() {
-      if (props.isAutoSelectCurrentSpace) {
-        const selected = localValue.value.filter(v => !specialIds.includes(v));
-        if (selected.length === 1) {
-          if (+selected[0] !== localCurrentSpace.value) {
-            resetCurBiz(+selected[0]);
-          }
-          localCurrentSpace.value = +selected[0];
-        }
-      }
     }
 
     function getLocalValue() {
@@ -588,9 +577,10 @@ export default defineComponent({
       }
       syncNoAuthBizIds();
       // value 可能已在 await 期间更新，再兜底补一次
-      ensureSelectedNoAuthSpaces(props.value);
+      const selected = isOpen.value ? localValue.value : props.value;
+      ensureSelectedNoAuthSpaces(selected);
       localValue.value = [];
-      handleWatchValue(props.value);
+      handleWatchValue(selected);
       setPaginationData(true);
     }
 
