@@ -191,10 +191,29 @@ test('failed next request keeps the authorized rows and cursor for retry', async
   assert.deepEqual(pager.items.map(row => row.id), [3, 4]);
 });
 
+test('retrying the same query retains confirmed rows on failure, then replaces them on a fresh success', async () => {
+  const h = setup(), pager = new h.directory.SpaceDirectoryPager();
+  const first = pager.reset({ query: 'name' });
+  h.normal[0].resolve({ items: [space(3)], next_cursor: null, partial: true });
+  await first;
+  const failed = pager.reset({ query: 'name' });
+  h.normal[1].reject(new Error('unavailable'));
+  await assert.rejects(failed);
+  assert.deepEqual(pager.items.map(row => row.id), [3]);
+  const retry = pager.reset({ query: 'name' });
+  h.normal[2].resolve({ items: [space(7)], next_cursor: null });
+  await retry;
+  assert.deepEqual(pager.items.map(row => row.id), [7]);
+  const different = pager.reset({ query: 'changed' });
+  assert.deepEqual(pager.items, []);
+  h.normal[3].resolve({ items: [], next_cursor: null });
+  await different;
+});
+
 function component(file, h) {
   const decorator = () => () => {};
   const modules = {
-    'vue-property-decorator': { Component: C => C, Emit: decorator, Prop: decorator, Ref: decorator, Watch: decorator },
+    'vue-property-decorator': { Component: C => C, Emit: decorator, InjectReactive: decorator, Prop: decorator, Ref: decorator, Watch: decorator },
     'vue-tsx-support': { Component: class {} },
     'monitor-common/utils/space-directory': h.directory,
     'monitor-common/utils': { Debounce: decorator },
@@ -317,4 +336,27 @@ test('home selector excludes existing tabs after a remote search without filteri
   h.normal[0].resolve({ items: [space(12, '北京'), space(77, '北郊')], next_cursor: null });
   await result;
   assert.deepEqual(c.bizListFilter.flatMap(group => group.children.map(row => row.id)), [77]);
+});
+
+test('dashboard tools request only a visible demo and use that ID across business boundaries', async () => {
+  const h = setup(), c = component('monitor-pc/pages/monitor-k8s/components/dashboard-tools.tsx', h);
+  Object.assign(c, { showListMenu: false, menuList: [{ id: 'edit-tab' }, { id: 'view-demo' }], $store: { getters: { bizList: [] } } });
+  await c.resolveDemo(c.needsDemo);
+  assert.equal(h.normal.length, 0);
+  c.showListMenu = true;
+  const loading = c.resolveDemo(c.needsDemo);
+  assert.equal(h.normal[0].params.include_demo, 1);
+  assert.equal(h.normal[0].params.page_size, 1);
+  h.normal[0].resolve({ items: [{ ...space(7), is_demo: true }], next_cursor: null });
+  await loading;
+  assert.equal(c.visibleMenuList.find(item => item.id === 'view-demo').demoBizId, 7);
+  const denied = c.resolveDemo(c.needsDemo);
+  h.normal[1].resolve({ items: [], next_cursor: null });
+  await denied;
+  assert.deepEqual(c.visibleMenuList, [{ id: 'edit-tab' }]);
+  h.window.space_list_page_supported = false;
+  c.$store.getters.bizList = [{ ...space(9), id: 9, is_demo: true }];
+  await c.resolveDemo(c.needsDemo);
+  assert.equal(h.normal.length, 2);
+  assert.equal(c.visibleMenuList.find(item => item.id === 'view-demo').demoBizId, 9);
 });

@@ -135,7 +135,8 @@ export class SpaceDirectoryPager {
   private generation = 0;
   private options: SpaceDirectoryQuery = {};
   private pending = false;
-  private async fetch(references: SpaceDirectoryQuery[] = []) {
+  private scope: string;
+  private async fetch(references: SpaceDirectoryQuery[] = [], replace = false) {
     const generation = this.generation;
     this.pending = true;
     try {
@@ -145,7 +146,8 @@ export class SpaceDirectoryPager {
         references.map(query => this.queryPage(query).catch(() => ({ items: [], nextCursor: null, partial: true })))
       );
       if (generation !== this.generation) return false;
-      const ids = new Set(this.items.map(row => row.bk_biz_id));
+      const previous = replace ? [] : this.items;
+      const ids = new Set(previous.map(row => row.bk_biz_id));
       // A legacy replica ignores a server cursor. Resume in its already-returned array past known records.
       while (page.nextCursor?.startsWith('local:') && page.items.every(row => ids.has(row.bk_biz_id))) {
         page = await this.queryPage({ ...this.options, cursor: page.nextCursor });
@@ -160,7 +162,7 @@ export class SpaceDirectoryPager {
           }
         }
       }
-      this.items = this.items.concat(additions);
+      this.items = previous.concat(additions);
       this.cursor = page.nextCursor;
       this.partial ||= page.partial === true || saved.some(result => result.partial);
       this.failed = false;
@@ -207,7 +209,11 @@ export class SpaceDirectoryPager {
     options: SpaceDirectoryQuery = {},
     saved?: { bkBizIds?: number[]; includeDemo?: boolean; spaceUids?: string[] }
   ) {
+    const scope = directoryScope();
+    const previous = this.scope === scope && JSON.stringify(this.options) === JSON.stringify(options) ? this.items : [];
     this.close();
+    this.items = previous;
+    this.scope = scope;
     this.options = options;
     const references = [];
     if (!options.query && !options.type) {
@@ -216,7 +222,7 @@ export class SpaceDirectoryPager {
       }
       if (saved?.spaceUids?.length) references.push({ spaceUids: saved.spaceUids.slice(0, 100), pageSize: 100 });
     }
-    return this.fetch(references);
+    return this.fetch(references, true);
   }
 }
 

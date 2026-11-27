@@ -269,7 +269,7 @@ export default defineComponent({
       if (first) initLocalSpaceList();
       const results = await response;
       if (generation !== pageGeneration) return;
-      remote.updateRows();
+      remote.updateRows(first);
       pageLoading.value = false;
       hasMore.value = remote.allowed.hasMore || remote.alerts.hasMore;
       pageError.value =

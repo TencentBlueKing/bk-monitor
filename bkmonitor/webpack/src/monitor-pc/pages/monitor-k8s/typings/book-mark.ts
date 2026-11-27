@@ -43,15 +43,6 @@ export type BookMarkMode = 'auto' | 'custom';
 // dashboard 仪表盘模式  list: 列表模式 chart: 视图模式
 export type DashboardMode = 'chart' | 'list';
 
-export interface IK8sTargetList {
-  bcs_cluster_id: string;
-  cacheId: string;
-  namespace: string;
-  pod?: string;
-  resource_type: 'pod' | 'workload';
-  workload?: string;
-}
-
 // 页签配置
 export interface IBookMark {
   // 页签id
@@ -131,6 +122,15 @@ export interface ICurVarItem {
   optionalValue: IOption[];
   value?: string[];
   where: IWhere[];
+}
+
+export interface IK8sTargetList {
+  bcs_cluster_id: string;
+  cacheId: string;
+  namespace: string;
+  pod?: string;
+  resource_type: 'pod' | 'workload';
+  workload?: string;
 }
 
 /** 可选值 */
@@ -266,7 +266,7 @@ export class BookMarkModel implements IBookMark {
       {
         id: 'view-demo',
         name: window.i18n.tc('DEMO'),
-        show: window.space_list.some(item => item.is_demo),
+        show: true,
       },
     ].filter(item => item.show);
   }
@@ -425,7 +425,7 @@ export class BookMarkModel implements IBookMark {
   getAllVariables() {
     let str = JSON.stringify(this.bookmark);
     const variableList = new Set<string>();
-    str = str.replace(/\${([^}]+)}/gm, (m, key) => {
+    str = str.replace(/\${([^}]+)}/gm, (_match, key) => {
       variableList.add(key);
       return key;
     });

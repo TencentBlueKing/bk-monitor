@@ -1099,7 +1099,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
    */
   handleShowSettingModel(menuItem: IMenuItem) {
     if (menuItem.id === 'view-demo') {
-      this.handleToDemo();
+      this.handleToDemo(menuItem.demoBizId);
     } else {
       this.activeSettingId = menuItem.id;
       this.showSetting = true;
@@ -1123,15 +1123,14 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   /**
    * @description: 跳转demo业务
    */
-  handleToDemo() {
-    const demo = this.$store.getters.bizList.find(item => item.is_demo);
-    if (demo?.id) {
-      if (+this.$store.getters.bizId === +demo.id) {
+  handleToDemo(demoBizId: number) {
+    if (demoBizId != null) {
+      if (+this.$store.getters.bizId === demoBizId) {
         location.reload();
       } else {
         /** 切换为demo业务 */
         this.$store.commit('app/handleChangeBizId', {
-          bizId: demo.id,
+          bizId: demoBizId,
           ctx: this,
         });
       }

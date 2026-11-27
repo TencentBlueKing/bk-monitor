@@ -70,8 +70,9 @@ export class PagedSpaceOptions {
   }
 
   reset(query: SpaceDirectoryQuery, includeAlerts: boolean) {
-    this.order.clear();
-    return Promise.allSettled([this.allowed.reset(query), ...(includeAlerts ? [this.alerts.reset(query)] : [])]);
+    const jobs = [this.allowed.reset(query), ...(includeAlerts ? [this.alerts.reset(query)] : [])];
+    this.updateRows(true);
+    return Promise.allSettled(jobs);
   }
 
   async resolveSelected(ids: number[], includeAlerts: boolean) {
@@ -115,7 +116,8 @@ export class PagedSpaceOptions {
     return this.order.get(id) ?? this.references.get(id);
   }
 
-  updateRows() {
+  updateRows(replace = false) {
+    if (replace) this.order.clear();
     for (const item of this.allowed.items) this.order.set(item.bk_biz_id, item);
     for (const item of this.alerts.items) {
       if (!this.order.has(item.bk_biz_id)) this.order.set(item.bk_biz_id, item);
