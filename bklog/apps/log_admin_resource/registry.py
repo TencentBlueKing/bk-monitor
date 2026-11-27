@@ -62,6 +62,7 @@ from apps.log_admin_resource.handlers.host_inspection import (
     FUNCTIONS as HOST_INSPECTION_FUNCTIONS,
     HANDLERS as HOST_INSPECTION_HANDLERS,
 )
+from apps.log_admin_resource.handlers import archive
 from apps.log_admin_resource.handlers import user_query
 from apps.log_admin_resource.handlers.iam_decision import (
     FUNCTIONS as IAM_DECISION_FUNCTIONS,
@@ -640,6 +641,7 @@ FUNCTIONS.update(MODEL_QUERY_FUNCTIONS)
 FUNCTIONS.update(HOST_INSPECTION_FUNCTIONS)
 FUNCTIONS.update(K8S_INSPECTION_FUNCTIONS)
 FUNCTIONS.update(IAM_DECISION_FUNCTIONS)
+FUNCTIONS.update(archive.FUNCTIONS)
 FUNCTIONS.update(user_query.FUNCTIONS)
 FUNCTIONS.update(MONITOR_STRATEGY_FUNCTIONS)
 FUNCTIONS.update(RUNTIME_FUNCTIONS)
@@ -677,6 +679,7 @@ HANDLERS.update(MODEL_QUERY_HANDLERS)
 HANDLERS.update(HOST_INSPECTION_HANDLERS)
 HANDLERS.update(K8S_INSPECTION_HANDLERS)
 HANDLERS.update(IAM_DECISION_HANDLERS)
+HANDLERS.update(archive.HANDLERS)
 HANDLERS.update(user_query.HANDLERS)
 HANDLERS.update(MONITOR_STRATEGY_HANDLERS)
 HANDLERS.update(RUNTIME_HANDLERS)

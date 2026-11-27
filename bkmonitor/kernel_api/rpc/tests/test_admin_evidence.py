@@ -285,3 +285,80 @@ def test_discovery_has_specific_tenant_paging_and_no_passthrough():
             entry.handler({**entry.example_params, "func_name": "other"})
         with pytest.raises(ValidationError):
             entry.handler({**entry.example_params, "bk_tenant_id": "__all__"})
+
+
+def test_alarm_sources_and_archives(evidence_db):
+    from bkmonitor.models.fta.plugin import AlertConfig, EventPluginInstance, EventPluginV2
+    from kernel_api.rpc.functions.admin.evidence import alarm_source, log_archive
+    from metadata.models.es_snapshot import EsSnapshot, EsSnapshotIndice, EsSnapshotRepository, EsSnapshotRestore
+
+    models = [
+        EventPluginV2,
+        EventPluginInstance,
+        AlertConfig,
+        EsSnapshotRepository,
+        EsSnapshot,
+        EsSnapshotIndice,
+        EsSnapshotRestore,
+    ]
+    with connections["default"].schema_editor() as editor:
+        for model in models:
+            editor.create_model(model)
+    for pk, biz in [(1, 0), (2, 2), (3, 3)]:
+        EventPluginV2.objects.bulk_create([EventPluginV2(plugin_id=f"p{pk}", version="1", bk_biz_id=biz)])
+        EventPluginInstance.objects.bulk_create(
+            [
+                EventPluginInstance(
+                    id=pk,
+                    plugin_id=f"p{pk}",
+                    version="1",
+                    bk_biz_id=biz,
+                    token="private",
+                    config_params=[{"field": "api_key", "value": "private"}],
+                    ingest_config={"collect_type": "http_push"},
+                )
+            ]
+        )
+    assert alarm_source.plugins(BIZ)["data"]["total"] == 2
+    assert [row["id"] for row in alarm_source.instances({**BIZ, "plugin_id": "p2"})["data"]["items"]] == [2]
+    version = alarm_source.plugin_detail({**BIZ, "plugin_id": "p1", "version": "1"})["data"]["items"][0]
+    assert version["version"] == "1" and version["config_fields"] == []
+    detail = alarm_source.instance_detail({**BIZ, "instance_id": 2})["data"]["items"][0]
+    assert detail["config_fields"] == ["api_key"] and "private" not in str(detail)
+    assert alarm_source.instance_detail({**BIZ, "instance_id": 3})["data"]["items"] == []
+    for inst in (0, 2, 3):
+        AlertConfig.objects.bulk_create([AlertConfig(name=f"rule-{inst}", plugin_id="p2", plugin_instance_id=inst)])
+    assert alarm_source.alert_configs({**BIZ, "instance_id": 2})["data"]["total"] == 2
+    tenant = {"bk_tenant_id": "system"}
+    from django.utils import timezone
+
+    now = timezone.now()
+    for name in ("system", "other"):
+        EsSnapshotRepository.objects.create(repository_name=name, alias=name, cluster_id=1, bk_tenant_id=name)
+        EsSnapshot.objects.create(table_id="logs", target_snapshot_repository_name=name, bk_tenant_id=name)
+        EsSnapshotIndice.objects.create(
+            table_id="logs",
+            snapshot_name="snap",
+            cluster_id=1,
+            repository_name=name,
+            index_name=name,
+            doc_count=5,
+            store_size=8,
+            start_time=now,
+            end_time=now,
+            bk_tenant_id=name,
+        )
+        EsSnapshotRestore.objects.create(
+            table_id="logs",
+            repository_name=name,
+            start_time=now,
+            end_time=now,
+            expired_time=now,
+            total_doc_count=5,
+            total_store_size=8,
+            bk_tenant_id=name,
+        )
+    for call in (log_archive.repositories, log_archive.snapshots, log_archive.indices, log_archive.restores):
+        assert call(tenant)["data"]["total"] == 1
+        assert call({**tenant, "repository_name": "other"})["data"]["total"] == 0
+        assert call({**tenant, "page": 2, "page_size": 1})["data"]["items"] == []
