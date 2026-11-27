@@ -42,7 +42,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
         "resource.deployment.environment.name",
         "resource.user_agent.name",
         "attributes.view.url_template",
-        "attributes.outcome.type",
+        "status.code",
         "attributes.user.id",
         "elapsed_time",
     ]

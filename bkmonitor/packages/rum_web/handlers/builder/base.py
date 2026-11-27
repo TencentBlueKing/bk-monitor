@@ -68,9 +68,14 @@ class BaseOverview(BaseComponent):
     ITEMS: tuple[NamedKeyValueItem, ...] = ()
 
     def render(self) -> dict[str, Any]:
+        badges = []
+        for item in self.BADGES:
+            badge = item.render(self.flatten_data)
+            if badge["value"] is not None:
+                badges.append(badge)
         return {
             "title": self.flatten_data.get("span_name"),
-            "badges": [item.render(self.flatten_data) for item in self.BADGES],
+            "badges": badges,
             "items": [item.render(self.flatten_data) for item in self.ITEMS],
         }
 

@@ -20,7 +20,6 @@ from semconv.rum.constants import (
     ViewLoadingType,
     VitalMetric,
     NetworkStatus,
-    OutcomeType,
     NetworkConnectionType,
 )
 from semconv.rum.attributes import (
@@ -190,7 +189,6 @@ class TestSpanSpec:
             "attributes.action.ids",
             "attributes.action.target.path",
             "attributes.network.effective_type",
-            "attributes.outcome.type",
             "attributes.vital.id",
             "attributes.vital.version",
             "attributes.vital.lcp.target",
@@ -219,6 +217,11 @@ class TestSpanSpec:
         spec = SpanSpec.from_field(path)
         assert spec in SpanSpec.fields()
         assert spec.get_full_field_name() == path
+
+    def test_status_field_registration(self):
+        field_names = {field.get_full_field_name() for field in SpanSpec.fields()}
+        assert "status.code" in field_names
+        assert "attributes.outcome.type" not in field_names
 
     # ------------------------------------------------------------------
     # 字段语义与原始 spec 一致（field_name 对齐）
@@ -263,7 +266,6 @@ class TestSpanSpec:
             ("attributes.action.end_reason", ActionEndReason),
             ("attributes.error.source", ErrorSource),
             ("attributes.resource.type", ResourceType),
-            ("attributes.outcome.type", OutcomeType),
             ("resource.telemetry.sdk.language", SdkLanguage),
         ],
     )

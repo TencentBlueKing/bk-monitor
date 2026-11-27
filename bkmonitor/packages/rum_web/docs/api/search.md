@@ -329,7 +329,7 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
     "resource.deployment.environment.name",
     "resource.user_agent.name",
     "attributes.view.url_template",
-    "attributes.outcome.type",
+    "status.code",
     "attributes.user.id",
     "elapsed_time"
   ],
@@ -1288,7 +1288,7 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
 | 参数名称 | 类型 | 描述 |
 |----------|------|------|
 | title | String | 详情标题 |
-| badges | Array[Item] | 标题旁的关键指标与状态 |
+| badges | Array[Item] | 标题旁的关键指标与状态。接口省略 `value` 为 `null` 的徽标。 |
 | items | Array[Item] | 应用、页面、会话、用户和时间信息 |
 
 - Item
@@ -1322,6 +1322,7 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
   "origin_data": {
     "span_id": "7d2f09b6f8bc31aa",
     "attributes": {"span_type": "resource"},
+    "status": {"code": 0},
     "links": [],
     "events": [],
     "resource": {"service.name": "rum-web"}
@@ -1358,7 +1359,7 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
           "attributes.server.address": "example.com"
         },
         "duration": {"elapsed_time": 128000},
-        "http_result": {"attributes.http.response.status_code": 200, "attributes.outcome.type": "success"},
+        "http_result": {"attributes.http.response.status_code": 200, "status.code": 0},
         "transfer": {
           "display.compression_ratio": 0.6295,
           "attributes.resource.transfer_size": 3260,
@@ -1455,7 +1456,7 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
       "key": "key_info",
       "type": "summary_cards",
       "data": {
-        "http_result": {"attributes.http.response.status_code": 200, "attributes.outcome.type": "success"},
+        "http_result": {"attributes.http.response.status_code": 200, "status.code": 0},
         "duration": {"elapsed_time": 60300},
         "transfer": {
           "display.compression_ratio": 0.689,
@@ -1498,7 +1499,7 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
     "badges": [
       {"field_name": "elapsed_time", "value": 432000},
       {"field_name": "attributes.action.type", "value": "click"},
-      {"field_name": "attributes.outcome.type", "value": null}
+      {"field_name": "status.code", "value": 0}
     ]
   },
   "sections": [
@@ -1514,6 +1515,8 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
 }
 ```
 
+Action 的状态徽标读取当前 Span 的 `status.code`。取值为 `0`（未设置）、`1`（正常）、`2`（异常）。
+
 ##### 4）Long Task
 
 ```json
@@ -1522,8 +1525,7 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
   "overview": {
     "title": "longTask",
     "badges": [
-      {"field_name": "elapsed_time", "value": 123500},
-      {"field_name": "attributes.outcome.type", "value": null}
+      {"field_name": "elapsed_time", "value": 123500}
     ]
   },
   "sections": [
@@ -1549,9 +1551,7 @@ Session 详情的概览包含类型、应用、入口页面、退出页面、开
   "span_id": "9d199175096474e4",
   "overview": {
     "title": "TypeError: Cannot read properties of undefined (reading 'name')",
-    "badges": [
-      {"field_name": "attributes.outcome.type", "value": "error"}
-    ]
+    "badges": []
   },
   "sections": [
     {
