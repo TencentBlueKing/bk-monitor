@@ -83,14 +83,14 @@ function setup({ url = '?bizId=17#/settings', recent, build, token, child, respo
     window.space_list_state = data.SPACE_LIST_STATE;
     return entry.initializeSpaceEntry(data);
   }
-  function createRouter() {
-    const Router = require('vue-router');
+  function createRouter(Router = require('vue-router'), Vue = require('vue')) {
     const routeNames = ['share', 'event-center', 'settings', 'no-business'];
     const routes = routeNames.map(name => ({ name, path: '/' + name }));
+    routes.push({ name: 'alarm-center', path: '/trace/alarm-center' });
     const routeDeps = Object.fromEntries(['dashboard', 'data-retrieval', 'event', 'integrated', 'manager', 'others',
       'scenes', 'platform-setting', 'dashboard/email-subscriptions'].map(name => ['./' + name, { default: [] }]));
     return load('monitor-pc/router/router.ts', globals, {
-      ...deps, ...routeDeps, vue: { default: require('vue') }, 'vue-router': { default: Router },
+      ...deps, ...routeDeps, vue: { default: Vue }, 'vue-router': { default: Router },
       'monitor-common/utils/utils': { getUrlParam }, './home': { default: routes },
       '../store/store': { default: { ...store, getters: { bizList: [] } } },
       '../store/modules/report-log': { default: { reportRouteLog() {} } },
@@ -282,6 +282,103 @@ test('Vue Router 3 discards a late admission when a newer public navigation fini
     assert.equal(router.currentRoute.name, 'event-center');
     assert.deepEqual(h.messages, []);
   }
+});
+
+// Exercise Vue Router's installed HashHistory, including its native popstate listener.
+function createHashRouter(h) {
+  const entries = [h.location.href];
+  const events = new EventTarget();
+  let index = 0;
+  h.window.navigator = { userAgent: 'test' };
+  h.window.addEventListener = events.addEventListener.bind(events);
+  h.window.removeEventListener = events.removeEventListener.bind(events);
+  h.window.history = {
+    get length() { return entries.length; },
+    pushState(_state, _title, href) {
+      h.location.href = href;
+      entries.splice(++index, Infinity, h.location.href);
+    },
+    replaceState(_state, _title, href) {
+      h.location.href = href;
+      entries[index] = h.location.href;
+    },
+    go(offset) {
+      if (index + offset < 0 || index + offset >= entries.length) return;
+      index += offset;
+      h.location.href = entries[index];
+      events.dispatchEvent(new Event('popstate'));
+    },
+  };
+  const module = { exports: {} };
+  const script = fs.readFileSync(require.resolve('vue-router'), 'utf8');
+  new Function('window', 'document', 'module', 'exports', script)(
+    h.window, { querySelector: () => null }, module, module.exports
+  );
+  const Vue = require('vue');
+  const localVue = Object.assign(Vue.extend(), { config: Vue.config });
+  const router = h.createRouter(module.exports, localVue);
+  assert.equal(router.mode, 'hash');
+  router.history.setupListeners();
+  return router;
+}
+
+for (const path of ['/share?filter=critical', '/trace/alarm-center?filter=critical']) {
+  test('Back restores the complete public URL after denied navigation from ' + path, async () => {
+    const h = setup({ url: '?bizId=17#/event-center', response: basic(17, 'denied') });
+    h.start(basic(17, 'denied'));
+    const router = createHashRouter(h);
+    await router.push(path);
+    const original = h.location.href;
+    const length = h.window.history.length;
+    await router.push('/settings').catch(() => {});
+    assert.equal(router.currentRoute.name, 'no-business');
+    assert.equal(h.window.history.length, length + 1);
+    router.back();
+    await flush();
+    assert.equal(h.location.href, original);
+    assert.equal(router.currentRoute.fullPath, path);
+  });
+}
+
+test('denial replaces a protected source instead of leaving a Back loop', async () => {
+  const h = setup({ url: '?bizId=17#/event-center', response: basic(18, 'denied') });
+  h.start(basic(17));
+  const router = createHashRouter(h);
+  await router.push('/event-center?filter=older');
+  await router.push('/settings?tab=old');
+  const url = new URL(h.location.href);
+  url.searchParams.set('bizId', '18');
+  h.window.history.replaceState(null, '', url.href);
+  const length = h.window.history.length;
+  await router.push('/settings?tab=new').catch(() => {});
+  assert.equal(router.currentRoute.name, 'no-business');
+  assert.equal(h.window.history.length, length);
+  router.back();
+  await flush();
+  assert.equal(router.currentRoute.fullPath, '/event-center?filter=older');
+});
+
+test('Back onto a now-denied target replaces that entry and preserves forward history', async () => {
+  const h = setup({ url: '?bizId=17#/event-center', response: basic(17, 'denied') });
+  h.start(basic(17));
+  const router = createHashRouter(h);
+  await router.push('/event-center?filter=older');
+  await router.push('/settings');
+  await router.push('/share?filter=current');
+  h.start(basic(17, 'denied'));
+  const length = h.window.history.length;
+  router.back();
+  await flush();
+  assert.equal(router.currentRoute.name, 'no-business');
+  assert.equal(h.window.history.length, length);
+  router.back();
+  await flush();
+  assert.equal(router.currentRoute.fullPath, '/event-center?filter=older');
+  router.forward();
+  await flush();
+  router.forward();
+  await flush();
+  assert.equal(router.currentRoute.fullPath, '/share?filter=current');
 });
 
 test('a space UID and a conflicting business ID always use the space UID and preserve the route', () => {

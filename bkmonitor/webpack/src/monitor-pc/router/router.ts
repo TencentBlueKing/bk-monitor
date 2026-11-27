@@ -154,7 +154,12 @@ router.beforeEach(async (to, _from, next) => {
 router.beforeEach(async (to, from, next) => {
   store.commit('app/SET_PADDING_ROUTE', to);
   const access = navigationAccess.get(to);
-  if (access === 'denied' || access === 'not_found') return next({ name: 'no-business', replace: true });
+  if (access === 'denied' || access === 'not_found') {
+    // 点击时地址仍是来源页；后退、前进时浏览器已移到目标条目，应替换这个失权条目。
+    const preserveSource =
+      isBizEntryExempt(from) && router.resolve(location.hash.slice(1)).route.fullPath === from.fullPath;
+    return next({ name: 'no-business', replace: !preserveSource });
+  }
   if (access === 'error') showSpaceAccessError();
   if (access === 'error' || access === 'stale') return next(false);
   const urlBizId = parseBizId(getUrlParam('bizId'));
