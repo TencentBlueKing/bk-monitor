@@ -285,7 +285,8 @@ test('top bar honors remote pinyin matching even when returned rows contain no l
 
 test('Vue2 reopening verifies selected rows, keeping last known names on failure and dropping revoked access on success', async () => {
   const h = setup(), c = component('monitor-pc/components/space-select/space-select.tsx', h);
-  Object.assign(c, { remote: true, hasAuthApply: true, value: [17], spaceList: [], localValue: [17] });
+  const seed = { ...space(17, 'previous mount'), id: 17 };
+  Object.assign(c, { remote: true, hasAuthApply: true, value: [17], spaceList: [seed], localValue: [17] });
   const initial = c.resolveSelection([17]);
   h.normal[0].resolve({ items: [space(17)], next_cursor: null });
   await initial;
@@ -300,6 +301,13 @@ test('Vue2 reopening verifies selected rows, keeping last known names on failure
   h.alerts[0].resolve({ items: [{ bk_biz_id: 17, bk_biz_name: 'only alarms', has_data: true }], next_cursor: null });
   await refresh;
   assert.deepEqual(c.selectedRows.map(row => [row.id, row.noAuth]), [[17, true]]);
+  assert.equal(c.localSpaceList.find(row => row.id === 17).noAuth, true);
+  const removed = c.resolveSelection([17], true);
+  h.normal[3].resolve({ items: [], next_cursor: null });
+  await new Promise(resolve => setImmediate(resolve));
+  h.alerts[1].resolve({ items: [], next_cursor: null });
+  await removed;
+  assert.equal(c.localSpaceList.some(row => row.id === 17), false);
 });
 
 test('home selector excludes existing tabs after a remote search without filtering server-side pinyin matches', async () => {

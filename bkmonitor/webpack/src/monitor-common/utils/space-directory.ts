@@ -250,6 +250,9 @@ export async function queryAlertSpaceDirectory(
     };
     return legacyAlertPage(options);
   }
+  if (!(data.next_cursor === null || typeof data.next_cursor === 'string')) {
+    throw new Error('Invalid alert space directory cursor');
+  }
   return {
     items: data.items.map(row => alertRow(row, row.has_data)),
     nextCursor: data.next_cursor,

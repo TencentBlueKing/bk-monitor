@@ -149,7 +149,7 @@ export default class SpaceSelect extends tsc<
     this.selectionIncomplete = false;
     const selected = new Set(value);
     const known = new Map<number, ISpaceItem>();
-    for (const row of [...this.selectedRows, ...this.alertPages.items, ...this.spaceList, ...this.pages.items]) {
+    for (const row of [...this.selectedRows, ...this.alertPages.items, ...this.pages.items]) {
       if (selected.has(row.id)) known.set(row.id, row);
     }
     this.selectedRows = [...known.values()];
@@ -284,12 +284,7 @@ export default class SpaceSelect extends tsc<
     const records = this.paged
       ? [
           ...new Map(
-            [
-              ...this.selectedRows,
-              ...this.alertPages.items,
-              ...this.spaceList.filter(row => selected.includes(row.id)),
-              ...this.pages.items,
-            ].map(row => [row.id, row])
+            [...this.selectedRows, ...this.alertPages.items, ...this.pages.items].map(row => [row.id, row])
           ).values(),
         ]
       : this.spaceList;
