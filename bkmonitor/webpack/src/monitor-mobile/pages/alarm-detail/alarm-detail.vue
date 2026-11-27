@@ -397,13 +397,17 @@ export default class AlarmDetail extends Vue {
   }
 
   &-chart-empty {
-    display: grid;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-sizing: border-box;
     min-height: 210px;
-    padding: 0 16px;
+    padding: 16px;
+    line-height: 22px;
     color: #63656e;
     text-align: center;
     background: #f0f1f5;
-    place-items: center;
+    overflow-wrap: anywhere;
   }
 
   &-tag {

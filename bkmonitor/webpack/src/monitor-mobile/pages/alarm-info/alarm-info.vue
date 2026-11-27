@@ -115,7 +115,13 @@
             class="card-content-right"
             @click.stop
           >
-            <span v-if="item.hideGraph" class="card-chart-empty">{{ $t('当前 PromQL 无法按本条告警的维度组合过滤') }}</span>
+            <span
+              v-if="item.hideGraph"
+              class="card-chart-empty"
+              :title="$t('当前 PromQL 无法按本条告警的维度组合过滤')"
+            >
+              {{ $t('当前 PromQL 无法按本条告警的维度组合过滤') }}
+            </span>
             <monitor-mobile-echarts
               v-else
               height="70"
@@ -510,13 +516,17 @@ $statusList: 'abnormal' 'shield_abnormal' 'closed' 'recovered';
         }
 
         .card-chart-empty {
-          display: grid;
+          display: -webkit-box;
           width: 88px;
-          min-height: 70px;
+          height: 70px;
+          overflow: hidden;
+          line-height: 16px;
           font-size: 12px;
           color: #63656e;
           text-align: center;
-          place-items: center;
+          overflow-wrap: anywhere;
+          -webkit-line-clamp: 4;
+          -webkit-box-orient: vertical;
         }
 
         &-right {
