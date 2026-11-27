@@ -96,7 +96,7 @@
 
       &.outcome-type-icon-abort {
         color: #8f9fbd;
-        transform: rotate(45deg);
+        transform: translateX(var(--rum-badge-icon-shift, 0%)) rotate(45deg);
       }
     }
   }
@@ -117,11 +117,15 @@
   }
 
   &.rum-field-badge {
+    $label-scale: 0.88;
+    $label-inset: 0.5 * (1 - $label-scale);
+    $icon-gap: 2px;
+
     --rum-badge-opacity: 10%;
     --rum-badge-text-color: var(--rum-badge-color, var(--rum-badge-tint, #7b8ba8));
     --rum-field-target-hover-color: var(--rum-badge-text-color);
 
-    gap: 2px;
+    gap: $icon-gap;
     justify-content: center;
     min-height: 16px;
     padding: 0 3px;
@@ -161,12 +165,16 @@
 
     > .rum-field-text {
       letter-spacing: -0.36px;
-      transform: scale(0.88);
+      transform: scale($label-scale);
+    }
 
-      // 文字前有图标时，从左侧缩放，让 gap 控制图文间距。
-      &:not(:first-child) {
-        transform-origin: left center;
-      }
+    // 用容器宽度扣掉图标和 gap，按文字的单侧缩放留白移动图标。
+    > :is(.icon-monitor, .rum-cell-icon-content) {
+      --rum-badge-icon-shift: #{-100% * $label-inset};
+
+      position: relative;
+      left: calc(100% * $label-inset - $icon-gap * $label-inset);
+      transform: translateX(var(--rum-badge-icon-shift));
     }
 
     .rum-field-badge-icon {
