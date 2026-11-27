@@ -43,7 +43,7 @@ function setup({ url = '?bizId=17#/settings', recent, build, token, child, respo
   const utils = load('monitor-common/utils/index.ts', globals, { './constant': { LOCAL_BIZ_STORE_KEY: 'recent' }, './utils': { getUrlParam } });
   const fetch = name => (params, config) => new Promise((resolve, reject) => {
     requests.push({ name, params, config, resolve, reject });
-    if (name === 'basic') resolve(response);
+    if (name === 'basic' && response !== null) resolve(typeof response === 'function' ? response(params) : response);
   });
   const entry = load('monitor-common/utils/space-entry.ts', globals, {
     './index': utils, './utils': { getUrlParam }, 'monitor-api/modules/model': { enhancedContext: fetch('basic') },
@@ -83,7 +83,21 @@ function setup({ url = '?bizId=17#/settings', recent, build, token, child, respo
     window.space_list_state = data.SPACE_LIST_STATE;
     return entry.initializeSpaceEntry(data);
   }
-  return { window, location, entry, requests, states, mounts, messages, pinia, mount, start };
+  function createRouter() {
+    const Router = require('vue-router');
+    const routeNames = ['share', 'event-center', 'settings', 'no-business'];
+    const routes = routeNames.map(name => ({ name, path: '/' + name }));
+    const routeDeps = Object.fromEntries(['dashboard', 'data-retrieval', 'event', 'integrated', 'manager', 'others',
+      'scenes', 'platform-setting', 'dashboard/email-subscriptions'].map(name => ['./' + name, { default: [] }]));
+    return load('monitor-pc/router/router.ts', globals, {
+      ...deps, ...routeDeps, vue: { default: require('vue') }, 'vue-router': { default: Router },
+      'monitor-common/utils/utils': { getUrlParam }, './home': { default: routes },
+      '../store/store': { default: { ...store, getters: { bizList: [] } } },
+      '../store/modules/report-log': { default: { reportRouteLog() {} } },
+      './router-config': { isInCommonRoute: () => false, getRouteRootName() {}, getRouteConfigById() {} },
+    }).default;
+  }
+  return { window, location, entry, requests, states, mounts, messages, pinia, mount, start, createRouter };
 }
 
 for (const shell of ['monitor-pc', 'trace', 'apm', 'fta-solutions']) {
@@ -125,19 +139,32 @@ test('stale cache and user default cannot override the business admitted by basi
   assert.equal(h.location.hash, '#/settings');
 });
 
-test('old full backend restores recent business and skips the second directory download', async () => {
-  const response = { BK_BIZ_ID: 17, SPACE_LIST: [space(17), space(18)] };
-  const h = setup({ url: '#/settings', recent: '18', response });
-  h.mount('monitor-pc');
-  await flush();
-  assert.equal(h.location.searchParams.get('bizId'), '18');
-  assert.deepEqual(h.requests.map(r => r.name), ['basic']);
-  const landed = setup({ response });
-  landed.mount('monitor-pc');
-  await flush();
-  assert.deepEqual(landed.window.space_list.map(s => s.id), [17, 18]);
-  assert.deepEqual(landed.requests.map(r => r.name), ['basic', 'extra']);
-});
+for (const shell of ['monitor-pc', 'trace', 'apm', 'fta-solutions']) {
+  test(shell + ' redirects legacy implicit entries before mounting business-specific basic and extra', async () => {
+    for (const [recent, build, expected] of [['18', '17', 18], [null, '18', 18], ['99', null, 17]]) {
+      const response = ({ bk_biz_id = 17 }) => ({
+        BK_BIZ_ID: bk_biz_id, SPACE_LIST: [space(17), space(18)], ENABLE_ISSUE_AI_ANALYSIS: bk_biz_id === 18,
+      });
+      const first = setup({ url: '#/settings', recent, build, response });
+      first.mount(shell);
+      await flush();
+      assert.equal(first.requests[0].params.preferred_biz_id, Number(recent || build));
+      assert.deepEqual(first.requests.map(r => r.name), ['basic']);
+      assert.deepEqual(first.mounts, []);
+      assert.equal(first.window.cc_biz_id, 17);
+      assert.equal(first.location.searchParams.get('bizId'), String(expected));
+      const landing = setup({ url: first.location.href, recent, build, response });
+      landing.mount(shell);
+      await flush();
+      assert.deepEqual(landing.requests.map(r => [r.name, r.params.bk_biz_id]), [['basic', expected], ['extra', expected]]);
+      assert.deepEqual(landing.mounts, ['app']);
+      assert.equal(landing.window.bk_biz_id, expected);
+      assert.equal(landing.window.cc_biz_id, expected);
+      assert.equal(landing.window.enable_issue_ai_analysis, expected === 18);
+      assert.deepEqual(landing.window.space_list.map(s => s.id), [17, 18]);
+    }
+  });
+}
 
 test('denial and no spaces use the no-business route, missing space and service failure remain distinguishable', () => {
   for (const [url, id, access] of [['?bizId=-12#/settings', -12, 'denied'], ['#/settings', -1, 'denied']]) {
@@ -215,6 +242,48 @@ test('a business switch requests basic for the new target before committing it',
   assert.equal(h.location.hash, '#/no-business');
 });
 
+test('Vue Router 3 redirects a denied public entry leaving for a protected page and retains the page on failure', async () => {
+  const Router = require('vue-router');
+  for (const status of ['denied', 'not_found', 'error', 'allowed']) {
+    const h = setup({ url: '?bizId=17#/share', response: null });
+    h.start(basic(17, 'denied'));
+    const router = h.createRouter();
+    await router.push('/share');
+    const pending = router.push('/settings').catch(error => error);
+    const request = h.requests.at(-1);
+    assert.equal(request.params.bk_biz_id, 17);
+    if (status === 'error') request.reject(new Error('unavailable'));
+    else request.resolve(basic(17, status));
+    const result = await pending;
+    if (status === 'error') {
+      assert.ok(Router.isNavigationFailure(result, Router.NavigationFailureType.aborted));
+      assert.deepEqual(h.messages, ['空间权限检查失败，请重试']);
+      assert.equal(router.currentRoute.name, 'share');
+    } else if (status === 'allowed') {
+      assert.equal(router.currentRoute.name, 'settings');
+    } else {
+      assert.ok(Router.isNavigationFailure(result, Router.NavigationFailureType.redirected));
+      assert.equal(router.currentRoute.name, 'no-business');
+    }
+  }
+});
+
+test('Vue Router 3 discards a late admission when a newer public navigation finishes', async () => {
+  const Router = require('vue-router');
+  for (const status of ['denied', 'error', 'allowed']) {
+    const h = setup({ url: '?bizId=17#/share', response: null });
+    h.start(basic(17, 'denied'));
+    const router = h.createRouter();
+    await router.push('/share');
+    const pending = router.push('/settings').catch(error => error);
+    await router.push('/event-center');
+    h.requests.at(-1).resolve(basic(17, status));
+    assert.ok(Router.isNavigationFailure(await pending, Router.NavigationFailureType.cancelled));
+    assert.equal(router.currentRoute.name, 'event-center');
+    assert.deepEqual(h.messages, []);
+  }
+});
+
 test('a space UID and a conflicting business ID always use the space UID and preserve the route', () => {
   for (const data of [basic(17), { BK_BIZ_ID: 17, SPACE_LIST: [space(17), space(18)] }]) {
     const h = setup({ url: '/monitor/?space_uid=space__17&bizId=18&lang=en#/settings' });
@@ -227,16 +296,26 @@ test('a space UID and a conflicting business ID always use the space UID and pre
   }
 });
 
-for (const vue3 of [false, true]) {
-  test((vue3 ? 'Vue3' : 'Vue2') + ' directory hydration preserves edits in an open selector', () => {
-    const file = vue3 ? 'trace/components/space-select/space-selector.tsx' : 'monitor-pc/components/space-select/space-select.tsx';
-    const ast = ts.createSourceFile(file, fs.readFileSync(path.join(source, file), 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-    let method;
-    function visit(node) {
-      if ((ts.isMethodDeclaration(node) || ts.isFunctionDeclaration(node)) && node.name?.getText(ast) === 'initLocalSpaceList') method = node;
-      ts.forEachChild(node, visit);
+function selectorMethods(vue3) {
+  const file = vue3 ? 'trace/components/space-select/space-selector.tsx' : 'monitor-pc/components/space-select/space-select.tsx';
+  const ast = ts.createSourceFile(file, fs.readFileSync(path.join(source, file), 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const methods = {};
+  function visit(node) {
+    if ((ts.isMethodDeclaration(node) || ts.isFunctionDeclaration(node)) && node.body) {
+      methods[node.name.getText(ast)] = node.body.getText(ast);
     }
-    visit(ast);
+    if (ts.isCallExpression(node) && node.expression.getText(ast) === 'onUnmounted') {
+      methods.destroyed = node.arguments[0].body.getText(ast);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(ast);
+  return methods;
+}
+
+for (const vue3 of [false, true]) {
+  const methods = selectorMethods(vue3);
+  test((vue3 ? 'Vue3' : 'Vue2') + ' directory hydration preserves edits in an open selector', () => {
     const spaces = [space(17), space(18)];
     const selected = [];
     const write = value => selected.push([...value]);
@@ -245,11 +324,71 @@ for (const vue3 of [false, true]) {
       localSpaceList: { value: [] }, getSpaceList: list => [...list], handleWatchValue: write, setPaginationData() {},
       window: { space_list_state: 'full' },
     };
-    const body = ts.transpileModule('function init() ' + method.body.getText(ast), {
+    const body = ts.transpileModule('function init() ' + methods.initLocalSpaceList, {
       compilerOptions: { target: ts.ScriptTarget.ES2022 },
     }).outputText;
     const run = new Function(...Object.keys(globals), body + '\nreturn init;')(...Object.values(globals));
     run.call({ ...globals, spaceList: spaces, value: [17], localValue: [18], isOpen: true });
     assert.deepEqual(selected, [[18]]);
+  });
+
+  test((vue3 ? 'Vue3' : 'Vue2') + ' only commits the selection from the latest closed popup', async () => {
+    for (const interrupted of ['reopen', 'unmount']) {
+      for (const status of ['allowed', 'denied', 'error']) {
+        const h = setup({ response: null });
+        h.start(basic(17));
+        const emitted = [], updated = [];
+        const emit = (_event, value) => emitted.push(value);
+        const props = { currentSpace: 17, value: [17], isAutoSelectCurrentSpace: true };
+        const noop = () => {};
+        const list = { value: [] }, current = { value: 17 };
+        const route = { fullPath: '/settings' };
+        const history = { replaceState(_state, _title, href) { h.location.href = new URL(href, h.location.href).href; } };
+        const vars = {
+          props, emit, specialIds: [], canSwitchSpace: h.entry.canSwitchSpace, needCurSpace: { value: true },
+          selectRef: {}, localValue: { value: [18] }, localSpaceList: list, localCurrentSpace: current, isOpen: { value: false },
+          searchValue: {}, searchTypeId: {}, highlightId: {}, setTimeout: noop, useTippy: () => ({ hide: noop }),
+          unbindKeyboard: noop, bindKeyboard: noop, sortSpaceList: noop, setPaginationData: noop, resetHighlight: noop,
+          triggerRef: noop, route, history, window: h.window, appStore: { set bizId(id) { updated.push(id); } },
+        };
+        const ctx = { ...vars, ...props, selectionSession: 0, $bkPopover: () => ({}), localSpaceList: [],
+          localCurrentSpace: 17, localValue: [18], isOpen: false, needCurSpace: true, $emit: emit,
+          $store: { commit: (_mutation, id) => updated.push(id) }, $route: route };
+        const code = `let selectionSession = 0, popInstance, controller;
+          function open() ${methods.handleMousedown}
+          async function close() ${methods.handlePopoverHidden}
+          function unmount() ${methods.destroyed}
+          function resetCurBiz(curSpace) ${methods.resetCurBiz}
+          return { open, close, unmount, resetCurBiz };`;
+        const controls = new Function(...Object.keys(vars), ts.transpile(code, { target: ts.ScriptTarget.ES2022 }))(...Object.values(vars));
+        ctx.resetCurBiz = controls.resetCurBiz;
+        controls.open.call(ctx);
+        const pending = controls.close.call(ctx);
+        assert.equal(h.requests.at(-1).params.bk_biz_id, 18);
+        if (interrupted === 'unmount') controls.unmount.call(ctx);
+        else {
+          controls.open.call(ctx);
+          ctx.localValue = vars.localValue.value = [19];
+        }
+        h.requests.at(-1).resolve(basic(18, status));
+        await pending;
+        assert.deepEqual(updated, []);
+        assert.deepEqual(emitted, []);
+        assert.deepEqual(h.messages, []);
+        assert.equal(h.location.searchParams.get('bizId'), '17');
+        assert.equal(h.location.hash, '#/settings');
+        if (interrupted === 'reopen') {
+          const latest = controls.close.call(ctx);
+          assert.equal(h.requests.at(-1).params.bk_biz_id, 19);
+          // A late directory update can reinitialize the closed popover from its props.
+          ctx.localValue = vars.localValue.value = [17];
+          h.requests.at(-1).resolve(basic(19));
+          await latest;
+          assert.deepEqual(updated, [19]);
+          assert.equal(h.location.searchParams.get('bizId'), '19');
+          assert.deepEqual(emitted, [[19]]);
+        }
+      }
+    }
   });
 }

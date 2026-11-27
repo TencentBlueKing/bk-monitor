@@ -111,6 +111,7 @@ export default defineComponent({
     const isErr = shallowRef(false);
     /* 是否弹出弹窗 */
     const isOpen = shallowRef(false);
+    let selectionSession = 0;
     /** 键盘高亮项 id */
     const highlightId = shallowRef<null | number | string>(null);
     /** 避免 keydown 与 enter 各触发一次导致多选勾选被抵消 */
@@ -146,6 +147,9 @@ export default defineComponent({
 
     initLocalSpaceList();
     onUnmounted(() => {
+      ++selectionSession;
+      popInstance?.destroy?.();
+      controller?.abort?.();
       unbindKeyboard();
     });
     watch(
@@ -180,9 +184,6 @@ export default defineComponent({
       }
     );
 
-    function handleChange() {
-      emit('change', localValue.value);
-    }
     function handleApplyAuth(bizId: number | string) {
       handlePopoverHidden();
       emit('applyAuth', [bizId]);
@@ -316,6 +317,7 @@ export default defineComponent({
       if (popInstance || props.disabled) {
         return;
       }
+      const session = ++selectionSession;
       if (props.value.length > 1 && !props.multiple) {
         handleChangeChoiceType(true);
       }
@@ -339,6 +341,7 @@ export default defineComponent({
       resetHighlight(true);
       bindKeyboard();
       setTimeout(() => {
+        if (session !== selectionSession || !isOpen.value) return;
         addMousedownEvent();
         searchInputRef.value?.focus();
       }, 300);
@@ -377,6 +380,9 @@ export default defineComponent({
     }
 
     async function handlePopoverHidden() {
+      if (!isOpen.value) return;
+      const session = selectionSession;
+      const isCurrent = () => session === selectionSession;
       popInstance?.hide();
       popInstance?.destroy?.();
       searchValue.value = '';
@@ -391,19 +397,18 @@ export default defineComponent({
         item.preciseMatch = false;
       }
       triggerRef(localSpaceList);
-      const changed = localValue.value.length && JSON.stringify(props.value) !== JSON.stringify(localValue.value);
-      const selected = localValue.value.filter(v => !specialIds.includes(v));
+      const value = [...localValue.value];
+      const changed = value.length && JSON.stringify(props.value) !== JSON.stringify(value);
+      const selected = value.filter(v => !specialIds.includes(v));
       const autoSelect = changed && props.isAutoSelectCurrentSpace && selected.length === 1;
       const nextSpace = autoSelect ? +selected[0] : +localCurrentSpace.value;
       if ((needCurSpace.value || autoSelect) && nextSpace !== +props.currentSpace) {
-        if (!(await canSwitchSpace(nextSpace))) return;
+        if (!(await canSwitchSpace(nextSpace, isCurrent)) || !isCurrent()) return;
         resetCurBiz(nextSpace);
         localCurrentSpace.value = nextSpace;
       }
       if (changed) {
-        setTimeout(() => {
-          handleChange();
-        }, 50);
+        emit('change', value);
       }
     }
 

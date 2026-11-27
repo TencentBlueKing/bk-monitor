@@ -140,6 +140,7 @@ export default class SpaceSelect extends tsc<
   isErr = false;
   /* 是否弹出弹窗 */
   isOpen = false;
+  private selectionSession = 0;
   /* 当前分页数据 */
   pagination: {
     count: number;
@@ -195,10 +196,6 @@ export default class SpaceSelect extends tsc<
     if (v !== null) {
       this.localCurrentSpace = v;
     }
-  }
-  @Emit('change')
-  handleChange() {
-    return this.localValue;
   }
   /** 初始化空间列表 */
   @Watch('spaceList')
@@ -365,7 +362,9 @@ export default class SpaceSelect extends tsc<
     }
   }
   destroyed() {
-    this.handlePopoverHidden();
+    this.selectionSession++;
+    this.popInstance?.destroy?.();
+    this.controller?.abort?.();
   }
   /* 整理space_list */
   getSpaceList(spaceList: ISpaceItem[]) {
@@ -404,6 +403,7 @@ export default class SpaceSelect extends tsc<
     if (this.popInstance || this.disabled) {
       return;
     }
+    const session = ++this.selectionSession;
     const target = this.selectRef;
     this.popInstance = this.$bkPopover(target, {
       content: this.wrapRef,
@@ -422,6 +422,7 @@ export default class SpaceSelect extends tsc<
     this.setPaginationData(true);
     this.resetHighlight(true);
     setTimeout(() => {
+      if (session !== this.selectionSession || !this.isOpen) return;
       this.addMousedownEvent();
       this.searchInputRef?.focus?.();
     }, 50);
@@ -464,6 +465,9 @@ export default class SpaceSelect extends tsc<
   }
   /* 清楚弹出层 */
   async handlePopoverHidden() {
+    if (!this.isOpen) return;
+    const session = this.selectionSession;
+    const isCurrent = () => session === this.selectionSession;
     this.popInstance?.hide?.(0);
     this.popInstance?.destroy?.();
     this.searchValue = '';
@@ -476,19 +480,18 @@ export default class SpaceSelect extends tsc<
       item.show = true;
       item.preciseMatch = false;
     }
-    const changed = this.localValue.length && JSON.stringify(this.value) !== JSON.stringify(this.localValue);
-    const selected = this.localValue.filter(v => !specialIds.includes(v));
+    const value = [...this.localValue];
+    const changed = value.length && JSON.stringify(this.value) !== JSON.stringify(value);
+    const selected = value.filter(v => !specialIds.includes(v));
     const autoSelect = changed && this.isAutoSelectCurrentSpace && selected.length === 1;
     const nextSpace = autoSelect ? +selected[0] : +this.localCurrentSpace;
     if ((this.needCurSpace || autoSelect) && nextSpace !== +this.currentSpace) {
-      if (!(await canSwitchSpace(nextSpace))) return;
+      if (!(await canSwitchSpace(nextSpace, isCurrent)) || !isCurrent()) return;
       this.resetCurBiz(nextSpace);
       this.localCurrentSpace = nextSpace;
     }
     if (changed) {
-      setTimeout(() => {
-        this.handleChange();
-      }, 50);
+      this.$emit('change', value);
     }
   }
   /* 搜索 */
@@ -606,9 +609,6 @@ export default class SpaceSelect extends tsc<
     this.valueStrList = strList;
     this.localValue = value;
     this.isErr = !this.localValue.length;
-    // if (!!this.localValue.length) {
-    //   this.handleChange();
-    // }
     this.sortSpaceList();
   }
   /* 清空 */
