@@ -933,6 +933,15 @@ class Permission:
 
     def list_authorized_space_records(self, action, using_cache=True, *, first_available=False) -> list[dict]:
         """Read directory records within the authorized scope; preserve provider errors for admission."""
+        records, _ = self.list_authorized_space_records_with_status(
+            action, using_cache, first_available=first_available
+        )
+        return records
+
+    def list_authorized_space_records_with_status(
+        self, action, using_cache=True, *, first_available=False
+    ) -> tuple[list[dict], bool]:
+        """Return confirmed records and whether the resolved authorization scope is complete."""
 
         def read_directory():
             with tracer.start_as_current_span("iam.list_spaces", record_exception=False) as span:
@@ -942,8 +951,8 @@ class Permission:
 
         if self.skip_check:
             if first_available:
-                return SpaceApi.read_space_records(self.bk_tenant_id, first_available=True)
-            return read_directory()
+                return SpaceApi.read_space_records(self.bk_tenant_id, first_available=True), True
+            return read_directory(), True
 
         mode = self.mode_provider.get_mode()
         candidates = None
@@ -953,10 +962,10 @@ class Permission:
             if first_available:
                 first = SpaceApi.read_space_records(self.bk_tenant_id, first_available=True)
                 if not first:
-                    return []
+                    return [], True
                 try:
                     if self.is_space_allowed(action, first[0], mode=mode):
-                        return first
+                        return first, True
                 except ProviderUnavailable:
                     # An unavailable side of a union can still leave other confirmed grants.
                     probe_failed = True
@@ -978,18 +987,20 @@ class Permission:
             span.set_attribute("iam.visible_count", len(scope.ids))
         if not scope.ok:
             raise ProviderUnavailable(scope.reason)
+        complete = scope.is_wildcard or all(side.ok for side in resolution.provider_scopes)
         if first_available:
             spaces = SpaceApi.read_space_records(
                 self.bk_tenant_id, None if scope.is_wildcard else scope.ids, first_available=True
             )
             if not spaces and (probe_failed or any(not side.ok for side in resolution.provider_scopes)):
                 raise ProviderUnavailable("Incomplete space authorization scope")
-            return spaces
+            return spaces, complete
         if candidates is not None:
-            return candidates if scope.is_wildcard else [s for s in candidates if str(s["bk_biz_id"]) in scope.ids]
+            spaces = candidates if scope.is_wildcard else [s for s in candidates if str(s["bk_biz_id"]) in scope.ids]
+            return spaces, complete
         if scope.is_wildcard:
-            return read_directory()
-        return SpaceApi.read_space_records(self.bk_tenant_id, scope.ids)
+            return read_directory(), complete
+        return SpaceApi.read_space_records(self.bk_tenant_id, scope.ids), complete
 
     def filter_space_list_by_action_with_scope(
         self, action, using_cache=True, candidate_biz_ids: list[int] | None = None
