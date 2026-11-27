@@ -209,8 +209,10 @@ export default defineComponent({
       // 单个宽字形可能超出 1/3 预算，但「首字 + 省略号 + 尾字」仍放得下时保留中间省略，避免退化成末尾省略
       if (tailLength === 0 && chars.length > 1) {
         const headAndTail = `${chars[0]}${ELLIPSIS_DOT}${tailOf(1)}`;
-        // 放不下时保持 0，不把头部空间让给尾字
-        if (measurer.byCanvas(headAndTail) <= limit) tailLength = 1;
+        // canvas 与 DOM 都放得下才抬高，否则精测会把头部减到 0，反而退化成开头省略
+        if (measurer.byCanvas(headAndTail) <= limit && measurer.byDom(headAndTail) <= limit) {
+          tailLength = 1;
+        }
       }
       const buildText = (headLength: number) =>
         `${chars.slice(0, headLength).join('')}${ELLIPSIS_DOT}${tailOf(tailLength)}`;
