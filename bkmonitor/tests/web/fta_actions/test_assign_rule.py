@@ -308,14 +308,15 @@ class TestAssignRuleResource(TestCase):
             "alert_severity": 0,
             "dispatch_config": {"ai_analysis": {"user_groups": [1]}, "noise": False},
         }
-        previews = match_r.request({**req_data, "rules": [ai_rule, {**ai_rule}]})[0]
+        inherited_rule = {**ai_rule, "user_groups": [2], "dispatch_config": {"ai_analysis": {}}}
+        previews = match_r.request({**req_data, "rules": [ai_rule, inherited_rule]})[0]
         self.assertEqual(previews["alerts_count"], 2)
-        for preview in previews["rules"]:
+        for preview, config in zip(previews["rules"], [{"user_groups": [1]}, {}]):
             self.assertNotIn("id", preview)
             self.assertEqual(preview["actions"], [])
-            self.assertEqual(preview["dispatch_config"]["ai_analysis"]["user_groups"], [1])
+            self.assertEqual(preview["dispatch_config"]["ai_analysis"], config)
             self.assertEqual(len(preview["alerts"]), 1)
-            self.assertEqual(preview["alerts"][0]["dispatch_result"]["ai_analysis"], {"user_groups": [1]})
+            self.assertEqual(preview["alerts"][0]["dispatch_result"]["ai_analysis"], {"user_groups": [1, 2]})
         new_group = match_r.request(
             {**req_data, "assign_group_id": None, "group_name": "Draft", "priority": 2, "rules": [ai_rule, ai_rule]}
         )[0]
