@@ -13,6 +13,7 @@ from apm.resources import (
     ApplicationInfoResource,
     ApplyDatasourceResource,
     CancelActiveProfilingExecutionResource,
+    CheckActiveProfilingLagResource,
     CreateApplicationResource,
     CreateApplicationSimpleResource,
     DetailApplicationSimpleResource,
@@ -146,6 +147,7 @@ class ProfilingViewSet(ResourceViewSet):
     resource_routes = [
         ResourceRoute("GET", QueryBuiltinProfileDatasourceResource, endpoint="builtin_profile_datasource"),
         ResourceRoute("POST", EnableActiveProfilingResource, endpoint="enable_active_profiling"),
+        ResourceRoute("POST", CheckActiveProfilingLagResource, endpoint="check_active_profiling_lag"),
         ResourceRoute("POST", QueryActiveProfilingHostsResource, endpoint="active_profiling_hosts"),
         ResourceRoute("POST", ListActiveProfilingExecutionsResource, endpoint="active_profiling_executions"),
         ResourceRoute("GET", QueryActiveProfilingTopKResource, endpoint="active_profiling_topk"),

@@ -748,8 +748,9 @@ ACTIVE_PROFILING_PLANNED_SCHEDULE_TYPES = ("once_at", "cron")
 ACTIVE_PROFILING_PRECALCULATE_LAG_MS = 5 * 60 * 1000
 # 只在这段时间内上报的 Event 里找最新一次计划执行，没有就不判定落后
 ACTIVE_PROFILING_PRECALCULATE_LAG_LOOKBACK_MS = 24 * 3600 * 1000
-# 判定结果按业务缓存的秒数，期间翻页、换筛选都用同一个结论，预计算补上后最多这么久回到 MySQL
-ACTIVE_PROFILING_PRECALCULATE_LAG_CACHE_SEC = 60
+# 判定结论按业务存进共享缓存的秒数：页面打开时异步检测并刷新，列表请求只读结论，
+# 预计算补上后最多这么久（或下次打开页面）回到 MySQL
+ACTIVE_PROFILING_PRECALCULATE_LAG_CACHE_SEC = 5 * 60
 
 
 class ApmBmwTaskStatus:

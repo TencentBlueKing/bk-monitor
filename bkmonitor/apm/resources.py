@@ -2037,6 +2037,17 @@ ACTIVE_PROFILING_QUERY_HANDLERS = {
 }
 
 
+class CheckActiveProfilingLagResource(Resource):
+    """判定业务的主动 Profiling 预计算是否落后，结论写入共享缓存供列表查询读取；页面打开时由 SaaS 异步调用"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+
+    def perform_request(self, validated_request_data):
+        handler = ActiveProfilingExecutionQueryHandler(validated_request_data["bk_biz_id"])
+        return {"lagging": handler.check_precalculate_lag() is not None}
+
+
 class QueryActiveProfilingHostsResource(Resource):
     """查询主动 Profiling 已采数据：一台主机的一次执行一行，返回本页的行 data 与筛选后的总行数 total"""
 

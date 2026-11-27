@@ -305,6 +305,24 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: enable active profiling resources of business
+  /app/apm/profiling/check_active_profiling_lag/:
+    post:
+      operationId: check_active_profiling_lag
+      description: 判定主动 Profiling 预计算是否落后
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/profiling/check_active_profiling_lag/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: check whether active profiling precalculation lags behind
   /app/apm/profiling/active_profiling_hosts/:
     post:
       operationId: query_active_profiling_hosts
