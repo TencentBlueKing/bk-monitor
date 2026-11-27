@@ -359,7 +359,8 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         space_uids=None,
         text_filter="",
         search_pinyin=False,
-        window=4096,
+        exact=False,
+        window=128,
     ):
         """Read only the keys used by the selector. Keyset windows bound the DB driver's buffer."""
         if biz_ids is not None and len(biz_ids) > PAGE_GRANT_CHUNK:
@@ -373,7 +374,8 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                     space_uids=space_uids,
                     text_filter=text_filter,
                     search_pinyin=search_pinyin,
-                    window=128,
+                    exact=exact,
+                    window=window,
                 )
                 for chunk in _grant_chunks(biz_ids)
             )
@@ -382,23 +384,50 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         conditions, params = cls._page_conditions(tenant, biz_ids, space_type, after_id, space_uids)
         if not type_names:
             return
-        pinyin_patterns = ()
-        phonetic_predicate = "s.space_name REGEXP %s"
+        conditions.append("s.space_type_id IN (" + ", ".join(["BINARY %s"] * len(type_names)) + ")")
+        params.extend(type_names)
+        phonetic = []
+        phonetic_params = []
         if search_pinyin:
+            if exact:
+                # Every ASCII-only exact reading has at least one character per source character.
+                # The phonetic keys are only produced for non-ASCII names.
+                phonetic.extend(["CHAR_LENGTH(s.space_name) <= %s", "LENGTH(s.space_name) > CHAR_LENGTH(s.space_name)"])
+                phonetic_params.append(len(text_filter))
             connection = connections["monitor_api"]
             bounded = space_uids or (biz_ids is not None and len(biz_ids) <= 500)
             if not bounded and not getattr(connection, "mysql_is_mariadb", False):
                 if getattr(connection, "mysql_version", (8, 0)) >= (8, 0):
-                    pinyin_patterns = pinyin_search_patterns(text_filter)
+                    patterns = pinyin_search_patterns
+                    predicate = "{} REGEXP %s"
                 else:
                     from bkmonitor.space.pinyin_mysql5 import pinyin_hex_search_patterns
 
                     # The legacy regex engine matches bytes. Convert to GB2312 and bind the binary pattern as hex.
-                    phonetic_predicate = "BINARY CONVERT(s.space_name USING gb2312) REGEXP UNHEX(%s)"
-                    pinyin_patterns = pinyin_hex_search_patterns(text_filter)
-            if not pinyin_patterns:
-                text_filter = ""
-        if text_filter:
+                    patterns = pinyin_hex_search_patterns
+                    predicate = "BINARY CONVERT({} USING gb2312) REGEXP UNHEX(%s)"
+                # Exact readings must start and end in the corresponding source characters.
+                # For substrings the two rarest letters may occur anywhere in the name.
+                anchors = (
+                    [("LEFT(s.space_name, 1)", text_filter[:1]), ("RIGHT(s.space_name, 1)", text_filter[-1:])]
+                    if exact
+                    else [("s.space_name", text_filter)]
+                )
+                for column, term in anchors:
+                    for pattern in patterns(term):
+                        phonetic.append(predicate.format(column))
+                        phonetic_params.append(pattern)
+        if exact:
+            text = "LOWER(s.space_name) = %s OR LOWER(s.space_id) = %s"
+            params.extend([text_filter, text_filter])
+            magnitude = text_filter.removeprefix("-")
+            if magnitude.isascii() and magnitude.isdigit() and len(magnitude) <= 20:
+                text += " OR s.id = %s"
+                params.append(int(magnitude))
+            if "__" in text_filter:
+                text += " OR (LOWER(s.space_type_id) = %s AND LOWER(s.space_id) = %s)"
+                params.extend(text_filter.split("__", 1))
+        elif text_filter and (not search_pinyin or phonetic):
             text = """LOCATE(%s, LOWER(CONCAT_WS(CHAR(0), s.space_name, s.space_id, s.id,
                 IF(s.space_type_id = 'bkcc', s.space_id, CONCAT('-', s.id)), s.space_code,
                 CONCAT(s.space_type_id, '__', s.space_id),
@@ -408,9 +437,12 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             if matching_types:
                 text += " OR s.space_type_id IN (" + ", ".join(["%s"] * len(matching_types)) + ")"
                 params.extend(matching_types)
-            if pinyin_patterns:
-                text += " OR (" + " AND ".join([phonetic_predicate] * len(pinyin_patterns)) + ")"
-                params.extend(pinyin_patterns)
+        else:
+            text = ""
+        if text:
+            if phonetic:
+                text += " OR (" + " AND ".join(phonetic) + ")"
+                params.extend(phonetic_params)
             conditions.append("(" + text + ")")
         index = "FORCE INDEX (PRIMARY)" if biz_ids is None and not space_uids and not space_type else ""
         base = f"""SELECT s.id, s.space_type_id, s.space_id, s.space_name, s.space_code
@@ -420,8 +452,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                 cursor.execute(base + " AND s.id > %s ORDER BY s.id LIMIT %s", [*params, after_id, window])
                 rows = cursor.fetchall()
             for row in rows:
-                if row[1] in type_names:
-                    yield (*row, type_names[row[1]])
+                yield (*row, type_names[row[1]])
             if len(rows) < window:
                 return
             after_id = rows[-1][0]

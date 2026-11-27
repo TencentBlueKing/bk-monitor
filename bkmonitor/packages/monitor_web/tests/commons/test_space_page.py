@@ -14,6 +14,7 @@ from iam_engine.core.config import AuthMode
 from iam_engine.core.types import AuthorizedResourceScope
 from iam_engine.exceptions import ProviderUnavailable
 from monitor_web.commons.biz import resources
+from monitor_web.commons.biz import space_page
 from monitor_web.commons.biz.space_page import search_space_page
 
 
@@ -42,7 +43,7 @@ def directory(mocker):
             if r["id"] > after and (ids is None or str(r["bk_biz_id"]) in ids) and (not uids or r["space_uid"] in uids)
         ]
 
-    def keys(tenant, ids, kind, after, *, type_names, space_uids=None, text_filter="", search_pinyin=False):
+    def keys(tenant, ids, kind, after, *, type_names, space_uids=None, text_filter="", search_pinyin=False, **kwargs):
         for row in selected(tenant, ids, kind, after, space_uids):
             yield tuple(row[k] for k in ("id", "space_type_id", "space_id", "space_name", "space_code", "type_name"))
 
@@ -71,7 +72,7 @@ def test_exact_then_partial_order_cursor_and_search_projections(directory, term)
     third = query(query=term, page_size=1, cursor=second["next_cursor"])
     assert [p["items"][0]["id"] for p in [first, second, third]] == [2, 1, 3]
     assert third["next_cursor"] is None
-    assert keys.call_count == 1
+    assert [call.kwargs["exact"] for call in keys.call_args_list] == [True, False]
     assert all(c.kwargs["row_ids"] for c in hydrate.call_args_list)
 
 
@@ -114,6 +115,56 @@ def test_many_matches_continue_across_window_boundary_without_duplicates(directo
         if cursor is None:
             break
     assert ids == sorted(rows, key=lambda pk: (pk % 3 != 0, pk))
+
+
+def test_large_partial_range_reads_one_small_window_after_tail_exact_match(mocker):
+    total = 132_338
+    yielded = []
+    calls = []
+    mocker.patch.object(resources.SpaceApi, "read_space_page_types", return_value={"bkci": "项目"})
+
+    def row(pk):
+        return space(pk, "匹配" if pk == total else f"匹配项目-{pk}")
+
+    def keys(tenant, ids, kind, after, *, exact, window, **kwargs):
+        calls.append((exact, after, window))
+        candidates = [total] if exact else range(after + 1, total + 1)
+        for pk in candidates:
+            if pk > after:
+                yielded.append(pk)
+                yield (pk, "bkci", f"project-{pk}", row(pk)["space_name"], "", "项目")
+
+    mocker.patch.object(resources.SpaceApi, "iter_space_search_keys", side_effect=keys)
+    mocker.patch.object(
+        resources.SpaceApi,
+        "read_space_page_candidates",
+        side_effect=lambda *args, row_ids, **kwargs: [row(pk) for pk in row_ids],
+    )
+    cursor = None
+    found = []
+    for _ in range(5):
+        page = query(query="匹配", page_size=20, cursor=cursor)
+        found.extend(r["id"] for r in page["items"])
+        cursor = page["next_cursor"]
+    assert found == [total, *range(1, 100)]
+    assert calls[0] == (True, 0, 81)
+    assert calls[1] == (False, 0, 81)
+    assert len(calls) == 3 and calls[2][0] is False and calls[2][1] > 0
+    assert len(yielded) <= 164
+
+
+def test_scan_limit_keeps_cursor_before_releasing_partial_matches(directory, monkeypatch):
+    monkeypatch.setattr(space_page, "SEARCH_CANDIDATE_LIMIT", 4)
+    rows, _, _ = directory
+    rows.update({i: space(i, "目标" if i >= 10 else "目标项目") for i in range(1, 13)})
+    access = SpacePageAccess(matches_policy=lambda key: key != "-11")
+    page = query(access, query="目标", page_size=2)
+    assert page["items"] == [] and page["next_cursor"]
+    ids = []
+    while page["next_cursor"]:
+        page = query(access, query="目标", page_size=2, cursor=page["next_cursor"])
+        ids.extend(row["id"] for row in page["items"])
+    assert ids == [10, 12, *range(1, 10)]
 
 
 @pytest.mark.parametrize(
@@ -223,7 +274,8 @@ def test_search_accepts_original_selector_and_contextual_readings(directory, nam
 
 
 @pytest.mark.parametrize("version", [(5, 7), (8, 0)])
-def test_legacy_mysql_keeps_complete_phonetic_candidates(mocker, version):
+@pytest.mark.parametrize("exact", [False, True])
+def test_legacy_mysql_keeps_complete_phonetic_candidates(mocker, version, exact):
     conn = mocker.MagicMock(mysql_version=version, mysql_is_mariadb=False)
     cursor = conn.cursor.return_value.__enter__.return_value
     cursor.fetchall.return_value = [(4, "bkci", "project", "蓝鲸", "")]
@@ -237,12 +289,15 @@ def test_legacy_mysql_keeps_complete_phonetic_candidates(mocker, version):
             type_names={"bkci": "研发项目"},
             text_filter="lj",
             search_pinyin=True,
+            exact=exact,
         )
     )
     sql, _ = cursor.execute.call_args.args
     assert "REGEXP" in sql
     assert ("REGEXP UNHEX(%s)" in sql) == (version < (8, 0))
-    assert "LOCATE" in sql
+    assert ("LOCATE" in sql) != exact
+    assert ("LOWER(s.space_name) = %s" in sql) == exact
+    assert ("LEFT(s.space_name, 1)" in sql and "RIGHT(s.space_name, 1)" in sql) == exact
     assert result == [(4, "bkci", "project", "蓝鲸", "", "研发项目")]
 
 

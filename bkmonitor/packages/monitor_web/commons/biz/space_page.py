@@ -15,6 +15,9 @@ from bkmonitor.space.pinyin import selector_reading
 from iam_engine.exceptions import ProviderUnavailable
 
 CURSOR_SALT = "monitor.space-directory.page.v1"
+# Stop after a bounded number of narrow keys even if a complex policy or phonetic
+# prefilter rejects every candidate. The same rank and primary key resume on the next request.
+SEARCH_CANDIDATE_LIMIT = 1024
 
 
 class SpacePageRequestSerializer(serializers.Serializer):
@@ -112,36 +115,32 @@ def search_space_page(tenant, username, params, access, *, external=False, names
 
     def query_matches(position):
         nonlocal scanned
-        rank, after = position
+        start_rank, after = position
         # Retain only a few pages of IDs. A continuation can travel between workers without shared state.
         capacity = min(100, page_size * 4)
-        buckets = [[], []]
-        for key in SpaceApi.iter_space_search_keys(
-            tenant,
-            query_ids,
-            space_type,
-            after if rank == 1 else 0,
-            space_uids=known_uids,
-            type_names=type_names,
-            text_filter=query,
-            search_pinyin=search_pinyin,
-        ):
-            scanned += 1
-            pk, kind, sid = key[:3]
-            if not access.allows(sid if kind == "bkcc" else -pk):
-                continue
-            match = _match_rank(*key, query, search_pinyin)
-            if match is None or match < rank or (match == rank and pk <= after):
-                continue
-            if len(buckets[match]) <= capacity:
-                buckets[match].append((match, pk))
-            if len(buckets[rank]) > capacity:
-                break
-        ranked = buckets[0] + buckets[1]
-        if len(ranked) <= capacity:
-            return ranked, None
-        first_omitted_rank, first_omitted_pk = ranked[capacity]
-        return ranked[:capacity], (first_omitted_rank, first_omitted_pk - 1)
+        ranked = []
+        for rank in range(start_rank, 2):
+            for key in SpaceApi.iter_space_search_keys(
+                tenant,
+                query_ids,
+                space_type,
+                after if rank == start_rank else 0,
+                space_uids=known_uids,
+                type_names=type_names,
+                text_filter=query,
+                search_pinyin=search_pinyin,
+                exact=rank == 0,
+                window=min(128, capacity + 1),
+            ):
+                scanned += 1
+                pk, kind, sid = key[:3]
+                if access.allows(sid if kind == "bkcc" else -pk) and _match_rank(*key, query, search_pinyin) == rank:
+                    if len(ranked) == capacity:
+                        return ranked, (rank, pk - 1)
+                    ranked.append((rank, pk))
+                if scanned >= SEARCH_CANDIDATE_LIMIT:
+                    return ranked, (rank, pk)
+        return ranked, None
 
     with trace.get_tracer(__name__).start_as_current_span("space.search_authorized_page") as span:
         while len(items) <= page_size and (pending or resume is not None):
@@ -156,6 +155,8 @@ def search_space_page(tenant, username, params, access, *, external=False, names
                 resume = (0, rows[-1]["id"]) if len(rows) == limit else None
             else:
                 if not pending:
+                    if scanned >= SEARCH_CANDIDATE_LIMIT:
+                        break
                     pending, resume = query_matches(resume)
                     if not pending:
                         break
@@ -190,7 +191,7 @@ def search_space_page(tenant, username, params, access, *, external=False, names
                     ):
                         items.append((rank, row))
         next_cursor = None
-        if len(items) > page_size:
+        if len(items) > page_size or (query and resume is not None and scanned >= SEARCH_CANDIDATE_LIMIT):
             if query:
                 pending = [(rank, row["id"]) for rank, row in items[page_size:]] + pending
             else:
@@ -199,7 +200,7 @@ def search_space_page(tenant, username, params, access, *, external=False, names
         span.set_attribute("space.page.candidates", scanned)
         span.set_attribute("space.page.items", min(len(items), page_size))
         span.set_attribute("space.page.partial", access.partial)
-    if access.partial and not items:
+    if access.partial and not items and not next_cursor:
         raise ProviderUnavailable("Could not confirm a complete space directory")
     result = {"items": [row for _, row in items[:page_size]], "next_cursor": next_cursor}
     if access.partial:
