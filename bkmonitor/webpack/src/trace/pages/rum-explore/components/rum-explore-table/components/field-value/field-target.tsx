@@ -27,6 +27,8 @@ import { type PropType, computed, defineComponent } from 'vue';
 
 import { ENABLED_TABLE_CONDITION_MENU_CLASS_NAME } from '../../../../../trace-explore/components/trace-explore-table/constants';
 
+import './field-target.scss';
+
 /** 条件菜单定位字段值所需的行和字段信息。 */
 export interface FieldTargetInfo {
   /** 值实际所属的字段名。 */
@@ -51,7 +53,7 @@ export default defineComponent({
     const actionable = computed(() => !!props.action || props.target.searchable);
     const targetAttrs = computed(() => ({
       class: [
-        'rum-field-value',
+        'rum-field-target',
         props.target.searchable && (props.action ? 'explore-click-text' : ENABLED_TABLE_CONDITION_MENU_CLASS_NAME),
       ],
       'data-col-id': props.target.fieldName,

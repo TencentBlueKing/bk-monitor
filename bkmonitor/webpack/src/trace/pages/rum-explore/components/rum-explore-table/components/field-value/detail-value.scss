@@ -1,0 +1,26 @@
+.tippy-box[data-theme~='rum-span-name-popover'] {
+  .span-name-popover-container {
+    padding: 8px;
+    font-size: 12px;
+    line-height: 20px;
+
+    .span-name-popover-item {
+      display: flex;
+      column-gap: 4px;
+      align-items: flex-start;
+
+      .span-name-popover-item-label {
+        flex-shrink: 0;
+        width: 72px;
+        color: #c4c6cc;
+        text-align: right;
+      }
+
+      .span-name-popover-item-value {
+        flex: 1;
+        min-width: 0;
+        word-break: break-all;
+      }
+    }
+  }
+}

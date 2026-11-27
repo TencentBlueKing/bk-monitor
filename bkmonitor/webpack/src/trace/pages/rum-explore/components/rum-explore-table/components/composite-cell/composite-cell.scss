@@ -1,164 +1,75 @@
 /* stylelint-disable selector-class-pattern */
-.rum-explore-table {
-  .t-table__header th:has(.rum-composite-header) {
-    padding-inline: 12px;
-  }
+.explore-col.rum-composite-col {
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
 
-  tbody > tr > td:has(.rum-composite-col) {
-    padding: 5px 12px;
-  }
+  .rum-composite-line {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    min-height: 20px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #49576b;
 
-  .explore-col.rum-composite-col {
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: center;
-    height: auto;
-    overflow: hidden;
-    font-family: Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
-
-    .rum-composite-line {
-      display: flex;
-      gap: 4px;
-      align-items: center;
-      width: 100%;
-      min-width: 0;
-      min-height: 20px;
-      font-size: 12px;
-      line-height: 20px;
-      color: #49576b;
-
-      &.is-secondary {
-        gap: 2px;
-        color: #7b8ba8;
-      }
-
-      &:has(> .rum-composite-badges, > .rum-composite-actions) {
-        flex-wrap: wrap;
-        row-gap: 2px;
-
-        > .rum-composite-main {
-          // 给正文保留少量可读空间，有余量时再扩展到正文的实际宽度。
-          flex: 1 1 3em;
-          max-width: max-content;
-        }
-      }
+    &.is-secondary {
+      gap: 2px;
+      color: #7b8ba8;
     }
 
-    .rum-composite-main {
+    > .rum-composite-main {
       display: flex;
       min-width: 0;
       overflow: hidden;
       white-space: nowrap;
+
+      > .rum-composite-member {
+        display: inline-flex;
+        align-items: center;
+        min-width: 0;
+
+        > .rum-composite-separator {
+          flex-shrink: 0;
+          white-space: pre;
+        }
+
+        .rum-field-detail-trigger {
+          font-weight: 700;
+          color: #3974ff;
+        }
+
+        .rum-field-full-url {
+          font-family: Menlo, Monaco, Consolas, monospace;
+          font-weight: 400;
+        }
+      }
     }
 
-    .rum-composite-member {
-      display: inline-flex;
-      align-items: center;
-      min-width: 0;
+    // 选择器优先级高于上面的基础样式，需放在其后以满足 no-descending-specificity。
+    &:has(> .rum-composite-badges, > .rum-composite-actions) {
+      flex-wrap: wrap;
+      row-gap: 2px;
+
+      > .rum-composite-main {
+        // 给正文保留少量可读空间，有余量时再扩展到正文的实际宽度。
+        flex: 1 1 3em;
+        max-width: max-content;
+      }
     }
 
-    .rum-composite-separator {
-      flex-shrink: 0;
-      white-space: pre;
-    }
-
-    .rum-link-text {
-      font-weight: 700;
-      color: #3974ff;
-    }
-
-    .rum-link-text:is(:hover, :focus-visible) .rum-field-text,
-    .explore-table-condition-menu:not(.rum-cell-badge):is(:hover, :focus-visible) .rum-field-text {
-      text-decoration: underline;
-    }
-
-    /* 省略方向由省略方式组件统一处理，这里只保留 URL 的等宽字体 */
-    .rum-composite-url {
-      font-family: Menlo, Monaco, Consolas, monospace;
-      font-weight: 400;
-    }
-
-    .rum-composite-badges,
-    .rum-composite-badge,
-    .rum-composite-actions {
+    > .rum-composite-badges {
       display: contents;
-    }
 
-    .rum-composite-badges {
-      .rum-cell-badge {
-        --rum-badge-opacity: 10%;
-
-        flex-shrink: 0;
-        gap: 2px;
-        min-height: 16px;
-        padding: 0 3px;
-        font:
-          500 10px / 16px 'PingFang SC',
-          'Microsoft YaHei',
-          Arial,
-          sans-serif;
-        color: var(--rum-badge-color, var(--rum-badge-tint, #7b8ba8));
-        background: color-mix(in srgb, var(--rum-badge-tint, #8f9fbd) var(--rum-badge-opacity), transparent);
-        border-radius: 4px;
-
-        .rum-field-text--no-ellipsis {
-          overflow-wrap: anywhere;
-          white-space: normal;
-        }
-
-        &.rum-badge-mono {
-          font-family: 'Roboto Mono', Roboto-Mono, Menlo, Consolas, 'PingFang SC', 'Microsoft YaHei', monospace;
-        }
-
-        &.rum-badge-resource {
-          --rum-badge-tint: #a07cde;
-        }
-
-        &.rum-badge-error {
-          --rum-badge-tint: #e54040;
-        }
-
-        &.rum-badge-long-task {
-          --rum-badge-tint: #eb9a1c;
-          --rum-badge-color: #e58d05;
-        }
-
-        &.rum-badge-action {
-          --rum-badge-tint: #d677c0;
-          --rum-badge-color: #de7cc7;
-        }
-
-        &.rum-badge-view {
-          --rum-badge-tint: #4f90d1;
-        }
-
-        &.explore-table-condition-menu:is(:hover, :focus-visible) {
-          --rum-badge-opacity: 20%;
-
-          text-decoration: none;
-        }
+      > .rum-composite-badge {
+        display: contents;
       }
     }
 
-    .rum-field-badge-item {
-      display: inline-flex;
-      min-width: 0;
-    }
-
-    .rum-composite-badge-icon {
-      display: flex;
-      flex-shrink: 0;
-      align-items: center;
-      justify-content: center;
-      width: 12px;
-      height: 12px;
-      font-size: 10px;
-      font-weight: 400;
-      line-height: 12px;
-
-      &.is-viewport {
-        font-size: 12px;
-      }
+    > .rum-composite-actions {
+      display: contents;
     }
   }
 }

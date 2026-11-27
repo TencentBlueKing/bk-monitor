@@ -14,9 +14,9 @@
   border-radius: 4px;
 
   .rum-composite-action-label {
-    margin-right: -4px;
     letter-spacing: -0.36px;
     transform: scale(0.8);
+    transform-origin: right center;
   }
 
   .rum-composite-action-icon {
