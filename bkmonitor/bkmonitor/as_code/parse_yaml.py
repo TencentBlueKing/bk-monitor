@@ -1263,6 +1263,9 @@ class AssignGroupRuleParser(BaseConfigParser):
             upgrade_config["upgrade_interval"] = upgrade_config.pop("interval", 1440)
             upgrade_config["is_enabled"] = upgrade_config.pop("enabled", False)
             rule["user_groups"] = self.get_notice_group_ids(rule["user_groups"])
+            ai_analysis = rule.get("dispatch_config", {}).get("ai_analysis")
+            if ai_analysis is not None:
+                ai_analysis["user_groups"] = self.get_notice_group_ids(ai_analysis["user_groups"])
             upgrade_config["user_groups"] = self.get_notice_group_ids(upgrade_config.get("user_groups", []))
             rule["is_enabled"] = rule["enabled"]
 
@@ -1296,6 +1299,15 @@ class AssignGroupRuleParser(BaseConfigParser):
             rule.pop("bk_biz_id", None)
             rule.pop("id", None)
             rule.pop("assign_group_id", None)
+            dispatch = rule.pop("dispatch_config", {})
+            ai_analysis = dispatch.get("ai_analysis")
+            if ai_analysis is not None or dispatch.get("noise"):
+                rule["dispatch_config"] = dispatch
+                if ai_analysis is not None:
+                    ai_analysis["user_groups"] = self.get_notice_group_names(ai_analysis["user_groups"])
+                # YAML 的历史默认值会开启通知，单独配置分析或噪声时须保留实际状态。
+                if not any(action["action_type"] == "notice" for action in rule.get("actions", [])):
+                    rule["notice_enabled"] = False
             actions = []
             for action in rule.pop("actions", []):
                 if action["action_type"] == "notice":

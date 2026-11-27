@@ -360,6 +360,11 @@ AssignGroupRuleSchema = Schema(
                     }
                 ],
                 Optional("notice_enabled"): bool,
+                Optional("dispatch_config"): {
+                    Optional("ai_analysis"): Or(None, {"user_groups": [str]}),
+                    Optional("noise"): bool,
+                    Optional("noise_remark"): str,
+                },
                 Optional("upgrade_config", default=lambda: {"enabled": False, "user_groups": [], "interval": 1440}): {
                     "enabled": bool,
                     "user_groups": [str],

@@ -88,6 +88,7 @@ def test_manual_action_uses_latest_valid_alert_event_not_creation_time(monkeypat
     alerts = [
         SimpleNamespace(
             id=str(index),
+            is_dispatch_noise=False,
             strategy_id=1,
             severity=1,
             latest_time=latest_time,
@@ -192,7 +193,7 @@ def action_processor():
     }
     processor.bk_tenant_id = "tenant"
     processor.context = {
-        "alert": SimpleNamespace(event=SimpleNamespace(bk_biz_id=2)),
+        "alert": SimpleNamespace(event=SimpleNamespace(bk_biz_id=2), is_dispatch_noise=False),
         "bk_biz_id": 2,
         "notice_way": "sms",
         "target": SimpleNamespace(business=SimpleNamespace(bk_biz_id=2, bk_biz_name="business"), host=None),

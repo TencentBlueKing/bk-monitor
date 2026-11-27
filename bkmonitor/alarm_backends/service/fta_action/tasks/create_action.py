@@ -254,6 +254,9 @@ class CreateIntervalActionProcessor:
         for action_id, action_instance in self.need_polled_actions.items():
             # 当上一次任务结束时间已经满足了轮转，则需要创建任务
             alert = polled_alert_docs.get(action_instance.alerts[0], None)
+            if alert and alert.is_dispatch_noise:
+                self.finished_actions.append(action_id)
+                continue
             alert_latest_time = alert.latest_time if alert else 0
             previous_time = action_instance.inputs.get("alert_latest_time", 0)
             if alert and action_instance.is_parent_action and action_instance.inputs.get("shield_source_time"):
@@ -355,10 +358,19 @@ class CreateActionProcessor:
         alert_ids = alert_ids or [alert.id for alert in alerts]
         alert_keys = [AlertKey(alert_id=alert_id, strategy_id=self.strategy_id) for alert_id in alert_ids]
         self.alert_objs = {alert.id: alert for alert in Alert.mget(alert_keys)}
+        is_lifecycle_signal = (
+            signal in (ActionSignal.ABNORMAL, ActionSignal.NO_DATA, ActionSignal.RECOVERED, ActionSignal.CLOSED)
+            and relation_id is None
+            and not execute_times
+            and not is_unshielded
+            and notice_type == ActionNoticeType.NORMAL
+        )
         self.alerts = [
             AlertDocument(**alert.data)
             for alert in self.alert_objs.values()
-            if not alert.shield_end_close and alert.is_valid_handle(execute_times, relation_id)
+            if not alert.shield_end_close
+            and (not alert.is_dispatch_noise or is_lifecycle_signal)
+            and alert.is_valid_handle(execute_times, relation_id)
         ]
         self.is_alert_shielded = False
         self.historical_shield_ids = {}
@@ -459,7 +471,7 @@ class CreateActionProcessor:
             self.notice = copy.deepcopy(DEFAULT_NOTICE_ACTION)
             actions = []
 
-        if self.notice.get("config_id"):
+        if self.notice.get("config_id") is not None:
             # 订阅只能在具体告警上判断是否命中，因此通知关系不能在策略级提前丢弃。
             actions.append(self.notice)
 
@@ -682,6 +694,22 @@ class CreateActionProcessor:
             self.execute_times,
             self.relation_id,
         )
+        new_actions = []
+        self.is_alert_shielded, shield_ids = self.get_alert_shield_result()
+        # 创建推送队列的人员信息
+        self.create_message_queue_action(new_actions)
+
+        # 生命周期消息使用所有告警的原始快照。噪声告警不进入通知、订阅、套餐或再次分派。
+        self.alerts = [alert for alert in self.alerts if not alert.is_dispatch_noise]
+        self.alert_ids = [alert.id for alert in self.alerts]
+        if not self.alerts:
+            return new_actions
+
+        alert: AlertDocument = self.alerts[0]
+        if alert.is_no_data() and self.signal in [ActionSignal.RECOVERED, ActionSignal.CLOSED]:
+            # 无数据告警恢复和关闭的时候， 只推送消息队列，不发送通知
+            return new_actions
+
         actions = self.get_action_relations()
         assign_mode = self.notice.get("options", {}).get("assign_mode") or []
         is_subscription_only_notice = (
@@ -690,16 +718,6 @@ class CreateActionProcessor:
             and not self.notice.get("user_groups")
             and AssignMode.BY_RULE not in assign_mode
         )
-        new_actions = []
-        self.is_alert_shielded, shield_ids = self.get_alert_shield_result()
-        # 创建推送队列的人员信息
-        self.create_message_queue_action(new_actions)
-
-        alert: AlertDocument = self.alerts[0]
-        if alert.is_no_data() and self.signal in [ActionSignal.RECOVERED, ActionSignal.CLOSED]:
-            # 无数据告警恢复和关闭的时候， 只推送消息队列，不发送通知
-            return new_actions
-
         if not actions:
             # 策略配置的notice 和 action 未命中当前的signal
             logger.info(
@@ -878,7 +896,17 @@ class CreateActionProcessor:
                             )
                     notify_info, follow_notify_info = merged_notice_info
                     # 当前通知时段没有接收人时，已有告警组或已命中分派仍需保留父动作，供周期任务后续补发。
-                    has_existing_notice_lifecycle = bool(self.notice.get("user_groups")) or assignee_manager.is_matched
+                    has_existing_notice_lifecycle = (
+                        bool(self.notice.get("user_groups")) or assignee_manager.overrides_notice
+                    )
+                    if self.notice_type == ActionNoticeType.UPGRADE:
+                        # 只为本轮的升级组保留父动作。所有级别都已通知后无需再建空任务。
+                        receivers = (
+                            assignee_manager.notice_appointees_object
+                            if assignee_manager.overrides_notice
+                            else assignee_manager.origin_notice_users_object
+                        )
+                        has_existing_notice_lifecycle = receivers and (receivers.user_groups or receivers.follow_groups)
                     has_current_receivers = self.has_notice_receivers(notify_info) or self.has_notice_receivers(
                         follow_notify_info
                     )

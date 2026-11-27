@@ -16,6 +16,7 @@ import os
 import time
 from collections import defaultdict
 from datetime import datetime
+from functools import cached_property
 
 import jmespath
 from django.conf import settings
@@ -53,6 +54,7 @@ from constants.action import (
     NoticeWay,
     NotifyStep,
 )
+from core.errors.action import RelatedAlertNotFoundError
 
 from .utils import (
     AlertAssignee,
@@ -136,6 +138,7 @@ class BaseActionProcessor:
         self.retry_times = self.action.outputs.get("retry_times", 0)
 
         self.context = self.get_context()
+        self.skip_pending_dispatch_noise()
         self.notice_receivers = self.context.get("notice_receiver") or self.action.assignee
         self.notice_receivers = (
             self.notice_receivers if isinstance(self.notice_receivers, list) else [self.notice_receivers]
@@ -145,6 +148,35 @@ class BaseActionProcessor:
 
         logger.info("load BaseActionProcessor for action(%s) finished", action_id)
 
+    @cached_property
+    def has_dispatch_noise(self):
+        alert = self.context.get("alert")
+        if alert and alert.is_dispatch_noise:
+            return True
+        if self.action.signal == ActionSignal.MANUAL and len(self.action.alerts) > 1:
+            # 手动套餐可以绑定多条告警，主告警无法代表本次已入队的整组操作。
+            return any(
+                item.is_dispatch_noise
+                for item in AlertDocument.mget(
+                    self.action.alerts, fields=["extra_info.matched_rule_info.dispatch_result"]
+                )
+            )
+        return False
+
+    def skip_pending_dispatch_noise(self):
+        """丢弃已入队的噪声告警动作，保留运行中外部任务的轮询和回调。"""
+        if self.action.status == ActionStatus.RUNNING or not self.has_dispatch_noise:
+            return
+        if self.action.status not in ActionStatus.END_STATUS:
+            # 限制原状态，避免覆盖另一 worker 已经开始或结束的任务。
+            ActionInstance.objects.filter(pk=self.action.pk, status=self.action.status).update(
+                status=ActionStatus.SKIPPED,
+                need_poll=False,
+                end_time=datetime.now(tz=timezone.utc),
+                ex_data={"message": _("告警已标记为噪声，跳过处理")},
+            )
+        raise ActionAlreadyFinishedError(_("告警已标记为噪声"))
+
     def get_context(self):
         """
         获取上下文
@@ -153,14 +185,20 @@ class BaseActionProcessor:
         if self.action.signal == ActionSignal.DEMO:
             # 如果是调试任务，优先检查是否关联了真实告警
             if self.action.alerts:
-                # 关联了真实告警，使用 ActionContext 构建真实上下文
+                # 绑定告警时先核对分类，避免读取失败后用静态样例执行真实告警的套餐。
+                alerts = AlertDocument.mget(ids=self.action.alerts)
+                if not alerts:
+                    raise RelatedAlertNotFoundError(action_id=self.action.id)
+                if alerts[0].is_dispatch_noise and self.action.status != ActionStatus.RUNNING:
+                    return {"alert": alerts[0]}
                 try:
-                    alerts = AlertDocument.mget(ids=self.action.alerts)
-                    if alerts:
+                    if not alerts[0].is_dispatch_noise:
                         self._fix_demo_action_fields(alerts)
-                        self.action_context = ActionContext(self.action, alerts=alerts, use_alert_snap=True)
-                        return self.action_context.get_dictionary()
+                    self.action_context = ActionContext(self.action, alerts=alerts, use_alert_snap=True)
+                    return self.action_context.get_dictionary()
                 except Exception:
+                    if alerts[0].is_dispatch_noise:
+                        raise
                     logger.exception("demo action(%s) 基于真实告警构建上下文失败，回退到静态样例", self.action.id)
 
             # 未关联告警或获取失败，走原有静态样例
@@ -888,6 +926,8 @@ class BaseActionProcessor:
 
         if not self.notify_config:
             # 通知配置不存在的时候，不需要发送执行通知
+            return True
+        if self.has_dispatch_noise:
             return True
 
         notify_step_signal = NOTIFY_STEP_ACTION_SIGNAL_MAPPING.get(int(notify_step))

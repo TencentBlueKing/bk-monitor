@@ -56,7 +56,20 @@ class ActionProcessor(BaseActionProcessor):
             self.clear_biz_converge_lock()
 
     def get_context(self):
-        return ActionContext(self.action, related_actions=self.related_actions, alerts=self.alerts).get_dictionary()
+        context = ActionContext(self.action, related_actions=self.related_actions, alerts=self.alerts)
+        noise_ids = {alert.id for alert in context.alerts if alert.is_dispatch_noise}
+        if noise_ids:
+            # 汇总可能包含多个告警，仅移除噪声告警对应的通知记录。
+            noise_actions = [action.pk for action in self.related_actions if noise_ids.intersection(action.alerts)]
+            self.related_actions = self.related_actions.exclude(pk__in=noise_actions)
+            if self.related_actions:
+                context = ActionContext(
+                    self.action,
+                    related_actions=self.related_actions,
+                    alerts=[alert for alert in context.alerts if alert.id not in noise_ids],
+                    use_alert_snap=True,
+                )
+        return context.get_dictionary()
 
     def collect(self, **kwargs):
         # 获取汇总的对象ID

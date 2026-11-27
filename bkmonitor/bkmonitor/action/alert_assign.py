@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,22 +7,26 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 import time
 from collections import defaultdict
-from typing import List
+from functools import cached_property
 
 from django.utils.translation import gettext as _
 
 from bkmonitor.documents import AlertDocument, AlertLog
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.range import load_condition_instance
-from constants.action import ActionPluginType, AssignMode, UserGroupType
-from constants.alert import EVENT_SEVERITY_DICT
+from constants.action import ActionPluginType, AssignActionType, AssignMode, UserGroupType
+from constants.alert import AI_ANALYZE_TAG, EVENT_SEVERITY_DICT, NOISE_TAG
 from core.drf_resource import api
 
 logger = logging.getLogger("fta_action.run")
+
+LEGACY_ACTION_TYPES = {ActionPluginType.NOTICE, ActionPluginType.ITSM}
+ORDINARY_ACTION_TYPES = LEGACY_ACTION_TYPES | {AssignActionType.AI_ANALYSIS}
 
 
 class UpgradeRuleMatch:
@@ -81,12 +84,13 @@ class AssignRuleMatch:
         :return:
         """
         self.assign_rule = assign_rule
-        self.assign_rule_snap = assign_rule_snap or {}
-        self.dimension_check = None
-        self.parse_dimension_conditions()
+        self.assign_rule_snap = dict(assign_rule_snap or {})
         self.alert = alert
+        self.matched_types = set()
+        self.apply_attributes = False
 
-    def parse_dimension_conditions(self):
+    @cached_property
+    def dimension_check(self):
         """
         根据配置的条件信息获取
         :return:
@@ -100,10 +104,13 @@ class AssignRuleMatch:
             and_cond.append(condition)
         if and_cond:
             or_cond.append(and_cond)
-        self.dimension_check = load_condition_instance(or_cond, False)
+        return load_condition_instance(or_cond, False)
 
     def assign_group(self):
-        return {"group_id": self.assign_rule["assign_group_id"]}
+        return {
+            "group_id": self.assign_rule["assign_group_id"],
+            "group_name": self.assign_rule.get("group_name", self.assign_rule.get("name", "")),
+        }
 
     @property
     def rule_id(self):
@@ -122,13 +129,13 @@ class AssignRuleMatch:
         # 比较分派的用户组和分派条件
         new_rule_md5 = count_md5(
             {
-                "user_groups": self.assign_rule["user_groups"],
+                "user_groups": self.assign_rule.get("user_groups", []),
                 "conditions": self.assign_rule["conditions"],
             }
         )
         snap_rule_md5 = count_md5(
             {
-                "user_groups": self.assign_rule_snap["user_groups"],
+                "user_groups": self.assign_rule_snap.get("user_groups", []),
                 "conditions": self.assign_rule_snap["conditions"],
             }
         )
@@ -161,22 +168,37 @@ class AssignRuleMatch:
             return []
         return self.assign_rule.get("user_groups", [])
 
+    @cached_property
+    def actions(self):
+        actions = {}
+        for action in self.assign_rule.get("actions", []):
+            kind = action["action_type"]
+            if kind not in ORDINARY_ACTION_TYPES and kind != AssignActionType.NOISE:
+                continue
+            # 历史 ITSM 配置只存 action_id，没有 is_enabled。
+            if not action.get("is_enabled", kind == ActionPluginType.ITSM):
+                continue
+            if kind == ActionPluginType.ITSM and not action.get("action_id"):
+                continue
+            actions.setdefault(kind, action)
+        return actions
+
     @property
     def notice_action(self):
-        for action in self.assign_rule["actions"]:
-            if not action.get("is_enabled"):
-                logger.info("assign notice(%s) is not enabled", self.rule_id)
-                continue
-            if action["action_type"] == ActionPluginType.NOTICE:
-                # 当有通知插件，并且开启了，才进行通知
-                return action
-        return {}
+        return self.actions.get(ActionPluginType.NOTICE, {})
 
     @property
     def itsm_action(self):
-        for action in self.assign_rule["actions"]:
-            if action["action_type"] == ActionPluginType.ITSM and action.get("action_id"):
-                return action
+        return self.actions.get(ActionPluginType.ITSM)
+
+    @property
+    def has_attributes(self):
+        # 旧分派的级别、标签沿用第一个命中层。只有新增动作的规则不抢占这层。
+        return bool(self.actions.keys() & LEGACY_ACTION_TYPES or self.alert_severity or self.additional_tags)
+
+    @property
+    def overrides_notice(self):
+        return bool(self.matched_types & LEGACY_ACTION_TYPES or (self.apply_attributes and not self.actions))
 
     @property
     def upgrade_rule(self):
@@ -184,7 +206,7 @@ class AssignRuleMatch:
 
     @property
     def additional_tags(self):
-        return self.assign_rule.get("additional_tags", [])
+        return [tag for tag in self.assign_rule.get("additional_tags", []) if tag["key"] != NOISE_TAG]
 
     @property
     def alert_severity(self):
@@ -222,8 +244,8 @@ class AssignRuleMatch:
         if last_group_index == current_group_index:
             # 如果已经完全升级通知了，则表示全部知会给升级负责人
             return []
-        self.assign_rule["last_group_index"] = current_group_index
-        self.assign_rule["last_upgrade_time"] = int(time.time())
+        self.assign_rule_snap["last_group_index"] = current_group_index
+        self.assign_rule_snap["last_upgrade_time"] = int(time.time())
         logger.info(
             "alert(%s) upgraded by rule(%s), current group index(%s), last_group_index(%s), last_upgrade_time(%s)",
             self.alert.id,
@@ -319,7 +341,7 @@ class AlertMatchContext:
 
         # 第三部分： 第三方接入告警，直接使用tags内容
         alert_tags = [d.to_dict() for d in self.alert.event.tags]
-        dimensions.update({f'tags.{d["key"]}': d.get("value", "") for d in alert_tags})
+        dimensions.update({f"tags.{d['key']}": d.get("value", "") for d in alert_tags})
 
         # 第四部分： cmdb相关的节点属性
         dimensions.update(self.cmdb_dimensions)
@@ -351,6 +373,8 @@ class AlertAssignMatchManager(AlertMatchContext):
         assign_mode=None,
         notice_type=None,
         cmdb_attrs=None,
+        explain=False,
+        dynamic_group_hosts=None,
     ):
         """
         :param alert: 告警
@@ -366,7 +390,9 @@ class AlertAssignMatchManager(AlertMatchContext):
         extra_info = self.alert.extra_info.to_dict() if self.alert.extra_info else {}
         self.rule_snaps = extra_info.get("rule_snaps") or {}
         self.group_rules = group_rules or []
-        self.matched_rules: List[AssignRuleMatch] = []
+        self.explain = explain
+        self.dynamic_group_hosts = dynamic_group_hosts if dynamic_group_hosts is not None else {}
+        self.matched_rules: list[AssignRuleMatch] = []
         self.matched_rule_info = {
             "notice_upgrade_user_groups": [],
             "follow_groups": [],
@@ -376,33 +402,89 @@ class AlertAssignMatchManager(AlertMatchContext):
             "additional_tags": [],
             "rule_snaps": {},
             "group_info": {},
+            "dispatch_result": {"ai_analysis": None, "noise": False},
+            "matched_rules": [],
         }
         self.severity_source = ""
 
-    def get_matched_rules(self) -> List[AssignRuleMatch]:
-        """
-        适配分派规则, 通过api获取动态分组，适用于SaaS调试预览，后台实现基于缓存重写
-        :return:
-        """
-        matched_rules = []
-        if AssignMode.BY_RULE not in self.assign_mode:
-            # 如果不需要分派的，不要进行规则匹配
-            return matched_rules
+    def iter_priority_rules(self):
+        """调试使用调用方排好序的规则，后台按需从缓存取下一层。"""
         for rules in self.group_rules:
+            if rules:
+                yield rules[0].get("priority"), rules
+
+    def resolve_conditions(self, rule):
+        if not any(condition["field"] == "dynamic_group" for condition in rule["conditions"]):
+            return rule
+        conditions = []
+        for condition in rule["conditions"]:
+            if condition["field"] == "dynamic_group":
+                group_ids = tuple(condition["value"])
+                if group_ids not in self.dynamic_group_hosts:
+                    self.dynamic_group_hosts[group_ids] = self.get_host_ids_by_dynamic_groups(list(group_ids))
+                condition = {**condition, "value": self.dynamic_group_hosts[group_ids], "field": "bk_host_id"}
+            conditions.append(condition)
+        return {**rule, "conditions": conditions, "configured_conditions": rule["conditions"]}
+
+    def get_matched_rules(self) -> list[AssignRuleMatch]:
+        matched_rules = []
+        audit = self.matched_rule_info["matched_rules"] = []
+        if AssignMode.BY_RULE not in self.assign_mode:
+            return matched_rules
+        resolved = set()
+        attributes_resolved = False
+        noise = AssignActionType.NOISE
+        for priority, rules in self.iter_priority_rules():
+            hits = []
             for rule in rules:
                 if not rule.get("is_enabled"):
-                    # 没有开启的直接返回
                     continue
-                # 动态分组转换
-                for condition in rule["conditions"]:
-                    if condition["field"] == "dynamic_group":
-                        condition["value"] = self.get_host_ids_by_dynamic_groups(condition["value"])
-                        condition["field"] = "bk_host_id"
-                rule_match_obj = AssignRuleMatch(rule, self.rule_snaps.get(str(rule.get("id", ""))), self.alert)
-                if rule_match_obj.is_matched(dimensions=self.dimensions):
-                    matched_rules.append(rule_match_obj)
-            if matched_rules:
-                # 当前优先级下适配到分派规则，停止低优先级的适配
+                match = AssignRuleMatch(rule, self.rule_snaps.get(str(rule.get("id"))), self.alert)
+                possible = match.actions.keys() - resolved
+                if resolved & ORDINARY_ACTION_TYPES:
+                    possible.discard(noise)
+                if not (possible or (not attributes_resolved and match.has_attributes) or self.explain):
+                    continue
+                match.assign_rule = self.resolve_conditions(rule)
+                if match.is_matched(self.dimensions):
+                    hits.append(match)
+
+            tier_types = {kind for hit in hits for kind in hit.actions}
+            winners = tier_types - resolved
+            noise_reason = (
+                "higher_priority_ordinary" if resolved & ORDINARY_ACTION_TYPES else "ordinary_at_same_priority"
+            )
+            if noise in resolved:
+                winners.clear()
+            elif (resolved | tier_types) & ORDINARY_ACTION_TYPES:
+                winners.discard(noise)
+
+            for hit in hits:
+                hit.matched_types = hit.actions.keys() & winners
+                hit.apply_attributes = not attributes_resolved and noise not in resolved and hit.has_attributes
+                if hit.matched_types or hit.apply_attributes:
+                    matched_rules.append(hit)
+                suppressed = {}
+                for kind in hit.actions.keys() - hit.matched_types:
+                    if noise in resolved and kind != noise:
+                        suppressed[kind] = "noise_won"
+                    elif kind == noise and noise not in resolved:
+                        suppressed[kind] = noise_reason
+                    else:
+                        suppressed[kind] = "higher_priority_same_type"
+                audit.append(
+                    {
+                        "rule_id": hit.rule_id,
+                        **hit.assign_group(),
+                        "priority": priority,
+                        "action_types": sorted(hit.matched_types),
+                        "suppressed_actions": suppressed,
+                    }
+                )
+
+            resolved.update(winners)
+            attributes_resolved |= any(hit.apply_attributes for hit in hits)
+            if not self.explain and (noise in resolved or ORDINARY_ACTION_TYPES <= resolved):
                 break
         return matched_rules
 
@@ -410,22 +492,13 @@ class AlertAssignMatchManager(AlertMatchContext):
         """
         获取流程的规则对应的通知组
         """
-        itsm_user_groups = defaultdict(list)
-        for rule_obj in self.matched_rules:
-            if not rule_obj.itsm_action:
-                continue
-            itsm_user_groups[rule_obj.itsm_action["id"]].extend(rule_obj.user_groups)
-        return itsm_user_groups
+        return self.matched_rule_info["itsm_actions"]
 
     def get_notice_user_groups(self):
         """
         获取适配的规则对应的通知组
         """
-        notice_user_groups = []
-        for rule_obj in self.matched_rules:
-            rule_user_groups = [group_id for group_id in rule_obj.user_groups if group_id not in notice_user_groups]
-            notice_user_groups.extend(rule_user_groups)
-        return set(notice_user_groups)
+        return set(self.matched_rule_info["notice_appointees"]) | set(self.matched_rule_info["follow_groups"])
 
     @property
     def severity(self):
@@ -452,36 +525,53 @@ class AlertAssignMatchManager(AlertMatchContext):
         all_severity = []
         additional_tags = []
         new_rule_snaps = {}
+        ai_groups = None
+        noise = False
         for rule_obj in self.matched_rules:
-            additional_tags.extend(rule_obj.additional_tags)
-            all_severity.append(rule_obj.alert_severity or self.alert.severity)
-
-            # 当有升级变动的时候才真正进行升级获取和记录
-            user_groups = rule_obj.get_upgrade_user_group() if self.notice_type == "upgrade" else rule_obj.user_groups
-            if rule_obj.user_type == UserGroupType.FOLLOWER:
-                follow_groups.extend([group_id for group_id in user_groups if group_id not in follow_groups])
-            else:
-                new_groups = [group_id for group_id in user_groups if group_id not in notice_user_groups]
-                notice_user_groups.extend(new_groups)
-            # 需要叠加更新
-            rule_obj.assign_rule_snap.update(rule_obj.assign_rule)
-            new_rule_snaps[str(rule_obj.rule_id)] = rule_obj.assign_rule_snap
-            if rule_obj.itsm_action:
+            if rule_obj.apply_attributes:
+                additional_tags.extend(rule_obj.additional_tags)
+                all_severity.append(rule_obj.alert_severity or self.alert.severity)
+                if rule_obj.alert_severity:
+                    self.severity_source = AssignMode.BY_RULE
+            if ActionPluginType.NOTICE in rule_obj.matched_types:
+                groups = rule_obj.get_upgrade_user_group() if self.notice_type == "upgrade" else rule_obj.user_groups
+                receivers = follow_groups if rule_obj.user_type == UserGroupType.FOLLOWER else notice_user_groups
+                receivers.extend(groups)
+            if ActionPluginType.ITSM in rule_obj.matched_types:
                 itsm_user_groups[rule_obj.itsm_action["action_id"]].extend(rule_obj.user_groups)
+            if AssignActionType.AI_ANALYSIS in rule_obj.matched_types:
+                if ai_groups is None:
+                    ai_groups = []
+                ai_groups.extend(rule_obj.actions[AssignActionType.AI_ANALYSIS].get("user_groups", []))
+            noise |= AssignActionType.NOISE in rule_obj.matched_types
+            rule_snapshot = {key: value for key, value in rule_obj.assign_rule.items() if key != "alerts"}
+            # 配置来自当前命中的规则；升级进度继承自同一条规则的告警快照。
+            for field in ("last_group_index", "last_upgrade_time"):
+                if field in rule_obj.assign_rule_snap:
+                    rule_snapshot[field] = rule_obj.assign_rule_snap[field]
+            new_rule_snaps[str(rule_obj.rule_id)] = rule_snapshot
 
-        self.matched_rule_info = {
-            "notice_appointees": notice_user_groups,
-            "follow_groups": follow_groups,
-            "itsm_actions": {action_id: user_groups for action_id, user_groups in itsm_user_groups.items()},
-            "severity": min(all_severity),
-            "additional_tags": additional_tags,
-            "rule_snaps": new_rule_snaps,
-            # 组名取一个即可
-            "group_info": {
-                "group_id": self.matched_rules[0].assign_rule["assign_group_id"],
-                "group_name": self.matched_rules[0].assign_rule.get("group_name", ""),
-            },
-        }
+        if noise or ai_groups is not None:
+            # 老规则通过追加标签触发 AI；显式动作裁决后由告警构造器统一写系统标签。
+            additional_tags = [tag for tag in additional_tags if tag["key"] != AI_ANALYZE_TAG]
+        self.matched_rule_info.update(
+            {
+                "notice_appointees": list(dict.fromkeys(notice_user_groups)),
+                "follow_groups": list(dict.fromkeys(follow_groups)),
+                "itsm_actions": {
+                    action_id: list(dict.fromkeys(groups)) for action_id, groups in itsm_user_groups.items()
+                },
+                "dispatch_result": {
+                    "ai_analysis": None if ai_groups is None else {"user_groups": list(dict.fromkeys(ai_groups))},
+                    "noise": noise,
+                },
+                "severity": min(all_severity, default=0),
+                "additional_tags": additional_tags,
+                "rule_snaps": new_rule_snaps,
+                # 历史消费者只接受一个规则组，保留最高生效组。
+                "group_info": self.matched_rules[0].assign_group(),
+            }
+        )
 
     def run_match(self):
         """
@@ -489,23 +579,21 @@ class AlertAssignMatchManager(AlertMatchContext):
         """
         self.matched_rules = self.get_matched_rules()
         if self.matched_rules:
-            assign_severity = max([rule_obj.alert_severity for rule_obj in self.matched_rules])
-            self.severity_source = AssignMode.BY_RULE if assign_severity > 0 else ""
             self.get_matched_rule_info()
-            self.alert.severity = self.matched_rule_info["severity"] or self.alert.severity
-            # 告警分派不维持原样的则为分派，优先级最高，其他场景位置
-            self.alert.extra_info["severity_source"] = self.severity_source
+            if self.severity:
+                self.alert.severity = self.severity
+                self.alert.extra_info["severity_source"] = self.severity_source
             self.alert.extra_info["rule_snaps"] = self.matched_rule_info["rule_snaps"]
             self.update_assign_tags()
 
-    def get_alert_log(self):
+    def get_alert_log(self, evaluated_at=None):
         """
         获取告警分派流水日志
         """
         if not self.matched_rules:
             # 如果没有适配到告警规则，忽略
             return
-        current_time = int(time.time())
+        current_time = evaluated_at if evaluated_at is not None else int(time.time())
         if self.severity and self.severity != self.origin_severity:
             logger.info(
                 "Change alert(%s) severity from %s to %s by rule", self.alert.id, self.origin_severity, self.severity
@@ -518,8 +606,7 @@ class AlertAssignMatchManager(AlertMatchContext):
         else:
             content = _("告警适配到自动分派规则组${}$, 级别维持【{}】不变").format(
                 self.matched_group_info["group_name"],
-                EVENT_SEVERITY_DICT.get(self.origin_severity, self.origin_severity),
-                EVENT_SEVERITY_DICT.get(self.severity, self.severity),
+                EVENT_SEVERITY_DICT.get(self.alert.severity, self.alert.severity),
             )
         description = {
             "text": content,
@@ -529,12 +616,18 @@ class AlertAssignMatchManager(AlertMatchContext):
                 "params": {"biz_id": self.bk_biz_id, "group_id": self.matched_group_info["group_id"]},
             },
             "action_plugin_type": "assign",
+            "dispatch_evaluation": {
+                "status": "matched",
+                "evaluated_at": current_time,
+                "matched_rules": self.matched_rule_info["matched_rules"],
+                "dispatch_result": self.matched_rule_info["dispatch_result"],
+            },
         }
         alert_log = dict(
             op_type=AlertLog.OpType.ACTION,
             event_id=current_time,
             alert_id=self.alert.id,
-            severity=self.severity,
+            severity=self.severity or self.alert.severity,
             description=json.dumps(description),
             create_time=current_time,
             time=current_time,

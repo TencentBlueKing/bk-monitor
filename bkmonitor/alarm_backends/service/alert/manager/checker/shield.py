@@ -38,7 +38,7 @@ class ShieldStatusChecker(BaseChecker):
             self.push_actions()
 
     def add_unshield_action(self, alert: Alert, notice_relation: dict = None):
-        if not notice_relation:
+        if not notice_relation or alert.is_dispatch_noise:
             return
 
         config_id = notice_relation.get("config_id")

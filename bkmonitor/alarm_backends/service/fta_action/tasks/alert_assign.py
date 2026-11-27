@@ -20,7 +20,7 @@ from alarm_backends.service.fta_action import AlertAssignee
 from bkmonitor.action.alert_assign import (
     AlertMatchContext,
     AlertAssignMatchManager,
-    AssignRuleMatch,
+    AssignRuleMatch as AssignRuleMatch,
     UpgradeRuleMatch,
 )
 from bkmonitor.documents import AlertDocument
@@ -66,28 +66,12 @@ class BackendAssignMatchManager(AlertAssignMatchManager):
             cmdb_attrs = get_backend_cmdb_attrs(alert)
         super().__init__(alert, notice_users, group_rules, assign_mode, notice_type, cmdb_attrs)
 
-    def get_matched_rules(self) -> list[AssignRuleMatch]:
-        """
-        适配分派规则, 后台通过缓存获取
-        :return:
-        """
-        matched_rules = []
-        if self.assign_mode is None or AssignMode.BY_RULE not in self.assign_mode:
-            # 如果没有分派规则或者当前配置不需要分派的情况下，不做分派适配
-            return matched_rules
-        for priority_id in AssignCacheManager.get_assign_priority_by_biz_id(self.bk_biz_id):
-            groups = AssignCacheManager.get_assign_groups_by_priority(self.bk_biz_id, priority_id)
-            group_rules = []
-            for group_id in groups:
-                group_rules.extend(AssignCacheManager.get_assign_rules_by_group(self.bk_biz_id, group_id))
-            for rule in group_rules:
-                rule_match_obj = AssignRuleMatch(rule, self.rule_snaps.get(str(rule["id"])), self.alert)
-                if rule_match_obj.is_matched(dimensions=self.dimensions):
-                    matched_rules.append(rule_match_obj)
-            if matched_rules:
-                # 当前优先级下适配到分派规则，停止低优先级的适配
-                break
-        return matched_rules
+    def iter_priority_rules(self):
+        return AssignCacheManager.iter_priority_rules(self.bk_biz_id)
+
+    def resolve_conditions(self, rule):
+        # 后台缓存刷新时已将动态分组转换为 bk_host_id。
+        return rule
 
 
 class AlertAssigneeManager:
@@ -119,6 +103,7 @@ class AlertAssigneeManager:
             self.origin_notice_users_object = self.get_origin_notice_users_object(notice_user_groups or [])
         self.matched_group = None
         self.is_matched = False
+        self.overrides_notice = False
         self.match_manager = self.get_match_manager()
         self._subscription_match_context = None
         self._subscription_notify_info = None
@@ -146,8 +131,8 @@ class AlertAssigneeManager:
             notice_type=self.notice_type,
         )
         manager.run_match()
-        if manager.matched_rules:
-            self.is_matched = True
+        self.is_matched = bool(manager.matched_rules)
+        self.overrides_notice = any(rule.overrides_notice for rule in manager.matched_rules)
         self.matched_group = manager.matched_group_info.get("group_id")
         logger.info(
             "[%s assign match] finished: alert(%s), strategy(%s), matched_rule(%s), "
@@ -166,7 +151,7 @@ class AlertAssigneeManager:
         获取通知渠道和通知人员信息
         """
         notify_configs = defaultdict(list)
-        if self.is_matched:
+        if self.overrides_notice:
             # 如果适配到了，直接发送给分派的负责人
             if self.notice_appointees_object:
                 self.notice_appointees_object.get_notice_receivers(notify_configs=notify_configs, user_type=user_type)
@@ -359,7 +344,7 @@ class AlertAssigneeManager:
         获取告警负责人的通知信息
         """
         notify_configs = notify_configs or defaultdict(list)
-        if self.is_matched:
+        if self.overrides_notice:
             # 如果适配到了，直接发送给分派的负责人
             if self.notice_appointees_object:
                 self.notice_appointees_object.add_appointee_to_notify_group(notify_configs=notify_configs)
@@ -372,7 +357,7 @@ class AlertAssigneeManager:
         """
         获取对应的通知人员 包含指派的通知人员 和 设置的通知人员
         """
-        if self.is_matched:
+        if self.overrides_notice:
             # 如果当前已经有分派适配，则只返回指派的人员
             return self.get_notice_appointees(by_group, user_type)
         else:
@@ -400,7 +385,7 @@ class AlertAssigneeManager:
         """
         获取当前运行的升级人员
         """
-        if not self.is_matched:
+        if not self.overrides_notice:
             # 如果没有适配到规则，用默认通知的关注人信息
             return self.get_origin_notice_supervisors(by_group, user_type=user_type)
 
@@ -422,7 +407,7 @@ class AlertAssigneeManager:
         获取通知分派人的获取对象
         :return:
         """
-        if not self.is_matched:
+        if not self.overrides_notice:
             # 没有适配到，直接返回
             return
         matched_info = self.match_manager.matched_rule_info

@@ -23,7 +23,7 @@ from bkmonitor.models import (
     StrategyModel,
     UserGroup,
 )
-from constants.action import ActionPluginType
+from constants.action import ActionPluginType, AssignActionType
 
 
 def get_action_config_strategy_dict(config_ids, strategies=None, bk_biz_id=None):
@@ -69,9 +69,8 @@ def get_action_config_rules(config_ids, bk_biz_id):
     queryset = AlertAssignRule.objects.filter(bk_biz_id=bk_biz_id)
     for rule in queryset.filter(reduce(operator.or_, filters)).values("id", "actions"):
         for action in rule["actions"]:
-            if action["action_type"] == ActionPluginType.NOTICE:
-                continue
-            action_config_rules[action["action_id"]].append(rule["id"])
+            if action["action_type"] != ActionPluginType.NOTICE and action.get("action_id"):
+                action_config_rules[action["action_id"]].append(rule["id"])
     return action_config_rules
 
 
@@ -154,6 +153,16 @@ def get_user_group_strategies(user_groups, bk_biz_ids=None):
     return strategy_count_of_user_group
 
 
+def assign_rule_user_groups(user_groups, actions):
+    groups = set(user_groups)
+    for action in actions:
+        if action["action_type"] == ActionPluginType.NOTICE:
+            groups.update((action.get("upgrade_config") or {}).get("user_groups") or [])
+        elif action["action_type"] == AssignActionType.AI_ANALYSIS:
+            groups.update(action["user_groups"])
+    return groups
+
+
 def get_user_group_assign_rules(user_groups, bk_biz_ids=None):
     """
     获取告警组对应的策略数统计
@@ -169,30 +178,9 @@ def get_user_group_assign_rules(user_groups, bk_biz_ids=None):
 
     rule_queryset = AlertAssignRule.objects.filter(bk_biz_id__in=bk_biz_ids).values("user_groups", "id", "actions")
     rule_count_of_user_group = defaultdict(list)
-    rules = []
+    requested_groups = set(user_groups)
     for rule in rule_queryset:
-        for group_id in user_groups:
-            if group_id in rule["user_groups"]:
-                # 如果通知组包含一个告警组，则表示命中
-                rules.append(rule)
-                break
-            upgrade_user_groups = []
-            for action in rule["actions"]:
-                if action["action_type"] == ActionPluginType.NOTICE:
-                    upgrade_user_groups = action.get("upgrade_config", {}).get("user_groups")
-                    break
-            if upgrade_user_groups and group_id in upgrade_user_groups:
-                rules.append(rule)
-                break
-
-    for rule in rules:
-        for action in rule["actions"]:
-            if action["action_type"] != ActionPluginType.NOTICE:
-                continue
-            if action.get("upgrade_config", {}).get("user_groups"):
-                rule["user_groups"].extend(action["upgrade_config"]["user_groups"])
-        valid_groups = set(user_groups).intersection(set(rule["user_groups"]))
-        for group_id in valid_groups:
+        for group_id in requested_groups.intersection(assign_rule_user_groups(rule["user_groups"], rule["actions"])):
             rule_count_of_user_group[group_id].append(rule["id"])
     return rule_count_of_user_group
 
@@ -204,10 +192,8 @@ def get_assign_rule_related_resource_dict(assign_group_ids):
     relations = {"action_ids": [], "user_groups": []}
     if assign_group_ids:
         for rule in AlertAssignRule.objects.filter(assign_group_id__in=assign_group_ids).only("actions", "user_groups"):
-            relations["user_groups"].extend(rule.user_groups)
+            relations["user_groups"].extend(assign_rule_user_groups(rule.user_groups, rule.actions))
             for action in rule.actions:
-                if action.get("upgrade_config"):
-                    relations["user_groups"].extend(action["upgrade_config"]["user_groups"])
                 if action.get("action_id"):
                     relations["action_ids"].append(action["action_id"])
     relations = {"action_ids": list(set(relations['action_ids'])), "user_groups": list(set(relations["user_groups"]))}
