@@ -824,12 +824,13 @@ export default class MaskingField extends tsc<IProps> {
         const { newObject } = getFlatObjValues(item);
         return newObject;
       });
-      this.fieldOriginValueList = (flatJsonParseList as any).reduce((pre, cur) => {
+      this.fieldOriginValueList = (flatJsonParseList as any).reduce((pre, cur, sampleIndex) => {
         for (const [fieldKey, fieldVal] of Object.entries(cur)) {
           if (!pre[fieldKey]) {
             pre[fieldKey] = [];
           }
-          pre[fieldKey].push(fieldVal ?? '');
+          // 保留采样下标，避免缺字段时后续原值前移。
+          pre[fieldKey][sampleIndex] = fieldVal ?? '';
         }
         return pre;
       }, {});
@@ -1078,14 +1079,16 @@ export default class MaskingField extends tsc<IProps> {
       return [];
     }
     const previewList: Record<string, any>[] = [];
-    const filterResult = previewResult.filter(item => item !== null);
-    this.fieldOriginValueList[fieldName].forEach((item, index) => {
-      const maskingValue = filterResult[index] ?? '';
+    this.fieldOriginValueList[fieldName].forEach((item, sampleIndex) => {
+      const maskingValue = previewResult[sampleIndex] ?? '';
       const origin = typeof item === 'object' ? JSON.stringify(item) : String(item);
-      previewList[index] = {
+      if (origin === '' && maskingValue === '') {
+        return;
+      }
+      previewList.push({
         origin,
         afterMasking: maskingValue,
-      };
+      });
     });
     return previewList;
   }
@@ -1258,7 +1261,10 @@ export default class MaskingField extends tsc<IProps> {
     // 新增规则直接回填采样和字段
     this.addRuleFieldValue = {
       field: fieldItem.field_name,
-      fieldLog: this.fieldOriginValueList[fieldItem.field_name]?.find((item: any) => Boolean(String(item))) ?? '',
+      fieldLog:
+        this.fieldOriginValueList[fieldItem.field_name]?.find(
+          (item: any) => item !== undefined && Boolean(String(item)),
+        ) ?? '',
     };
     this.currentOperateField = fieldItem; // 当前添加更多规则的字段
     this.defaultSelectRuleList = fieldItem.rules.map(item => item.rule_id);
