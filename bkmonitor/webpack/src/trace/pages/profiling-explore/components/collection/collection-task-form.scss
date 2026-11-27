@@ -76,8 +76,8 @@
     }
 
     .collection-advanced-content {
-      display: flex;
-      flex-direction: column;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 16px;
 
       .bk-form-item {
@@ -87,6 +87,7 @@
 
     .collection-resource-guard {
       display: flex;
+      grid-column: 1 / -1;
       gap: 8px;
       align-items: center;
       font-size: 12px;

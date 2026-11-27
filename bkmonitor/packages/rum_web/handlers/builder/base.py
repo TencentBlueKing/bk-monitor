@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from itertools import groupby
 from typing import Any, Protocol
 
 from django.utils.functional import Promise
@@ -67,9 +68,14 @@ class BaseOverview(BaseComponent):
     ITEMS: tuple[NamedKeyValueItem, ...] = ()
 
     def render(self) -> dict[str, Any]:
+        badges = []
+        for item in self.BADGES:
+            badge = item.render(self.flatten_data)
+            if badge["value"] is not None:
+                badges.append(badge)
         return {
             "title": self.flatten_data.get("span_name"),
-            "badges": [item.render(self.flatten_data) for item in self.BADGES],
+            "badges": badges,
             "items": [item.render(self.flatten_data) for item in self.ITEMS],
         }
 
@@ -105,7 +111,24 @@ class WaterfallSection(BaseSection):
     TYPE = SectionType.WATERFALL.value
     PHASE_ALIASES: dict[str, Any]
     PHASE_HOVERS: Mapping[str, Hover] = {}
+    PHASE_GROUP_RULES: tuple[tuple[str | Promise, tuple[str, ...]], ...] = ()
     MIN_START: int | None = None
+
+    def render(self) -> dict[str, Any] | None:
+        result = super().render()
+        # 未制定 group 规则的直接返回原数据
+        if result is None or not self.PHASE_GROUP_RULES or (data := result.get("data")) is None:
+            return result
+
+        group_indexes = {key: index for index, (_, keys) in enumerate(self.PHASE_GROUP_RULES) for key in keys}
+        groups: list[dict[str, Any]] = []
+        for index, phases in groupby(data["phases"], key=lambda phase: group_indexes.get(phase["key"])):
+            group: dict[str, Any] = {"phases": list(phases)}
+            if index is not None:
+                group["alias"] = self.PHASE_GROUP_RULES[index][0]
+            groups.append(group)
+        data["groups"] = groups
+        return result
 
     def phases(
         self, specs: Iterable[tuple[str, int | float | None, int | float | None]]

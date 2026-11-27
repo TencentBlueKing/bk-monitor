@@ -108,6 +108,16 @@ def test_check_unique_operation_ids_ignores_missing_operation_id():
     check_unique_operation_ids(merged)
 
 
+def test_check_openapi_schema_types_rejects_type_list():
+    schema = {"type": "object", "properties": {"limit": {"type": ["string", "null"]}}}
+    merged = {"/mcp/a/": {"post": {"requestBody": {"content": {"application/json": {"schema": schema}}}}}}
+    with pytest.raises(ValueError, match=r"properties\.limit: OpenAPI 3\.0 schema type must be a string"):
+        merge_resources.check_openapi_schema_types(merged)
+
+    schema["properties"]["limit"] = {"type": "string", "nullable": True}
+    merge_resources.check_openapi_schema_types(merged)
+
+
 def test_alert_mcp_resource_groups_are_disjoint():
     """告警查询与处置 MCP 必须保持独立，查询资源固定为当前 12 个。"""
     query_paths = _load_paths(_ALERT_MCP_FILE)
@@ -729,13 +739,23 @@ def test_personal_tokens_are_opted_in_and_survive_merge(tmp_path):
     merged = yaml.safe_load((tmp_path / "resources.yaml").read_text())["paths"]
     personal_token_exports = {"export_profile_pprof"}
     enabled = set()
+    hidden_files = ("operation_mcp.yaml", "ops_mcp.yaml", "openclaw_recovering_mcp.yaml")
+    hidden_paths = {
+        path for filename in hidden_files for path in _load_paths(_RESOURCES_DIR / "internal/user" / filename)
+    }
     for path, methods in merged.items():
-        if not path.startswith("/mcp/"):
-            continue
         for operation in methods.values():
-            config = operation["x-bk-apigateway-resource"]["authConfig"]
+            resource = operation["x-bk-apigateway-resource"]
+            config = resource["authConfig"]
+            if path in hidden_paths:
+                assert not config.get("oauth2PersonalClientEnabled")
+                assert resource["isPublic"] is False
             if not config.get("oauth2PersonalClientEnabled"):
+                if path.startswith("/mcp/"):
+                    assert resource["isPublic"] is False
                 continue
+            assert resource["isPublic"] is True
+            assert operation["tags"] == [merge_resources.PERSONAL_TOKEN_TAG]
             name = operation["operationId"]
             assert config["userVerifiedRequired"] is True
             assert config["appVerifiedRequired"] is False
@@ -761,48 +781,6 @@ def test_personal_tokens_are_opted_in_and_survive_merge(tmp_path):
         *personal_token_exports,
     } <= enabled
     assert "execute_tool" not in enabled
-
-
-def test_independent_user_directory_is_public_personal_only_and_excludes_internal_tools(tmp_path):
-    import shutil
-
-    from kernel_api.user_api import USER_API_TAG, build_user_api_paths
-
-    aliases = build_user_api_paths(_RESOURCES_DIR / "internal/user")
-    assert len(aliases) == 106
-    assert not any(
-        path in aliases
-        for filename in ("operation_mcp.yaml", "ops_mcp.yaml", "openclaw_recovering_mcp.yaml")
-        for source_path in _load_paths(_RESOURCES_DIR / "internal/user" / filename)
-        for path in [source_path.replace("/mcp/", "/user/", 1)]
-    )
-    shutil.copytree(_RESOURCES_DIR, tmp_path / "resources")
-    merge_resources_func(tmp_path / "resources")
-    merged = _load_paths(tmp_path / "resources.yaml")
-    assert {
-        path: methods
-        for path, methods in merged.items()
-        if any(operation.get("tags") == [USER_API_TAG] for operation in methods.values())
-    } == aliases
-    names = []
-    for path, methods in aliases.items():
-        for method, operation in methods.items():
-            names.append(operation["operationId"])
-            assert operation["tags"] == [USER_API_TAG]
-            resource = operation["x-bk-apigateway-resource"]
-            assert resource["isPublic"] is True
-            assert resource["allowApplyPermission"] is False
-            assert resource["authConfig"] == {
-                "userVerifiedRequired": True,
-                "appVerifiedRequired": False,
-                "resourcePermissionRequired": False,
-                "oauth2PersonalClientEnabled": True,
-            }
-            assert resource["backend"]["path"] == "/api/v4" + path
-            assert resource["backend"]["method"] == method
-            assert resource["matchSubpath"] is False
-            assert resource["backend"]["matchSubpath"] is False
-    assert len(set(names)) == 106
 
 
 def test_shared_read_backends_move_only_mcp_resources(tmp_path):

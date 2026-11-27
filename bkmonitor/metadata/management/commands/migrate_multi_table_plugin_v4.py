@@ -316,7 +316,8 @@ class Command(DefaultPluginCommand):
             space_route_count=len(self.spaces),
             steps=[
                 "仅准备 default、TimeSeriesGroup 和指标元数据，保留旧 RT、关系及存储",
-                "首次申请 V4 链路；已有完整组件只复用，不重复 apply",
+                "首次申请 V4 链路；已有组件复用资源，指定的 Databus 集群尚未下发时重新 apply",
+                "申请链路时写入 CMDB 集群和模块配置",
                 "检查本地和远端 Databus 消费组；默认等待 Ok，--no-wait 仅跳过就绪等待",
                 "设置单指标单表/V4 option，default 添加旧表 ID 别名，旧表添加 default ID 别名",
                 "刷新 RT 详情、空间及 data_label 路由，最后清理 Transfer",
@@ -447,9 +448,14 @@ class Command(DefaultPluginCommand):
     def execute_migration(self, *, no_wait=False, wait_timeout=300, poll_interval=10):
         self.prepare_default()
         components = self.component_records()
-        newly_applied = not any(component.name for component in components)
-        if newly_applied:
+        first_apply = not any(component.name for component in components)
+        newly_applied = first_apply or self.databus_cluster_needs_apply(components)
+        if first_apply:
             self.source.register_to_bkbase(bk_biz_id=self.datalink_biz_id, namespace=self.namespace)
+        self.save_link_options(apply_link=newly_applied)
+        if newly_applied:
+            if not first_apply:
+                self.stdout.write("已更新链路 option，复用已有资源重新 apply……")
             create_bkbase_data_link(
                 bk_biz_id=self.datalink_biz_id,
                 data_source=self.source,

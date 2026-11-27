@@ -41,7 +41,6 @@ class Attributes(FieldSpec):
     USER_ID = common_attributes.USER_ID
     TAB_ID = common_attributes.TAB_ID
     SPAN_TYPE = common_attributes.SPAN_TYPE
-    OUTCOME_TYPE = common_attributes.OUTCOME_TYPE
 
     # ── error ──────────────────────────────────────────────────────
     ERROR_SOURCE = error_attributes.ERROR_SOURCE

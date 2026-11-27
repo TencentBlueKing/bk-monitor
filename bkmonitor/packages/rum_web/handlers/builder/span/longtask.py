@@ -13,7 +13,7 @@ from rum_web.handlers.builder.span.base import SpanBuilder, SpanOverview, named
 
 
 class LongTaskSpanOverview(SpanOverview):
-    BADGES = named("elapsed_time", "attributes.outcome.type")
+    BADGES = named("elapsed_time")
 
 
 class LongTaskKeyInfoSection(KeyInfoSection):
