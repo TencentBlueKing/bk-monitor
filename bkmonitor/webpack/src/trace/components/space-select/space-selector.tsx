@@ -484,7 +484,11 @@ export default defineComponent({
     }
 
     function handleMousedownRemovePop(event: Event) {
-      const pathsClass = JSON.parse(JSON.stringify(getEventPaths(event).map(item => item.className)));
+      // A loading state can remove the clicked button before the event bubbles to document.
+      const path = event.composedPath?.() ?? getEventPaths(event);
+      const pathsClass = path
+        .map(item => (item as HTMLElement).className)
+        .filter((name): name is string => typeof name === 'string');
       // 关闭侧栏组件时需要关闭弹层
       if (pathsClass.some(c => ['slide-leave', 'bk-sideslider-closer'].some(s => (c?.indexOf(s) || -1) >= 0))) {
         handlePopoverHidden();
@@ -502,7 +506,7 @@ export default defineComponent({
       if (pathsClass.includes(rightIconClassName)) {
         return;
       }
-      if (pathsClass.includes(componentClassNames.pop)) {
+      if (path.includes(wrapRef.value)) {
         return;
       }
       handlePopoverHidden();

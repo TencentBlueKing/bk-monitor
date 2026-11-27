@@ -55,6 +55,7 @@ function fixture(overrides = {}, options = {}) {
       click = fn;
     },
   };
+  const wrap = { className: 'vue3__space-select-component-popover-content', parentNode: doc };
   const store = { bizId: 2 };
   const query = kind => params => {
     assert.ok(params && params.mode === 'page', 'every directory query is bounded');
@@ -73,7 +74,7 @@ function fixture(overrides = {}, options = {}) {
       onUnmounted: fn => {
         unmount = fn;
       },
-      useTemplateRef: () => ({ value: { focus() {}, clientWidth: 0, scrollWidth: 0 } }),
+      useTemplateRef: name => ({ value: name === 'wrapRef' ? wrap : { focus() {}, clientWidth: 0, scrollWidth: 0 } }),
     },
     '@vueuse/core': {
       useDebounceFn: fn => fn,
@@ -95,7 +96,7 @@ function fixture(overrides = {}, options = {}) {
       },
     },
     '../../store/modules/app': { useAppStore: () => store },
-    './utils': { getEventPaths: () => [], SPACE_TYPE_MAP: { default: { light: {} } } },
+    './utils': load(source + 'utils.ts', {}, globals),
   };
   deps[directory] = load('../src/' + directory + '.ts', deps, globals);
   deps['./typing'] = load(source + 'typing.ts', deps, globals);
@@ -114,14 +115,23 @@ function fixture(overrides = {}, options = {}) {
     Vue.proxyRefs(component.setup(props, { emit: (event, value) => events.push([event, value]) }))
   );
   const draw = () => component.render.call({ ...props, ...state });
-  const clickText = label => {
+  const clickText = (label, bubble = false) => {
     function find(node) {
       if (node?.type === 'button' && node.children.includes(label)) return node;
       return node?.children?.map(find).find(Boolean);
     }
     const found = find(draw());
     assert.ok(found, 'visible action ' + label);
-    return found.props.onClick();
+    if (!bubble) return found.props.onClick();
+    const panel = { className: 'space-list', parentNode: wrap };
+    const button = { className: 'bk-button', parentNode: panel };
+    const labelNode = { className: 'bk-button-text', parentNode: button };
+    const event = { target: labelNode, composedPath: () => [labelNode, button, panel, wrap, doc] };
+    const request = found.props.onClick(event);
+    assert.ok(!find(draw()), 'loading removes the clicked control');
+    button.parentNode = null;
+    click(event);
+    return request;
   };
   return {
     state,
@@ -283,6 +293,33 @@ test('local subset and older services continue to use the consumer-supplied list
     f.destroy();
   }
 });
+
+for (const retry of [false, true]) {
+  test(`a bubbling ${retry ? 'retry' : 'load more'} click stays inside after loading removes the button`, async () => {
+    const f = fixture({ value: [2] });
+    f.take('allowed', { bk_biz_ids: '2' }).resolve(page([row(2)]));
+    await tick();
+    f.open();
+    f.take('allowed', { bk_biz_ids: '2' }).resolve(page([row(2)]));
+    f.take('allowed', { bk_biz_ids: undefined }).resolve(page([row(2)]));
+    await tick();
+    f.state.handleSearchInput('sparse');
+    const search = f.take('allowed', { query: 'sparse' });
+    if (retry) search.reject(new Error('unavailable'));
+    else search.resolve(page([], 'sparse-tail'));
+    await tick();
+    const action = f.clickText(retry ? '部分空间未能确认，请重试' : '加载更多...', true);
+    const next = f.take('allowed', { query: 'sparse', cursor: retry ? undefined : 'sparse-tail' });
+    assert.equal(f.state.isOpen, true);
+    next.resolve(page([row(304)]));
+    await action;
+    await tick();
+    assert.ok(f.ids().includes(304));
+    f.close();
+    assert.equal(f.state.isOpen, false);
+    f.destroy();
+  });
+}
 
 test('retry verifies a selected business on reopen even when the parent still supplies its previous grant', async () => {
   const f = fixture({ value: [7], hasAuthApply: true, spaceList: [{ ...row(7), id: 7 }] });
