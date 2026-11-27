@@ -29,6 +29,8 @@ import CellIcon, { type CellIconContent } from '../cell-icon/cell-icon';
 
 import type { FieldActions } from '../../../../typings';
 
+import './composite-action.scss';
+
 export default defineComponent({
   name: 'RumCompositeAction',
   props: {
@@ -94,7 +96,7 @@ export default defineComponent({
     };
     const content = (
       <>
-        {this.label}
+        {this.label && <span class='rum-composite-action-label'>{this.label}</span>}
         <CellIcon
           class='rum-composite-action-icon'
           icon={this.icon}

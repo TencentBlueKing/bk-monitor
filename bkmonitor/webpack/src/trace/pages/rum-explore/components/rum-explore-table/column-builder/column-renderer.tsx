@@ -26,9 +26,9 @@
 import {
   type RumEllipsisModeType,
   EVENTS_FIELD_PREFIX,
-  RUM_FULL_URL_FIELDS,
   RumModeEnum,
   SESSION_ID_FIELD,
+  SPAN_TYPE_FIELD,
   VIEW_URL_FIELD,
 } from '../../../constants';
 import { ARRAY_ITEM_EMPTY_PLACEHOLDER } from '../../../utils/array-field-formatter';
@@ -42,9 +42,9 @@ import { BADGE_PRESENTATIONS } from './badge-presentation';
 import { hasFieldValue, resolveCompositeRows } from './column-layout';
 
 import type { BaseTableColumn } from '../../../../trace-explore/components/trace-explore-table/typing';
-import type { IRumField, IRumSpanRecord, RumModeType } from '../../../typings';
+import type { CompositeRow, CompositeValue, IRumField, IRumSpanRecord, RumModeType } from '../../../typings';
 import type { RumColumnActions } from '../hooks/use-rum-columns';
-import type { CompositeRow, CompositeValue, resolveColumnLayout } from './column-layout';
+import type { resolveColumnLayout } from './column-layout';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
 /**
@@ -136,7 +136,8 @@ export const buildRumColumnRenderer = (
             v-slots={{
               item: (item: CompositeValue) => renderMember(item, 'item'),
               badge: (badge: CompositeValue) => renderMember(badge, 'badge'),
-              prefix: (section: CompositeRow) => renderUrlAction(section, actions.hoverPopoverTools),
+              prefix: (section: CompositeRow) =>
+                renderUrlAction(section, isSpanName, row[SPAN_TYPE_FIELD], actions.hoverPopoverTools),
               suffix: (section: CompositeRow) =>
                 section.index === 0 ? renderRelatedActions(row, sessionId, traceId, actions) : null,
             }}
@@ -227,13 +228,22 @@ function renderRelatedActions(row: IRumSpanRecord, sessionId: string, traceId: s
 }
 
 /**
- * @description 从复合行读取上报的完整 URL，为可解析的 HTTP(S) 地址提供外链入口。
+ * @description 为复合行中配置为 link 的 HTTP(S) 地址提供外链入口。
  * @param {CompositeRow} section 已按当前记录解析的复合行
+ * @param {boolean} isSpanName 当前列是否为 Span Name
+ * @param {string | undefined} spanType 当前记录的 Span 类型
  * @param {RumColumnActions['hoverPopoverTools']} hoverPopoverTools 表格共用的悬浮提示实例
- * @returns 模拟页面入口节点，缺少可用 URL 时返回 null
+ * @returns 满足显示条件时返回模拟页面入口节点
  */
-function renderUrlAction(section: CompositeRow, hoverPopoverTools: RumColumnActions['hoverPopoverTools']) {
-  const url = section.items.find(item => !item.isPlaceholder && RUM_FULL_URL_FIELDS.has(item.field.name))?.value;
+function renderUrlAction(
+  section: CompositeRow,
+  isSpanName: boolean,
+  spanType: string | undefined,
+  hoverPopoverTools: RumColumnActions['hoverPopoverTools']
+) {
+  if (isSpanName && spanType !== 'view') return null;
+
+  const url = section.items.find(item => item.type === 'link' && !item.isPlaceholder)?.value;
   if (typeof url !== 'string') return null;
   try {
     const { protocol } = new URL(url);

@@ -12,6 +12,38 @@
   .rum-table-content {
     display: contents;
   }
+
+  .rum-table-refresh {
+    position: sticky;
+
+    // TDesign 的吸顶表头层级为 500。
+    z-index: 501;
+    flex-shrink: 0;
+    height: 1px;
+    margin-bottom: -1px;
+    overflow: hidden;
+    pointer-events: none;
+    background: #e1ecff;
+
+    &::after {
+      display: block;
+      width: 28%;
+      height: 100%;
+      content: '';
+      background: linear-gradient(90deg, transparent 0%, rgb(56 113 220) 80.75%, transparent 100%);
+      transform: translateX(-100%);
+
+      @media (prefers-reduced-motion: no-preference) {
+        animation: rum-table-refresh-progress 3624ms linear infinite;
+      }
+    }
+  }
+}
+
+@keyframes rum-table-refresh-progress {
+  to {
+    transform: translateX(357.143%);
+  }
 }
 
 /* 组件根（与场景类名复合于同一元素）：跨场景公共样式 */
@@ -24,6 +56,10 @@
 
   flex: 1;
   min-height: 0;
+
+  &.is-refreshing .t-table__body {
+    opacity: 0.65;
+  }
 
   .rum-plain-ellipsis {
     overflow: hidden;

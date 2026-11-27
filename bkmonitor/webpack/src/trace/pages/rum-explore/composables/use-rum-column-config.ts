@@ -40,7 +40,7 @@ import type { BaseTableColumn } from '../../trace-explore/components/trace-explo
 import type { IRumColumnLayoutPreset, IRumField, IRumViewConfig } from '../typings';
 
 /** 列配置存储结构版本号，schema 变更时递增以自动失效旧缓存 */
-const RUM_COLUMN_CONFIG_VERSION = '1.0.1';
+const RUM_COLUMN_CONFIG_VERSION = '1.0.2';
 
 /** useRumColumnConfig 返回的列配置上下文类型 */
 export type IRumColumnConfig = ReturnType<typeof useRumColumnConfig>;

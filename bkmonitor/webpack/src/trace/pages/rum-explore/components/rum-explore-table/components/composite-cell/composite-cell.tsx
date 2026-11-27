@@ -28,7 +28,7 @@ import type { VNodeChild } from 'vue';
 
 import { ARRAY_ITEM_EMPTY_PLACEHOLDER } from '../../../../utils/array-field-formatter';
 
-import type { CompositeRow, CompositeValue } from '../../column-builder/column-layout';
+import type { CompositeRow, CompositeValue } from '../../../../typings';
 
 import './composite-cell.scss';
 

@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 export * from './common';
+export * from './composite-column';
 export * from './enum';
 export * from './events-list';
 export * from './favorite';

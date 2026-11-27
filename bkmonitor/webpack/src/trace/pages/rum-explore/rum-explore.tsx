@@ -954,7 +954,6 @@ export default defineComponent({
                       <div class='result-panel'>
                         <RumLoadStatus
                           error={tableCtx.error.value}
-                          loading={tableCtx.loading.value && !!tableCtx.tableData.value.length}
                           onRetry={tableCtx.retry}
                         />
                         {this.configLoading ? null : (

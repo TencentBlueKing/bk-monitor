@@ -245,13 +245,13 @@ export const RUM_DETAIL_SPAN_TYPES = new Set([
 
 /** Span 视角列宽（视角私有），未列出的字段使用 DEFAULT_COLUMN_WIDTH */
 export const SPAN_COLUMN_WIDTH_MAP: Record<string, number> = {
-  span_name: 307,
+  span_name: 435,
   'attributes.span_type': 181,
   elapsed_time: 185,
   'virtual.browser': 197,
   end_time: 206,
   'status.code': 120,
-  'attributes.view.url_template': 300,
+  'attributes.view.url_template': 428,
   'attributes.error.source': 200,
   'attributes.resource.size': 113,
   'events.attributes.long_task.script.source_url': 165,
@@ -262,56 +262,56 @@ export const SPAN_COLUMN_WIDTH_MAP: Record<string, number> = {
 /** 不同 Span 类型按真实字段键覆盖默认列宽。 */
 export const SPAN_TYPE_COLUMN_WIDTH_MAP: Record<string, Record<string, number>> = {
   view: {
-    span_name: 320,
+    span_name: 448,
     'attributes.view.loading_time': 246,
     'virtual.browser': 246,
     'attributes.user.id': 246,
     end_time: 246,
   },
   resource: {
-    span_name: 320,
+    span_name: 448,
     elapsed_time: 113,
-    'attributes.view.url_template': 301,
+    'attributes.view.url_template': 429,
     'virtual.browser': 150,
     'attributes.user.id': 111,
     end_time: 196,
   },
   error: {
-    span_name: 345,
-    'attributes.view.url_template': 295,
+    span_name: 473,
+    'attributes.view.url_template': 423,
     'virtual.browser': 160,
     'attributes.user.id': 102,
     end_time: 203,
   },
   vital: {
-    span_name: 199,
+    span_name: 327,
     'attributes.vital.value': 199,
-    'attributes.view.url_template': 307,
+    'attributes.view.url_template': 435,
     'virtual.browser': 199,
     'attributes.user.id': 199,
     end_time: 199,
   },
   long_task: {
-    span_name: 151,
+    span_name: 279,
     elapsed_time: 122,
     'attributes.long_task.blocking_duration': 122,
-    'attributes.view.url_template': 302,
+    'attributes.view.url_template': 430,
     'virtual.browser': 151,
     'attributes.user.id': 100,
     end_time: 192,
   },
   action: {
-    span_name: 230,
+    span_name: 358,
     elapsed_time: 198,
-    'attributes.view.url_template': 283,
+    'attributes.view.url_template': 411,
     'virtual.browser': 198,
     'attributes.user.id': 198,
     end_time: 197,
   },
   custom: {
-    span_name: 202,
+    span_name: 330,
     elapsed_time: 202,
-    'attributes.view.url_template': 295,
+    'attributes.view.url_template': 423,
     'virtual.browser': 202,
     'attributes.user.id': 202,
     end_time: 201,
@@ -322,7 +322,7 @@ export const SPAN_TYPE_COLUMN_WIDTH_MAP: Record<string, Record<string, number>> 
 export const VIEW_COLUMN_WIDTH_MAP: Record<string, number> = {
   start_time: 220,
   duration: 78,
-  'attributes.view.url_template': 306,
+  'attributes.view.url_template': 434,
   'attributes.view.loading_type': 140,
   'web_vitals.fcp': 90,
   'web_vitals.lcp': 90,
@@ -339,7 +339,7 @@ export const VIEW_COLUMN_WIDTH_MAP: Record<string, number> = {
 
 /** Session 视角列宽（按字段 key 对齐设计稿，不依赖后端默认列顺序） */
 export const SESSION_COLUMN_WIDTH_MAP: Record<string, number> = {
-  'attributes.session.id': 284,
+  'attributes.session.id': 380,
   'attributes.user.id': 131,
   'virtual.browser': 150,
   'resource.user_agent.name': 176,
@@ -358,7 +358,7 @@ export const VIEW_ID_FIELD = 'attributes.view.id';
 /** View 视角的页面 URL 字段：链接列，点击打开 View 详情抽屉 */
 export const VIEW_URL_FIELD = 'attributes.view.url_template';
 
-/** 复合列中可省略地址开头并显示 URL 入口的完整 URL 字段。 */
+/** 复合列中使用 URL 文本样式的完整 URL 字段。 */
 export const RUM_FULL_URL_FIELDS: ReadonlySet<string> = new Set(['attributes.view.url', 'attributes.url.full']);
 
 /** Session 视角的行唯一键，同时是跨视角检索该会话的条件字段 */
