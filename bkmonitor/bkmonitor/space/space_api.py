@@ -16,17 +16,20 @@ from django.conf import settings
 from django.core.cache import caches
 from django.db import connections
 from django.utils.translation import gettext as _
+from opentelemetry import trace
 from rest_framework.exceptions import ValidationError
 
 from bkm_space import api as space_api
 from bkm_space.define import Space as SpaceDefine
 from bkm_space.define import SpaceTypeEnum
+from bkm_space.utils import BKMS_SPACE_ID_PREFIX
 from core.drf_resource import api
 from core.prometheus import metrics
 
 local_mem = caches["space"]
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer(__name__)
 
 
 # 空间缓存时间，单位：秒
@@ -142,27 +145,9 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         return ret
 
     @classmethod
-    def list_spaces_dict(
-        cls, using_cache=True, bk_tenant_id: str | None = None, filters: dict[str, str | int] | None = None
-    ) -> list[dict]:
-        """
-        告警性能版本获取空间列表
-        TODO: Space表增加租户字段后，需要修改 SQL，增加租户字段查询，当前使用默认租户
-        """
-        if bk_tenant_id:
-            cache_key = f"metadata:list_spaces_dict:{bk_tenant_id}"
-        else:
-            cache_key = "metadata:list_spaces_dict"
-
-        ret = miss_cache
-        # 如果指定了过滤条件，则不使用缓存
-        if using_cache and not filters:
-            ret = local_mem.get(cache_key, miss_cache)
-        if ret is not miss_cache:
-            return ret
-
-        with connections["monitor_api"].cursor() as cursor:
-            sql = """
+    def _read_space_rows(cls, conditions, params, *, first=False) -> list[dict]:
+        """Read the directory projection without touching either space cache."""
+        sql = """
                 SELECT s.id,
                        s.bk_tenant_id,
                        s.space_type_id,
@@ -183,22 +168,109 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                 ON
                     s.space_type_id = t.type_id
             """
-            sql_params: list[object] = []
-            if filters:
-                where_conditions = []
-                for field, value in filters.items():
-                    where_conditions.append(f"s.{field} = %s")
-                    sql_params.append(value)
-                if where_conditions:
-                    sql += " WHERE " + " AND ".join(where_conditions)
-
-            cursor.execute(sql, sql_params)
+        if conditions:
+            sql += " WHERE " + " AND ".join(conditions)
+        if first:
+            sql += " ORDER BY s.id LIMIT 1"
+        with connections["monitor_api"].cursor() as cursor:
+            cursor.execute(sql, params)
             columns = [col[0] for col in cursor.description]
-            spaces: list[dict] = [dict(zip(columns, row)) for row in cursor.fetchall()]
+            spaces = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
-            # 过滤指定租户
-            if bk_tenant_id:
-                spaces = [space for space in spaces if space["bk_tenant_id"] == bk_tenant_id]
+        for space in spaces:
+            cc_space = space["space_type_id"] == SpaceTypeEnum.BKCC.value
+            # bk_biz_id
+            if not cc_space:
+                space["bk_biz_id"] = -space["id"]
+            else:
+                space["bk_biz_id"] = int(space["space_id"])
+            # is_demo
+            space["is_demo"] = space["bk_biz_id"] == int(settings.DEMO_BIZ_ID or 0)
+            enrich_space_display_name(space)
+        return spaces
+
+    @classmethod
+    def read_space_records(cls, bk_tenant_id: str, biz_ids=None, *, first_available=False) -> list[dict]:
+        """Read tenant-scoped directory records. None selects the tenant, an empty ID set selects nothing."""
+        conditions = ["s.bk_tenant_id = BINARY %s"]
+        params = [bk_tenant_id]
+        if biz_ids is not None:
+            cc_ids, other_ids = [], []
+            for raw_id in biz_ids:
+                # Match the same canonical strings as the IAM candidate intersection.
+                try:
+                    biz_id = int(raw_id)
+                except (TypeError, ValueError):
+                    continue
+                if str(biz_id) != str(raw_id):
+                    continue
+                if biz_id > 0:
+                    cc_ids.append(str(biz_id))
+                elif biz_id < 0:
+                    other_ids.append(-biz_id)
+            predicates = []
+            if cc_ids:
+                placeholders = ", ".join(["%s"] * len(cc_ids))
+                predicates.append(f"(s.space_type_id = %s AND s.space_id IN ({placeholders}))")
+                params.extend([SpaceTypeEnum.BKCC.value, *cc_ids])
+            if other_ids:
+                placeholders = ", ".join(["%s"] * len(other_ids))
+                predicates.append(f"(s.space_type_id != %s AND s.id IN ({placeholders}))")
+                params.extend([SpaceTypeEnum.BKCC.value, *other_ids])
+            if not predicates:
+                return []
+            conditions.append("(" + " OR ".join(predicates) + ")")
+        if first_available:
+            # Apply these predicates before LIMIT, including the reserved -1 / 0 IDs.
+            conditions.extend(
+                [
+                    "NOT (s.space_type_id = %s AND s.space_id = %s)",
+                    "NOT (s.space_type_id != %s AND s.id = 1)",
+                    "NOT (BINARY s.status = %s AND s.space_type_id = %s AND BINARY s.space_id LIKE %s)",
+                ]
+            )
+            params.extend(
+                [
+                    SpaceTypeEnum.BKCC.value,
+                    "0",
+                    SpaceTypeEnum.BKCC.value,
+                    "disabled",
+                    SpaceTypeEnum.BKCI.value,
+                    BKMS_SPACE_ID_PREFIX + "%",
+                ]
+            )
+        with tracer.start_as_current_span("space.read_records", record_exception=False) as span:
+            span.set_attribute("space.first_available", first_available)
+            span.set_attribute("space.finite_ids", biz_ids is not None)
+            rows = cls._read_space_rows(conditions, params, first=first_available)
+            span.set_attribute("space.row_count", len(rows))
+            return rows
+
+    @classmethod
+    def list_spaces_dict(
+        cls, using_cache=True, bk_tenant_id: str | None = None, filters: dict[str, str | int] | None = None
+    ) -> list[dict]:
+        """
+        告警性能版本获取空间列表
+        """
+        if bk_tenant_id:
+            cache_key = f"metadata:list_spaces_dict:{bk_tenant_id}"
+        else:
+            cache_key = "metadata:list_spaces_dict"
+
+        ret = miss_cache
+        # 如果指定了过滤条件，则不使用缓存
+        if using_cache and not filters:
+            ret = local_mem.get(cache_key, miss_cache)
+        if ret is not miss_cache:
+            return ret
+
+        conditions = [f"s.{field} = %s" for field in filters or {}]
+        params = list((filters or {}).values())
+        if bk_tenant_id:
+            conditions.append("s.bk_tenant_id = BINARY %s")
+            params.append(bk_tenant_id)
+        spaces = cls._read_space_rows(conditions, params)
 
         # db 无数据， 开发环境给出提示， 生产环境不提示（正常部署不会出现该问题）
         if not spaces and settings.RUN_MODE == "DEVELOP" and not filters and not bk_tenant_id:
@@ -210,14 +282,6 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         _space_transform.clear()
         for space in spaces:
             cc_space = space["space_type_id"] == SpaceTypeEnum.BKCC.value
-            # bk_biz_id
-            if not cc_space:
-                space["bk_biz_id"] = -space["id"]
-            else:
-                space["bk_biz_id"] = int(space["space_id"])
-            # is_demo
-            space["is_demo"] = space["bk_biz_id"] == int(settings.DEMO_BIZ_ID or 0)
-            enrich_space_display_name(space)
             if cc_space:
                 # 仅针对cmdb空间，进行缓存， 非cc空间，需要额外resource信息，走api丰富。
                 local_mem.set(f"metadata:spaces_map:{space['space_uid']}", space, timeout=SPACE_CACHE_TIMEOUT)

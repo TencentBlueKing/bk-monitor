@@ -528,6 +528,97 @@ class TestFilterSpaceListByAction:
             {"bk_biz_id": 5, "space_name": "C"},
         ]
 
+    @pytest.mark.parametrize("first", [True, False])
+    def test_v4_finite_ids_read_only_matching_space_records(self, mocker, first):
+        from iam_engine.core.config import AuthMode
+        from iam_engine.core.types import AuthorizedResourceScope
+
+        permission = Permission(username="tester", bk_tenant_id="tenant")
+        permission.skip_check = False
+        mocker.patch.object(permission.mode_provider, "get_mode", return_value=AuthMode.V4)
+        resolve = mocker.patch.object(permission.mode_router, "list_authorized_scope")
+        resolve.return_value.scope = AuthorizedResourceScope.concrete("space", {"2", "-5"})
+        full = mocker.patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict")
+        read = mocker.patch("bkmonitor.iam.permission.SpaceApi.read_space_records", return_value=[{"bk_biz_id": 2}])
+        assert permission.list_authorized_space_records(ActionEnum.VIEW_BUSINESS, first_available=first) == [
+            {"bk_biz_id": 2}
+        ]
+        assert resolve.call_args.kwargs["candidate_ids"] is None
+        assert read.call_args.args == ("tenant", {"2", "-5"})
+        assert read.call_args.kwargs.get("first_available", False) == first
+        full.assert_not_called()
+
+    @pytest.mark.parametrize("mode", ["v3", "union"])
+    @pytest.mark.parametrize("allowed", [True, False, None])
+    def test_first_space_checks_one_before_enumerating_candidates(self, mocker, mode, allowed):
+        from iam_engine.core.config import AuthMode
+        from iam_engine.core.types import AuthorizedResourceScope
+
+        permission = Permission(username="tester", bk_tenant_id="tenant")
+        permission.skip_check = False
+        mocker.patch.object(permission.mode_provider, "get_mode", return_value=AuthMode(mode))
+        probe = mocker.patch.object(permission, "is_space_allowed", return_value=allowed)
+        if allowed is None:
+            from iam_engine.exceptions import ProviderUnavailable
+
+            probe.side_effect = ProviderUnavailable("degraded")
+        read = mocker.patch("bkmonitor.iam.permission.SpaceApi.read_space_records")
+        read.side_effect = [[{"bk_biz_id": 2}], [{"bk_biz_id": 5}]]
+        full = mocker.patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list())
+        resolve = mocker.patch.object(permission.mode_router, "list_authorized_scope")
+        resolve.return_value.scope = AuthorizedResourceScope.concrete("space", {"5"})
+        records = permission.list_authorized_space_records(ActionEnum.VIEW_BUSINESS, first_available=True)
+        probe.assert_called_once_with(ActionEnum.VIEW_BUSINESS, 2, mode=AuthMode(mode))
+        assert records == [{"bk_biz_id": 2 if allowed else 5}]
+        if allowed:
+            full.assert_not_called()
+            resolve.assert_not_called()
+        else:
+            full.assert_called_once()
+            assert resolve.call_args.kwargs["candidate_ids"] == {"2", "3", "5"}
+
+    def test_legacy_adapter_keeps_v4_directory_filtering(self, mocker):
+        from types import SimpleNamespace
+
+        from iam_engine.core.config import AuthMode
+        from iam_engine.core.types import AuthorizedResourceScope
+
+        permission = Permission(username="tester", bk_tenant_id="tenant")
+        permission.skip_check = False
+        mocker.patch.object(permission.mode_provider, "get_mode", return_value=AuthMode.V4)
+        resolve = mocker.patch.object(permission.mode_router, "list_authorized_scope")
+        resolve.return_value.scope = AuthorizedResourceScope.concrete("space", {"5"})
+        directory = mocker.Mock(return_value=self._space_list())
+        mocker.patch("bkmonitor.iam.permission.SpaceApi", SimpleNamespace(list_spaces_dict=directory))
+        assert permission.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS) == [self._space_list()[2]]
+        assert resolve.call_args.kwargs["candidate_ids"] == {"2", "3", "5"}
+        directory.assert_called_once()
+
+    @pytest.mark.parametrize("outcome", ["allow", "deny", "error"])
+    def test_point_admission_preserves_provider_decision(self, fake_permission, mocker, outcome):
+        from iam_engine.core.types import AuthResult
+        from iam_engine.exceptions import ProviderUnavailable
+
+        _, provider = fake_permission
+        permission = Permission(username="tester", bk_tenant_id="tenant")
+        permission.skip_check = False
+        decision = {
+            "allow": AuthResult.allow("v3"),
+            "deny": AuthResult.deny("v3"),
+            "error": AuthResult.error("v3", "down"),
+        }
+        point = mocker.patch.object(provider, "is_allowed", return_value=decision[outcome])
+        directory = mocker.patch.object(provider, "list_authorized_resources")
+        if outcome == "error":
+            with pytest.raises(ProviderUnavailable):
+                permission.is_space_allowed(ActionEnum.VIEW_BUSINESS, -8)
+        else:
+            assert permission.is_space_allowed(ActionEnum.VIEW_BUSINESS, -8) is (outcome == "allow")
+        request = point.call_args.args[0]
+        assert [(r.type, r.id) for r in request.resources] == [("space", "-8")]
+        assert request.subject.tenant_id == "tenant"
+        directory.assert_not_called()
+
     def test_all_granted(self, fake_permission):
         fw, provider = fake_permission
         provider.visible = VisibleResult(all_granted=True, visible_ids=("2", "3", "5"))
