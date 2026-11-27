@@ -143,7 +143,7 @@ export default class SpaceSelect extends tsc<
     return this.remote && supportsSpaceDirectoryPages();
   }
 
-  async resolveSelection(value: number[]) {
+  async resolveSelection(value: number[], refresh = false) {
     const request = ++this.selectedRequest;
     if (!this.paged) return;
     this.selectionIncomplete = false;
@@ -154,7 +154,7 @@ export default class SpaceSelect extends tsc<
     }
     this.selectedRows = [...known.values()];
     const found = new Set(this.selectedRows.map(row => row.id));
-    const missing = value.filter(id => Number.isFinite(id) && !specialIds.includes(id) && !found.has(id));
+    const missing = value.filter(id => Number.isFinite(id) && !specialIds.includes(id) && (refresh || !found.has(id)));
     for (let i = 0; i < missing.length; i += 100) {
       const ids = missing.slice(i, i + 100);
       const page = await querySpaceDirectory({ bkBizIds: ids, pageSize: 100 }).catch(() => null);
@@ -163,14 +163,15 @@ export default class SpaceSelect extends tsc<
         this.selectionIncomplete = true;
         break;
       }
-      this.selectedRows.push(...page.items);
+      const resolved = new Set(page.items.map(row => row.id));
+      const checked = page.partial ? resolved : new Set(ids);
+      this.selectedRows = this.selectedRows.filter(row => !checked.has(row.id)).concat(page.items);
       if (page.partial) {
         this.selectionIncomplete = true;
         continue;
       }
       if (this.hasAuthApply) {
-        const allowed = new Set(page.items.map(row => row.id));
-        const remaining = ids.filter(id => !allowed.has(id));
+        const remaining = ids.filter(id => !resolved.has(id));
         if (remaining.length) {
           const alerts = await queryAlertSpaceDirectory({ bkBizIds: remaining, pageSize: 100 }).catch(() => null);
           if (request !== this.selectedRequest) return;
@@ -525,7 +526,10 @@ export default class SpaceSelect extends tsc<
     });
     this.popInstance?.show?.();
     this.isOpen = true;
-    if (this.paged) void this.loadDirectory();
+    if (this.paged) {
+      void this.resolveSelection(this.localValue, true);
+      void this.loadDirectory();
+    }
     this.sortSpaceList();
     this.setPaginationData(true);
     this.resetHighlight(true);
@@ -585,6 +589,7 @@ export default class SpaceSelect extends tsc<
     this.controller?.abort?.();
     this.isOpen = false;
     if (this.paged) {
+      this.selectedRequest++;
       this.pages.close();
       this.alertPages.close();
     }

@@ -283,6 +283,25 @@ test('top bar honors remote pinyin matching even when returned rows contain no l
   assert.deepEqual(c.keyboardItems.map(row => row.id), [-15]);
 });
 
+test('Vue2 reopening verifies selected rows, keeping last known names on failure and dropping revoked access on success', async () => {
+  const h = setup(), c = component('monitor-pc/components/space-select/space-select.tsx', h);
+  Object.assign(c, { remote: true, hasAuthApply: true, value: [17], spaceList: [], localValue: [17] });
+  const initial = c.resolveSelection([17]);
+  h.normal[0].resolve({ items: [space(17)], next_cursor: null });
+  await initial;
+  assert.equal(c.selectedRows[0].noAuth, undefined);
+  const failed = c.resolveSelection([17], true);
+  h.normal[1].reject(new Error('unavailable'));
+  await failed;
+  assert.equal(c.selectedRows[0].id, 17);
+  const refresh = c.resolveSelection([17], true);
+  h.normal[2].resolve({ items: [], next_cursor: null });
+  await new Promise(resolve => setImmediate(resolve));
+  h.alerts[0].resolve({ items: [{ bk_biz_id: 17, bk_biz_name: 'only alarms', has_data: true }], next_cursor: null });
+  await refresh;
+  assert.deepEqual(c.selectedRows.map(row => [row.id, row.noAuth]), [[17, true]]);
+});
+
 test('home selector excludes existing tabs after a remote search without filtering server-side pinyin matches', async () => {
   const h = setup(), c = component('monitor-pc/pages/home/new-home/components/home-biz-list.tsx', h);
   Object.assign(c, { remote: true, bizList: [], excludeIds: [12], commonListIds: [], stickyList: [], showBizList: true, keyword: 'bj' });
