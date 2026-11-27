@@ -1,3 +1,14 @@
+import { Component, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import _ from 'lodash';
+import { applicationList, CMDBInfoList, logList, serviceInfo } from 'monitor-api/modules/apm_base_info';
+import {
+  logServiceRelationBkLogIndexSet,
+  serviceConfig,
+  serviceUrlList,
+  uriregularVerify,
+} from 'monitor-api/modules/apm_service';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,19 +34,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Provide, ProvideReactive, Ref } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
-import _ from 'lodash';
-import { applicationList, CMDBInfoList, logList, serviceInfo } from 'monitor-api/modules/apm_base_info';
-import {
-  logServiceRelationBkLogIndexSet,
-  serviceConfig,
-  serviceUrlList,
-  uriregularVerify,
-} from 'monitor-api/modules/apm_service';
-import { ETagsType } from 'monitor-pc/components/biz-select/list';
+import { resolveSelectedSpaces } from 'monitor-common/utils/space-selection';
 import ChangeRecord from 'monitor-pc/components/change-record/change-record';
+import FormSpaceSelect from 'monitor-pc/components/form-space-select';
 
 import EditableFormItem from '../../../components/editable-form-item/editable-form-item';
 import PanelItem from '../../../components/panel-item/panel-item';
@@ -215,14 +216,6 @@ export default class BasicInfo extends tsc<object> {
   logRelationList: ILogRelation[] = [];
   indexSetListMap = new Map();
   tempLogRelationList: ILogRelation[] = [];
-
-  get bizSelectList() {
-    return this.$store.getters.bizList.map(el => ({
-      id: el.id,
-      // 业务名后拼接英文标识，与顶部业务选择器保持一致，避免同名业务无法区分
-      name: `${el.text} (${el.space_type_id === ETagsType.BKCC ? `#${el.id}` : el.space_id || el.space_code})`,
-    }));
-  }
 
   created() {
     const { query } = this.$route;
@@ -997,14 +990,17 @@ export default class BasicInfo extends tsc<object> {
         <div class='config-form-item config-form-item-log'>
           <span class='label'>{this.$t('关联日志')}</span>
           <div class='content log-content'>
-            <bk-button 
+            <bk-button
               ext-cls='log-config-btn'
-              theme={this.authority.VIEW_AUTH ? 'primary' : 'default'} 
-              outline 
               v-authority={{ active: !this.authority.VIEW_AUTH }}
-              onClick={
-                () => this.authority.VIEW_AUTH ? this.handleGoToAppConfig() : this.handleShowAuthorityDetail(authorityMap.VIEW_AUTH)
-              }>
+              theme={this.authority.VIEW_AUTH ? 'primary' : 'default'}
+              outline
+              onClick={() =>
+                this.authority.VIEW_AUTH
+                  ? this.handleGoToAppConfig()
+                  : this.handleShowAuthorityDetail(authorityMap.VIEW_AUTH)
+              }
+            >
               <i class='icon-monitor icon-fenxiang' />
               {this.$t('应用配置')}
             </bk-button>
@@ -1034,7 +1030,6 @@ export default class BasicInfo extends tsc<object> {
                         return null;
                       },
                     }}
-                    bizSelectList={this.bizSelectList}
                     indexSetListMap={this.indexSetListMap}
                     value={this.logRelationList}
                     onChange={v => this.handleChangeLogRelation(v)}
@@ -1079,15 +1074,12 @@ export default class BasicInfo extends tsc<object> {
           <div class='content'>
             {this.isEditing ? (
               <div class='edit-form-item app-form-item'>
-                <bk-select
-                  vModel={this.localRelationInfo.bizId}
-                  display-key='name'
-                  id-Key='id'
-                  list={this.bizSelectList}
-                  search-placeholder={this.$t('请输入 关键字')}
-                  enable-virtual-scroll
-                  searchable
-                  onChange={v => this.handleBizChange(v)}
+                <FormSpaceSelect
+                  value={this.localRelationInfo.bizId}
+                  onChange={v => {
+                    this.localRelationInfo.bizId = v;
+                    this.handleBizChange(v);
+                  }}
                 />
                 <bk-form
                   ref='appForm'
@@ -1138,11 +1130,21 @@ export default class BasicInfo extends tsc<object> {
       </div>
     );
   }
+  relationBizLabel = '';
+  @Watch('localRelationInfo.bizId', { immediate: true })
+  async resolveRelationBizLabel(id: number | string) {
+    this.relationBizLabel = '';
+    if (!id) return;
+    const [row] = await resolveSelectedSpaces([id], this.$store.getters.bizList).catch(() => []);
+    if (this.localRelationInfo.bizId === id && row) this.relationBizLabel = row.text;
+  }
+
   /** 事件关联 */
   renderEventLink() {
     const bizName =
-      this.$store.getters.bizList.find(item => +item.bk_biz_id === (+this.localRelationInfo?.bizId || window.cc_biz_id))
-        ?.name || this.localRelationInfo.bizId;
+      this.relationBizLabel ||
+      this.localRelationInfo.bizId ||
+      this.$store.getters.bizList.find(item => +item.id === +window.cc_biz_id)?.text;
     return (
       <div class={['form-content', 'event-link', { 'is-editing': this.isEditing }]}>
         <div class='event-link-item pipeline-event'>
