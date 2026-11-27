@@ -13,6 +13,7 @@ from copy import deepcopy
 import pytest
 
 from rum_web.handlers.builder.span import build
+from rum_web.handlers.builder.span.resource import LoadingTimingSection
 
 
 REPORT_TIME = 1788451565500000
@@ -360,8 +361,12 @@ def _timing(span):
     return section and section["data"]
 
 
+def _phase_rows(data):
+    return [item for group in data["groups"] for item in group["phases"]]
+
+
 def _phases(data):
-    return [(item["key"], item["start"], item["duration"]) for item in data["phases"]]
+    return [(item["key"], item["start"], item["duration"]) for item in _phase_rows(data)]
 
 
 class TestResourceLoadingTiming:
@@ -394,7 +399,7 @@ class TestResourceLoadingTiming:
             ("first_byte", 15, 85),
             ("download", 100, 28),
         ]
-        for item in data["phases"]:
+        for item in _phase_rows(data):
             _assert_hover(item["hover"])
 
     @pytest.mark.parametrize("timing", [{}, {"start_time": 1000}, {"response_end": 1200}])
@@ -422,6 +427,15 @@ class TestResourceLoadingTiming:
         data = _timing(_timing_span(NETWORK_TIMING))
         assert data["unit"] == "ms"
         assert data["total_duration"] == 100
+        scheduling, request_response = data["groups"]
+        assert (scheduling["alias"], request_response["alias"]) == ("资源调度", "Request / Response")
+        assert [item["key"] for item in request_response["phases"]] == [
+            "dns",
+            "connect",
+            "tls",
+            "first_byte",
+            "download",
+        ]
         assert _phases(data) == [
             ("redirect", 0, 10),
             ("prepare", 10, 5),
@@ -431,9 +445,32 @@ class TestResourceLoadingTiming:
             ("first_byte", 35, 45),
             ("download", 80, 20),
         ]
-        assert all(item["alias"] for item in data["phases"])
-        _assert_hover(data["phases"][1]["hover"])
+        phases = _phase_rows(data)
+        assert data["phases"] == phases
+        assert all(item["alias"] for item in phases)
+        _assert_hover(phases[1]["hover"])
         _assert_no_calculation_fields(data)
+
+    def test_groups_preserve_phase_order(self, monkeypatch):
+        span = _timing_span(NETWORK_TIMING)
+        original_phases = _timing(span)["phases"]
+        phases = {item["key"]: item for item in original_phases}
+        monkeypatch.setattr(
+            LoadingTimingSection,
+            "PHASE_GROUP_RULES",
+            (("A", ("connect", "dns")), ("B", ("redirect", "download")), ("C", ("missing",))),
+        )
+
+        data = _timing(span)
+        assert data["phases"] == original_phases
+        assert _phase_rows(data) == original_phases
+        assert data["groups"] == [
+            {"alias": "B", "phases": [phases["redirect"]]},
+            {"phases": [phases["prepare"]]},
+            {"alias": "A", "phases": [phases["dns"], phases["connect"]]},
+            {"phases": [phases["tls"], phases["first_byte"]]},
+            {"alias": "B", "phases": [phases["download"]]},
+        ]
 
     def test_network_optional_phases_are_omitted(self):
         """无重定向从 start_time 起算发起前等待；DNS 缓存、无 TLS 时不画对应阶段。"""
@@ -540,6 +577,7 @@ class TestResourceLoadingTiming:
         data = _timing(_timing_span(timing, **{"resource.decoded_body_size": 0, "resource.transfer_size": 0}))
         assert _phases(data) == [("total", 0, 100)]
         assert data["total_duration"] == 100
+        assert list(data["groups"][0]) == ["phases"]
 
     @pytest.mark.parametrize(
         "attrs,timing",
@@ -600,6 +638,12 @@ class TestResourceLoadingTiming:
             "response_end": 170,
         }
         data = _timing(_timing_span(points, **{"resource.timing.worker_matched_router_source": "fetch-event"}))
+        assert data["total_duration"] == 70
+        assert [group["alias"] for group in data["groups"]] == [
+            "资源调度",
+            "Service Worker",
+            "Request / Response",
+        ]
         assert _phases(data) == [
             ("queueing", 0, 5),
             ("sw_startup", 5, 5),
@@ -608,6 +652,11 @@ class TestResourceLoadingTiming:
             ("first_byte", 11, 39),
             ("download", 50, 20),
         ]
+        phases = _phase_rows(data)
+        assert data["phases"] == phases
+        assert data["groups"][-1]["phases"] == phases[-2:]
+        for item, alias in zip(phases, ("正在排队", "启动", "发送请求", "respondWith")):
+            assert item["alias"] == item["hover"]["title"] == alias
 
     def test_service_worker_without_request_and_response_start(self):
         """requestStart/responseStart 为 0：起点改用 fetchStart，respondWith 与内容下载改用 responseEnd。"""
