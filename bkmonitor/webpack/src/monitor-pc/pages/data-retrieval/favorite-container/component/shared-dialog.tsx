@@ -152,6 +152,14 @@ export default class SharedDialog extends tsc<IProps> {
   async handleSubmitFormData() {
     let selectIDList = (this.listRef as any).selectList;
 
+    if (selectIDList.length === 1 && selectIDList[0] === '*') {
+      if (window.space_list_state === 'deferred') {
+        this.$bkMessage({ message: this.$t('空间目录加载中，请稍后重试'), theme: 'warning' });
+        return;
+      }
+      selectIDList = this.bizListFilter[0]?.children.map(item => item.bk_biz_id) || [];
+    }
+
     if (!selectIDList.length) {
       // 没选空间
       this.$bkMessage({
@@ -159,11 +167,6 @@ export default class SharedDialog extends tsc<IProps> {
         theme: 'warning',
       });
       return;
-    }
-
-    if (selectIDList.length === 1 && selectIDList[0] === '*') {
-      // 全选空间
-      selectIDList = this.bizListFilter[0].children.map(item => item.bk_biz_id);
     }
 
     try {
@@ -238,6 +241,7 @@ export default class SharedDialog extends tsc<IProps> {
             <ul class='biz-list'>
               <List
                 ref='list'
+                allowSelectAll={window.space_list_state !== 'deferred'}
                 list={this.bizListFilter}
               />
             </ul>

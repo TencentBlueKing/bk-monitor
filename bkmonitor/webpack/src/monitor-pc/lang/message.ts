@@ -26,6 +26,10 @@
 
 // 反馈 弹窗 相关的词条
 export default {
+  '空间目录加载中，请稍后重试': 'The space directory is loading. Please try again shortly.',
+  '空间目录加载失败，请刷新页面重试': 'Failed to load the space directory. Refresh the page to retry.',
+  空间不存在: 'Space not found',
+  '空间权限检查失败，请重试': 'Failed to check space access. Please retry.',
   '缺少故障 ID，请从故障列表重新打开详情。':
     'The incident ID is missing. Please reopen the details from the incident list.',
   '未找到故障 {id} 对应的监控文档，可能已被抑制或尚未同步。请返回列表查看分析记录。':

@@ -23,11 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, type UnwrapRef, computed, defineComponent, watch } from 'vue';
+import { type PropType, computed, defineComponent, watch } from 'vue';
 import { shallowRef } from 'vue';
 
 import { Button, Checkbox, Dialog, Exception, Input, Message, Radio } from 'bkui-vue';
-import _ from 'lodash';
 import { shareFavorite } from 'monitor-api/modules/model';
 import { ETagsType, SPACE_TYPE_MAP } from 'monitor-common/utils/biz';
 import { useI18n } from 'vue-i18n';
@@ -68,58 +67,70 @@ export default defineComponent({
     const shareBizIdList = shallowRef([]);
     const isSubmiting = shallowRef(false);
 
-    const allBizList = computed(() => {
-      return store.bizList.map(bizItem => {
-        const tagList = [{ id: bizItem.space_type_id, name: bizItem.type_name, type: bizItem.space_type_id }];
-        if (bizItem.space_type_id === 'bkci' && bizItem.space_code) {
-          tagList.push({
-            id: 'bcs',
-            name: t('容器项目'),
-            type: 'bcs',
-          });
-        }
-        return {
-          ...bizItem,
-          tagList,
-        };
-      });
+    const loadedSpaces = shallowRef<typeof store.bizList>();
+    const selectingAll = shallowRef(false);
+    let selectionRequest = 0;
+    const renderBizList = computed(() => {
+      const keyword = spaceSearchKey.value.trim().toLocaleLowerCase();
+      return (loadedSpaces.value ?? store.bizList)
+        .filter(
+          bizItem =>
+            bizItem.space_name.toLocaleLowerCase().includes(keyword) ||
+            String(bizItem.id).includes(keyword) ||
+            String(bizItem.space_id).toLocaleLowerCase().includes(keyword)
+        )
+        .map(bizItem => {
+          const tagList = [{ id: bizItem.space_type_id, name: bizItem.type_name, type: bizItem.space_type_id }];
+          if (bizItem.space_type_id === 'bkci' && bizItem.space_code) {
+            tagList.push({
+              id: 'bcs',
+              name: t('容器项目'),
+              type: 'bcs',
+            });
+          }
+          return {
+            ...bizItem,
+            tagList,
+          };
+        });
     });
 
-    const renderBizList = shallowRef<UnwrapRef<typeof allBizList>>([]);
     const isBizSelectAll = computed(() => {
+      if (!loadedSpaces.value && window.space_list_state === 'deferred') return false;
       const selectIdMap = makeMap(shareBizIdList.value);
-      return _.every(renderBizList.value, item => selectIdMap[item.id]);
+      return renderBizList.value.length > 0 && renderBizList.value.every(item => selectIdMap[item.id]);
     });
 
     watch(
       () => props.isShow,
       () => {
-        setTimeout(() => {
-          spaceSearchKey.value = '';
-          renderBizList.value = allBizList.value;
-        });
-      },
-      {
-        immediate: true,
+        selectionRequest++;
+        selectingAll.value = false;
+        loadedSpaces.value = undefined;
+        spaceSearchKey.value = '';
       }
     );
 
-    const handleSpaceSearch = _.throttle(() => {
-      const keyword = spaceSearchKey.value.toLocaleLowerCase();
-      renderBizList.value = _.filter(
-        allBizList.value,
-        bizItem =>
-          bizItem.space_name.toLocaleLowerCase().indexOf(keyword) > -1 ||
-          `${bizItem.id}`.includes(keyword) ||
-          `${bizItem.space_id}`.toLocaleLowerCase().includes(keyword)
-      );
-    }, 300);
-
-    const handleBizAllChange = (checked: boolean) => {
-      if (checked) {
-        shareBizIdList.value = renderBizList.value.map(item => item.id);
-      } else {
+    const handleBizAllChange = async (checked: boolean) => {
+      const request = ++selectionRequest;
+      if (!checked) {
+        selectingAll.value = false;
         shareBizIdList.value = [];
+        return;
+      }
+      const keyword = spaceSearchKey.value;
+      selectingAll.value = true;
+      try {
+        if (window.space_list_state === 'deferred' && window.loadSpaceDirectory) {
+          const spaces = await window.loadSpaceDirectory();
+          if (request !== selectionRequest || !props.isShow || keyword !== spaceSearchKey.value) return;
+          loadedSpaces.value = spaces;
+        }
+        shareBizIdList.value = renderBizList.value.map(item => item.id);
+      } catch {
+        if (request === selectionRequest) Message({ theme: 'error', message: t('空间目录加载失败，请刷新页面重试') });
+      } finally {
+        if (request === selectionRequest) selectingAll.value = false;
       }
     };
 
@@ -156,6 +167,7 @@ export default defineComponent({
           footer: () => (
             <>
               <Button
+                disabled={selectingAll.value}
                 loading={isSubmiting.value}
                 theme='primary'
                 onClick={handleSubmitEdit}
@@ -180,19 +192,22 @@ export default defineComponent({
             <Input
               v-model={spaceSearchKey.value}
               placeholder={t('搜索 空间名')}
-              onInput={handleSpaceSearch}
             />
           </div>
           <div class='space-list'>
             <div class='space-item'>
               <Checkbox
+                disabled={selectingAll.value}
                 modelValue={isBizSelectAll.value}
                 onChange={handleBizAllChange}
               >
                 {t('全选')}
               </Checkbox>
             </div>
-            <Checkbox.Group v-model={shareBizIdList.value}>
+            <Checkbox.Group
+              v-model={shareBizIdList.value}
+              disabled={selectingAll.value}
+            >
               {renderBizList.value.map(item => (
                 <div
                   key={item.id}

@@ -404,7 +404,6 @@ export default {
       countryList: [],
       cityList: [],
       operatorList: [],
-      businessList: this.$store.getters.bizList,
       ipList: [],
       filterIpList: [],
       customOperatorList: [],
@@ -428,6 +427,9 @@ export default {
     };
   },
   computed: {
+    businessList() {
+      return this.$store.getters.bizList;
+    },
     // 只要存在节点id，下一步时，走编辑接口。
     isEdit: {
       get() {
@@ -453,7 +455,6 @@ export default {
   created() {
     this.isEn = window.i18n.locale === 'enUS';
     this.node.bk_biz_id = +this.$store.getters.bizId;
-    this.businessList = this.$store.getters.bizList;
     this.isInitLoading = true;
     const bizId = this.$route.params.bizId === undefined ? this.$store.getters.bizId : this.$route.params.bizId;
     if (this.isEdit) {
@@ -824,7 +825,7 @@ export default {
 
 <style lang="scss" scoped>
 @mixin fix-bk-checkbox {
-  &:after {
+  &::after {
     top: 2px;
     left: 5px;
   }
@@ -850,7 +851,7 @@ export default {
       color: #63656e;
       text-align: right;
 
-      &.label-required:after {
+      &.label-required::after {
         position: relative;
         margin: 2px -7px 0 2px;
         font-size: 12px;
@@ -867,7 +868,7 @@ export default {
       line-height: 1;
 
       :deep(.bk-form-radio) {
-        .icon-check:before {
+        .icon-check::before {
           content: '';
         }
       }
@@ -922,6 +923,7 @@ export default {
 
         .business-select {
           width: 320px;
+
           // background: #FFFFFF;
         }
 
@@ -975,7 +977,7 @@ export default {
       .default-container {
         .default-checkbox {
           :deep(.bk-checkbox) {
-            @include fix-bk-checkbox();
+            @include fix-bk-checkbox;
           }
         }
       }
@@ -983,7 +985,7 @@ export default {
       .button-submit {
         margin-right: 10px;
 
-        :deep(.icon-loading:before) {
+        :deep(.icon-loading::before) {
           content: '';
         }
       }
