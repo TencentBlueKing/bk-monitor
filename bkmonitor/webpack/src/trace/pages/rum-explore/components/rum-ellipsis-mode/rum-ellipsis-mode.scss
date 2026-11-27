@@ -41,7 +41,9 @@
 
     .mode-item-icon {
       font-size: 16px;
-      color: #49576b;
+
+      // 颜色继承 .mode-item，hover / active 才能作用到图标字形；图标字体无 900 字重，避免合成加粗
+      font-weight: normal;
     }
 
     &:not(.active):hover {
