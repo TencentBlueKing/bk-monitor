@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { bizWithAlertStatistics } from 'monitor-api/modules/home';
 import { Debounce } from 'monitor-common/utils';
+import { canSwitchSpace } from 'monitor-common/utils/space-entry';
 
 import { getEventPaths } from '../../utils';
 import { ETagsType } from '../biz-select/list';
@@ -200,7 +201,9 @@ export default class SpaceSelect extends tsc<
     return this.localValue;
   }
   /** 初始化空间列表 */
+  @Watch('spaceList')
   initLocalSpaceList() {
+    const selected = this.isOpen ? this.localValue : this.value;
     this.localSpaceList = this.getSpaceList(this.spaceList);
     const nullItem = {
       space_name: '',
@@ -240,13 +243,11 @@ export default class SpaceSelect extends tsc<
     if (this.needDefaultOptions) {
       this.localSpaceList = [...defaultRadioList.map(d => ({ ...nullItem, ...d })), ...this.localSpaceList] as any;
     }
-    if (this.hasAuthApply) {
+    this.localValue = [];
+    this.handleWatchValue(selected);
+    this.setPaginationData(true);
+    if (this.hasAuthApply && window.space_list_state !== 'deferred') {
       this.setAllowed();
-    } else {
-      if (this.value.length && !this.localValue.length) {
-        this.handleWatchValue(this.value);
-      }
-      this.setPaginationData(true);
     }
   }
   @Watch('needAlarmOption')
@@ -328,8 +329,9 @@ export default class SpaceSelect extends tsc<
       }
     }
     this.localSpaceList.push(...otherSpaces);
+    const selected = this.isOpen ? this.localValue : this.value;
     this.localValue = [];
-    this.handleWatchValue(this.value);
+    this.handleWatchValue(selected);
     this.setPaginationData(true);
   }
   setPaginationData(isInit = false) {
@@ -461,7 +463,7 @@ export default class SpaceSelect extends tsc<
     this.handlePopoverHidden();
   }
   /* 清楚弹出层 */
-  handlePopoverHidden() {
+  async handlePopoverHidden() {
     this.popInstance?.hide?.(0);
     this.popInstance?.destroy?.();
     this.searchValue = '';
@@ -474,13 +476,16 @@ export default class SpaceSelect extends tsc<
       item.show = true;
       item.preciseMatch = false;
     }
-    if (this.needCurSpace) {
-      if (+this.localCurrentSpace !== +this.currentSpace) {
-        this.resetCurBiz(+this.localCurrentSpace);
-      }
+    const changed = this.localValue.length && JSON.stringify(this.value) !== JSON.stringify(this.localValue);
+    const selected = this.localValue.filter(v => !specialIds.includes(v));
+    const autoSelect = changed && this.isAutoSelectCurrentSpace && selected.length === 1;
+    const nextSpace = autoSelect ? +selected[0] : +this.localCurrentSpace;
+    if ((this.needCurSpace || autoSelect) && nextSpace !== +this.currentSpace) {
+      if (!(await canSwitchSpace(nextSpace))) return;
+      this.resetCurBiz(nextSpace);
+      this.localCurrentSpace = nextSpace;
     }
-    if (!!this.localValue.length && JSON.stringify(this.value) !== JSON.stringify(this.localValue)) {
-      this.handleAutoSetCurBiz();
+    if (changed) {
       setTimeout(() => {
         this.handleChange();
       }, 50);
@@ -548,7 +553,7 @@ export default class SpaceSelect extends tsc<
   }
   /* check */
   handleSelectOption(item: ILocalSpaceList) {
-    if (!!item.noAuth && !item.hasData) {
+    if (item.noAuth && !item.hasData) {
       return;
     }
     this.selectOption(item, !item.isCheck);
@@ -581,18 +586,6 @@ export default class SpaceSelect extends tsc<
     const searchParams = new URLSearchParams({ bizId: `${curSpace}` });
     const newUrl = `${window.location.pathname}?${searchParams.toString()}#${this.$route.fullPath}`;
     history.replaceState({}, '', newUrl);
-  }
-  /* 自动选择当前空间 */
-  handleAutoSetCurBiz() {
-    if (this.isAutoSelectCurrentSpace) {
-      const selected = this.localValue.filter(v => !specialIds.includes(v));
-      if (selected.length === 1) {
-        if (+selected[0] !== this.localCurrentSpace) {
-          this.resetCurBiz(+selected[0]);
-        }
-        this.localCurrentSpace = +selected[0];
-      }
-    }
   }
   /* 获取当前选中的值 */
   getLocalValue() {
@@ -952,7 +945,7 @@ export default class SpaceSelect extends tsc<
                     )} */}
                   </span>
                   <span class='space-tags'>
-                    {!!item.noAuth && !item.hasData ? (
+                    {item.noAuth && !item.hasData ? (
                       <bk-button
                         class='auth-button'
                         size='small'

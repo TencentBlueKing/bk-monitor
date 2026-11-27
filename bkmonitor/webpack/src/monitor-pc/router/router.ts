@@ -27,7 +27,14 @@
 
 import Vue from 'vue';
 
-import { getBizRouteHref, isAlarmCenterRouteHash, isShareRouteHash, isValidBizId, parseBizId } from 'monitor-common/utils';
+import { canSwitchSpace } from 'monitor-common/utils/space-entry';
+import {
+  getBizRouteHref,
+  isAlarmCenterRouteHash,
+  isShareRouteHash,
+  isValidBizId,
+  parseBizId,
+} from 'monitor-common/utils';
 import { LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils/constant';
 import { getUrlParam, random } from 'monitor-common/utils/utils';
 import VueRouter, { type Route, type RouteConfig } from 'vue-router';
@@ -124,16 +131,26 @@ router.beforeEach(async (to, from, next) => {
   store.commit('app/SET_PADDING_ROUTE', to);
   const urlBizId = parseBizId(getUrlParam('bizId'));
   const routeHash = `#${to.fullPath}`;
+  const exempt =
+    BIZ_ENTRY_ALLOW_ROUTES.has(String(to.name)) ||
+    isShareRouteHash(routeHash) ||
+    isAlarmCenterRouteHash(routeHash) ||
+    window.__BK_WEWEB_DATA__?.token;
+  if (window.space_access && !exempt) {
+    if (!Number.isFinite(urlBizId) || urlBizId === 0 || urlBizId === -1) {
+      if (window.space_access !== 'allowed') return next({ name: 'no-business', replace: true });
+    } else if (!(await canSwitchSpace(urlBizId, routeHash))) {
+      return next(false);
+    }
+  }
   if (
+    !window.space_access &&
     (store.getters.bizList || []).length &&
     Number.isFinite(urlBizId) &&
     urlBizId !== 0 &&
     urlBizId !== -1 &&
     !hasBizInSpaceList(urlBizId) &&
-    !BIZ_ENTRY_ALLOW_ROUTES.has(String(to.name)) &&
-    !isShareRouteHash(routeHash) &&
-    !isAlarmCenterRouteHash(routeHash) &&
-    !window.__BK_WEWEB_DATA__?.token
+    !exempt
   ) {
     return next({ name: 'no-business', replace: true });
   }
@@ -141,20 +158,7 @@ router.beforeEach(async (to, from, next) => {
   if (store.getters.bizList?.length) {
     introduce.initIntroduce(to);
   }
-  if (
-    !window.__BK_WEWEB_DATA__?.token &&
-    ![
-      'no-business',
-      'event-center',
-      'event-center-detail',
-      'event-center-action-detail',
-      'alarm-center',
-      'alarm-center-detail',
-      'share',
-      'redis-management',
-    ].includes(to.name) &&
-    !store.getters.bizList?.length
-  ) {
+  if (!window.space_access && !exempt && !store.getters.bizList?.length) {
     return next({ name: 'no-business' });
   }
   document.body.___zrEVENTSAVED = null; // echarts 微应用偶发tooltips错误问题

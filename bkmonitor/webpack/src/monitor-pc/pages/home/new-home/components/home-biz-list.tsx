@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { Debounce } from 'monitor-common/utils/utils';
@@ -81,7 +81,6 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
 
   storage: Storage = null;
   commonListIds: number[] = [];
-  spaceTypeIdList: { id: string; name: string; styles: any }[] = [];
   searchTypeId = '';
 
   bizListFilter = [];
@@ -107,7 +106,11 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
 
   firstCodeBgColor = '';
 
-  created() {
+  @Watch('bizList')
+  refreshOpenList() {
+    if (this.homePopoverRef?.instance?.state?.isVisible) this.bizListFilter = this.getBizListFilter();
+  }
+  get spaceTypeIdList() {
     const spaceTypeMap: Record<string, any> = {};
     for (const item of this.bizList) {
       spaceTypeMap[item.space_type_id] = 1;
@@ -115,7 +118,7 @@ export default class HomeBizSelect extends tsc<IProps, IEvents> {
         spaceTypeMap.bcs = 1;
       }
     }
-    this.spaceTypeIdList = Object.keys(spaceTypeMap).map(key => ({
+    return Object.keys(spaceTypeMap).map(key => ({
       id: key,
       name: SPACE_TYPE_MAP[key]?.name || this.$t('未知'),
       styles: (this.theme === 'dark' ? SPACE_TYPE_MAP[key]?.dark : SPACE_TYPE_MAP[key]?.light) || {},

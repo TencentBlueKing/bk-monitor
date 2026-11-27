@@ -73,7 +73,9 @@ declare global {
     rawWindow?: Window;
     site_url: string;
     source_app: string;
+    space_access?: 'allowed' | 'denied' | 'error' | 'not_found';
     space_list: ISpaceItem[];
+    space_list_state?: 'deferred' | 'full';
     static_url: string;
     tapd_oauth_base_url?: string;
     timezone: string;
@@ -81,6 +83,7 @@ declare global {
     uin: string;
     user_name: string;
     username: string;
+    loadSpaceDirectory?: () => Promise<ISpaceItem[]>;
     mermaidClick?: (id: string) => void;
   }
 }

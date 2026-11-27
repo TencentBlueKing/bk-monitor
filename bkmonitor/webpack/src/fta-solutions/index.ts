@@ -36,8 +36,14 @@ import 'monitor-ui/directive/index';
 import Api from 'monitor-api/api';
 import { type VueInstance, setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-worker';
-import { getUrlParam, mergeSpaceList, parseBizId, resolveEntryBizId, setGlobalBizId } from 'monitor-common/utils';
-import { assignWindowField } from 'monitor-common/utils/assign-window';
+import { getUrlParam } from 'monitor-common/utils';
+import {
+  applyBasicSpaceContext,
+  assignWindowField,
+  getBasicSpaceContext,
+  hydrateSpaceDirectory,
+  initializeSpaceEntry,
+} from 'monitor-common/utils/space-entry';
 import { userDisplayNameConfigure } from 'monitor-pc/common/user-display-name';
 
 import App from './pages/app';
@@ -53,7 +59,6 @@ import 'monitor-static/icons/monitor-icons.css';
 Vue.config.devtools = process.env.NODE_ENV === 'development';
 window.source_app = 'fta';
 const spaceUid = getUrlParam('space_uid');
-const bizId = parseBizId(getUrlParam('bizId'));
 setVue(Vue as VueInstance);
 if (process.env.NODE_ENV === 'development') {
   window.site_url = '/';
@@ -75,24 +80,15 @@ if (window.__BK_WEWEB_APP_KEY__) {
     i18n,
     render: h => h(App),
   });
+  hydrateSpaceDirectory(bizList => store.commit('app/SET_APP_STATE', { bizList }), window.rawWindow);
   Vue.prototype.$bus = new Vue();
   Vue.prototype.$api = Api;
   Vue.prototype.$authorityStore = Authority;
 } else {
-  Api.model
-    .enhancedContext({
-      space_uid: spaceUid || undefined,
-      bk_biz_id: !spaceUid ? resolveEntryBizId(bizId) || process.env.defaultBizId : undefined,
-      context_type: 'basic',
-    })
+  getBasicSpaceContext()
     .then(data => {
-      assignWindowField(data);
-      mergeSpaceList(window.space_list);
-      window.username = window.uin;
-      window.user_name = window.uin;
-      window.cc_biz_id = parseBizId(window.bk_biz_id);
-      window.bk_log_search_url = data.BKLOGSEARCH_HOST;
-      const bizId = setGlobalBizId();
+      applyBasicSpaceContext(data);
+      const bizId = initializeSpaceEntry(data);
       if (bizId === false) return;
       userDisplayNameConfigure();
       store.commit('app/SET_APP_STATE', {
@@ -114,6 +110,7 @@ if (window.__BK_WEWEB_APP_KEY__) {
       Vue.prototype.$bus = new Vue();
       Vue.prototype.$api = Api;
       Vue.prototype.$authorityStore = Authority;
+      hydrateSpaceDirectory(bizList => store.commit('app/SET_APP_STATE', { bizList }));
       Api.model
         .enhancedContext({
           space_uid: spaceUid || undefined,

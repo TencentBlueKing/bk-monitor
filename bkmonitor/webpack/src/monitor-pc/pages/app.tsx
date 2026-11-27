@@ -24,6 +24,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { canSwitchSpace } from 'monitor-common/utils/space-entry';
 import { Component, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -440,6 +441,7 @@ export default class App extends tsc<object> {
   }
   // 切换业务
   async handleBizChange(v: number) {
+    if (!(await canSwitchSpace(+v))) return;
     this.handleHeaderSettingShowChange(false);
     this.showBizList = false;
     this.$store.commit('app/SET_BIZ_ID', +v);

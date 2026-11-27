@@ -40,8 +40,14 @@ import Api from 'monitor-api/api';
 import Axios from 'monitor-api/axios/axios';
 import { type VueInstance, setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-worker';
-import { getUrlParam, mergeSpaceList, parseBizId, resolveEntryBizId, setGlobalBizId } from 'monitor-common/utils';
-import { assignWindowField } from 'monitor-common/utils/assign-window';
+import { getUrlParam, parseBizId } from 'monitor-common/utils';
+import {
+  applyBasicSpaceContext,
+  assignWindowField,
+  getBasicSpaceContext,
+  hydrateSpaceDirectory,
+  initializeSpaceEntry,
+} from 'monitor-common/utils/space-entry';
 import { initIframeBroadcast } from 'monitor-common/utils/iframe-bridge';
 
 import './common/global-login';
@@ -95,28 +101,17 @@ if (hasRouteHash) {
     location.pathname = window.site_url || '/';
   } else {
     const appLoadingNode: HTMLDivElement = document.body.querySelector('#__app_loading__');
-    Api.model
-      .enhancedContext({
-        space_uid: spaceUid || undefined,
-        bk_biz_id: !spaceUid ? resolveEntryBizId(bizId) || process.env.defaultBizId : undefined,
-        context_type: 'basic',
-      })
+    getBasicSpaceContext()
       .then(data => {
         if (appLoadingNode) {
           appLoadingNode.style.display = 'none';
         }
-        assignWindowField(data);
-        mergeSpaceList(window.space_list);
-        window.user_name = window.uin;
-        window.username = window.uin;
-        window.user_name = window.uin;
-        window.cc_biz_id = parseBizId(window.bk_biz_id);
+        applyBasicSpaceContext(data);
         // username 异步就绪后补充到 RUM 上报的 user.id
         bkOTInstance?.setUser({ id: window.username });
 
         updateTimezone(data.USER_TIME_ZONE);
-        window.bk_log_search_url = data.BKLOGSEARCH_HOST;
-        const bizId = setGlobalBizId();
+        const bizId = initializeSpaceEntry(data);
         if (bizId === false) return;
         userDisplayNameConfigure();
         // document.title = window.page_title;
@@ -143,10 +138,10 @@ if (hasRouteHash) {
           router,
           store,
           i18n,
-          render: h => h(App),
           beforeDestroy() {
             void bkOTInstance?.shutdown();
           },
+          render: h => h(App),
         });
         Vue.prototype.$bus = new Vue();
         Vue.prototype.$platform = window.platform;
@@ -154,6 +149,7 @@ if (hasRouteHash) {
         Vue.prototype.$http = Axios;
         Vue.prototype.$ELEMENT = { size: '', zIndex: 3000 };
         Vue.prototype.$authorityStore = Authority;
+        hydrateSpaceDirectory(bizList => store.commit('app/SET_APP_STATE', { bizList }));
         Api.model
           .enhancedContext({
             space_uid: spaceUid || undefined,
