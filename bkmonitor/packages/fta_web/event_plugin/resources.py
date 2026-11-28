@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,12 +7,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import abc
 import logging
 import time
 import traceback
 import urllib.parse
 from collections import defaultdict
+from collections.abc import Mapping
 
 from django.conf import settings
 from django.db import transaction
@@ -106,7 +107,7 @@ class CreateEventPluginResource(BaseEventPluginResource):
             plugin_id=request_data["plugin_id"], version=request_data.get("version")
         ).exists():
             raise PluginIDExistError({"plugin_id": request_data["plugin_id"], "version": request_data["version"]})
-        return super(CreateEventPluginResource, self).validate_request_data(request_data)
+        return super().validate_request_data(request_data)
 
     def perform_request(self, validated_data):
         serializer = get_serializer(validated_data["plugin_type"], data=validated_data)
@@ -124,7 +125,9 @@ class UpdateEventPluginResource(BaseEventPluginResource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        plugin_id = serializers.RegexField(required=True, regex=r"^[a-zA-Z][a-zA-Z0-9_]*$", max_length=64, label="插件ID")
+        plugin_id = serializers.RegexField(
+            required=True, regex=r"^[a-zA-Z][a-zA-Z0-9_]*$", max_length=64, label="插件ID"
+        )
         version = serializers.CharField(required=False, default="", allow_blank=True, label="插件版本号")
 
     def validate_request_data(self, request_data):
@@ -133,7 +136,7 @@ class UpdateEventPluginResource(BaseEventPluginResource):
         :param request_data:
         :return:
         """
-        plugin_info = super(UpdateEventPluginResource, self).validate_request_data(request_data)
+        plugin_info = super().validate_request_data(request_data)
         request_data.update(plugin_info)
         return request_data
 
@@ -223,7 +226,7 @@ class DeployEventPluginResource(BaseEventPluginResource):
         if not need_updated_instances:
             return data
         normalization_config = [
-            {'expr': config["expr"], 'field': config["field"], 'option': config["option"]}
+            {"expr": config["expr"], "field": config["field"], "option": config["option"]}
             for config in data["normalization_config"]
         ]
 
@@ -390,7 +393,7 @@ class ListEventPluginResource(BaseEventPluginResource):
 
 class EventPluginInstanceBaseResource(Resource):
     def __init__(self, context=None):
-        super(EventPluginInstanceBaseResource, self).__init__(context)
+        super().__init__(context)
         self.event_plugin = None
 
     def validate_poller_data(self, validated_data):
@@ -433,14 +436,16 @@ class CreateEventPluginInstanceResource(EventPluginInstanceBaseResource):
     class RequestSerializer(serializers.Serializer):
         name = serializers.CharField(required=False, label="配置别名")
         bk_biz_id = serializers.CharField(required=True, label="业务ID")
-        plugin_id = serializers.RegexField(required=True, regex=r"^[a-zA-Z][a-zA-Z0-9_]*$", max_length=64, label="插件ID")
+        plugin_id = serializers.RegexField(
+            required=True, regex=r"^[a-zA-Z][a-zA-Z0-9_]*$", max_length=64, label="插件ID"
+        )
         version = serializers.CharField(required=True, label="插件版本号")
         config_params = serializers.DictField(label="配置输入, kv格式")
         normalization_config = NormalizationConfig(many=True, label="字段清洗规则", required=False)
         clean_configs = CleanConfigSerializer(many=True, required=False)
 
     def validate_request_data(self, request_data):
-        validated_data = super(CreateEventPluginInstanceResource, self).validate_request_data(request_data)
+        validated_data = super().validate_request_data(request_data)
         try:
             self.event_plugin = EventPlugin.objects.get(
                 plugin_id=validated_data["plugin_id"],
@@ -477,11 +482,11 @@ class UpdateEventPluginInstanceResource(EventPluginInstanceBaseResource):
         normalization_config = NormalizationConfig(many=True, label="字段清洗规则", required=False)
 
     def __init__(self, context=None):
-        super(UpdateEventPluginInstanceResource, self).__init__(context)
+        super().__init__(context)
         self.instance = None
 
     def validate_request_data(self, request_data):
-        validated_data = super(UpdateEventPluginInstanceResource, self).validate_request_data(request_data)
+        validated_data = super().validate_request_data(request_data)
         try:
             self.instance = EventPluginInstance.objects.get(
                 id=validated_data["id"], bk_biz_id=validated_data["bk_biz_id"]
@@ -661,10 +666,29 @@ class DisablePluginCollectResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        ids = serializers.CharField(label="卸载插件配置ID")
+        ids = serializers.ListField(child=serializers.IntegerField(min_value=1), allow_empty=False, label="插件实例ID")
+        bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
+
+        def to_internal_value(self, data):
+            if isinstance(data, Mapping):
+                # 统一批量列表、逗号分隔字符串和单实例 id，再逐项做整数校验。
+                key = "ids" if "ids" in data else "id"
+                if key in data:
+                    values = data.getlist(key) if hasattr(data, "getlist") else data[key]
+                    if isinstance(values, list) and len(values) == 1:
+                        values = values[0]
+                    if isinstance(values, str):
+                        values = values.split(",")
+                    elif isinstance(values, int):
+                        values = [values]
+                    data = dict(data.items())
+                    data["ids"] = values
+            return super().to_internal_value(data)
 
     def perform_request(self, validated_data):
-        instances = EventPluginInstance.objects.get(id=validated_data["id"])
+        instances = EventPluginInstance.objects.filter(id__in=validated_data["ids"])
+        if "bk_biz_id" in validated_data:
+            instances = instances.filter(bk_biz_id=validated_data["bk_biz_id"])
         disabled_ids = []
         for instance in instances:
             if not instance.data_id:
