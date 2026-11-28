@@ -312,6 +312,34 @@ def test_application_context_uses_target_role_without_reading_global_settings(mu
     targets.assert_called_once_with()
 
 
+@pytest.mark.parametrize("cluster_id, is_global", [(None, False), ("cluster-a", False), ("cluster-a", True)])
+def test_platform_metric_metadata_switch(settings, mocker, cluster_id, is_global):
+    for method in [
+        "get_apdex_config",
+        "get_sampler_config",
+        "get_token_checker_config",
+        "get_resource_filter_config",
+        "get_qps_config",
+        "list_metric_config",
+        "get_license_config",
+        "get_attribute_config",
+        "get_field_normalizer_config",
+        "get_resource_fill_dimensions_config",
+    ]:
+        mocker.patch.object(PlatformConfig, method, return_value={})
+
+    def context():
+        return PlatformConfig.get_platform_config(cluster_id, namespace="operator-ns", is_global=is_global)
+
+    assert settings.BK_COLLECTOR_METRIC_METADATA_ENABLED is False
+    baseline = context()
+    assert "metric_metadata" not in baseline
+    settings.BK_COLLECTOR_METRIC_METADATA_ENABLED = True
+    assert context() == {**baseline, "metric_metadata": {"enabled": True, "dataid": 1100014}}
+    settings.BK_COLLECTOR_METRIC_METADATA_ENABLED = False
+    assert context() == baseline
+
+
 @pytest.mark.parametrize("is_global", [False, True])
 def test_platform_context_uses_target_role_without_reading_global_settings(mocker, is_global):
     targets = mocker.spy(ClusterConfig, "get_global_deploy_mapping")
