@@ -3,8 +3,10 @@
 
   .input-popover {
     flex: 1;
+    width: 100%;
 
-    .bk-tooltip-ref {
+    .bk-tooltip-ref,
+    .input-text {
       width: 100%;
     }
 
