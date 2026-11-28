@@ -1580,6 +1580,11 @@ class ApmAlertHelper:
         ),
         re.compile(rf"(?P<prefix>\(\s*b\s*){_MASK}(?P<suffix>\s*\)\s*\*\s*a(?:\s*\*\s*1000)?)"),
         re.compile(rf"(?P<prefix>\(\s*a\s*){_MASK}(?P<suffix>\s*\)\s*\*\s*a)"),
+        # 请求量同比的起算值作用于当期请求量，保留 >= 以展示请求量降至零的情况。
+        re.compile(
+            r"(?P<prefix>\(\s*a\s*/\s*\(\s*b\s*>\s*0\s*\)\s*-\s*1\s*\)\s*\*\s*100\s+and\s*\(\s*a\s*)"
+            r">(?P<modifier>=?\s*)[0-9]+(?:\.0+)?(?P<suffix>\s*\))"
+        ),
     )
 
     @classmethod
