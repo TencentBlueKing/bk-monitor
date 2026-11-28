@@ -10,6 +10,11 @@ specific language governing permissions and limitations under the License.
 
 from collections import UserList
 
+import pytest
+from django.core.exceptions import ImproperlyConfigured
+
+from config.default import _fta_clean_data_ids
+
 from metadata.models import DataSource
 from metadata.models.constants import IGNORED_CONSUL_SYNC_DATA_IDS
 from metadata.models.influxdb_cluster import InfluxDBClusterInfo
@@ -77,3 +82,17 @@ class TestConsulCluster:
         settings.FTA_CLEAN_ENABLED = False
         source.refresh_consul_config()
         assert consul.put.call_count == 3
+
+
+@pytest.mark.parametrize(("enabled", "all_sources"), [(False, False), (False, True), (True, True)])
+def test_unused_fta_gray_list(monkeypatch, enabled, all_sources):
+    monkeypatch.setenv("FTA_CLEAN_DATA_IDS", "deployment-placeholder")
+    assert _fta_clean_data_ids(enabled, all_sources) == set()
+
+
+def test_fta_gray_list_configuration(monkeypatch):
+    monkeypatch.setenv("FTA_CLEAN_DATA_IDS", "41, 42,")
+    assert _fta_clean_data_ids(True, False) == {41, 42}
+    monkeypatch.setenv("FTA_CLEAN_DATA_IDS", "41,bad")
+    with pytest.raises(ImproperlyConfigured, match="FTA_CLEAN_DATA_IDS"):
+        _fta_clean_data_ids(True, False)

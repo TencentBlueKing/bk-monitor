@@ -46,6 +46,17 @@ class EventPluginViewSet(ResourceViewSet):
             permission.has_permission(request, self)
             return
         except PermissionDeniedError:
+            if self.action == "instance/disable_collect":
+                # 批量按实例 ID 操作时，业务权限的授权范围必须传给资源层用于筛选实例。
+                if (
+                    not request.biz_id
+                    or str(request.biz_id) == "0"
+                    or str(request.data.get("bk_biz_id")) != str(request.biz_id)
+                ):
+                    raise
+                if not BusinessActionPermission([ActionEnum.MANAGE_COLLECTION]).has_permission(request, self):
+                    raise
+                return
             permission = BusinessActionPermission([ActionEnum.MANAGE_COLLECTION])
         permission.has_permission(request, self)
 
