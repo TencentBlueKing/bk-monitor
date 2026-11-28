@@ -165,7 +165,7 @@ class AlertDocument(BaseDocument):
         return cls(**hits[0].to_dict())
 
     @classmethod
-    def mget(cls, ids, fields: list = None) -> list["AlertDocument"]:
+    def mget(cls, ids, fields: list[str] | dict[str, list[str]] | None = None) -> list["AlertDocument"]:
         """
         获取多条告警
         """

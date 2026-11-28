@@ -269,6 +269,11 @@ class TestActionFakeESProcessor(TestCase):
         self.assertEqual(len(new_actions), 0)
 
     def test_sync_parent_action(self):
+        def sync_and_get_documents(action_ids):
+            with patch.object(ActionInstanceDocument, "bulk_create") as bulk_create:
+                sync_actions_sharding_task(action_ids)
+            return {doc.raw_id: doc for call in bulk_create.call_args_list for doc in call.args[0]}
+
         alert_info = {"id": str(int(time.time() * 1000)), "event": EventDocument(bk_biz_id=2), "is_shielded": True}
         alerts = [AlertDocument(**alert_info)]
         AlertDocument.bulk_create(alerts)
@@ -301,11 +306,15 @@ class TestActionFakeESProcessor(TestCase):
             )
             action_ids.append(a.id)
 
-        sync_actions_sharding_task(action_ids)
+        with patch.object(AlertDocument, "mget", wraps=AlertDocument.mget) as mget:
+            documents = sync_and_get_documents(action_ids)
+        mget.assert_called_once_with(
+            ids=[alert_info["id"]] * len(action_ids),
+            fields={"excludes": ["extra_info.strategy", "event.extra_info.strategy"]},
+        )
 
         # 都是失败的时候，最后显示为失败
-        p_doc = ActionInstanceDocument.get(id=p_action.es_action_id)
-        self.assertEqual(p_doc.status, ActionStatus.FAILURE)
+        self.assertEqual(documents[p_action.id].status, ActionStatus.FAILURE)
 
         last_a = ActionInstance.objects.create(
             alerts=[alert_info["id"]],
@@ -322,18 +331,15 @@ class TestActionFakeESProcessor(TestCase):
         )
 
         # 当有一个是成功的时候，其他都是失败的时候，最后显示为部分失败
-        sync_actions_sharding_task([last_a.id])
-        p_doc = ActionInstanceDocument.get(id=p_action.es_action_id)
-        self.assertEqual(p_doc.status, ActionStatus.PARTIAL_FAILURE)
+        documents = sync_and_get_documents([last_a.id])
+        self.assertEqual(documents[p_action.id].status, ActionStatus.PARTIAL_FAILURE)
 
         ActionInstance.objects.filter(parent_action_id=p_action.id).update(real_status=ActionStatus.SUCCESS)
 
         # 当所有子任务状态都是成功的时候， 先同步主任务
-        sync_actions_sharding_task([p_action.id])
-        p_doc = ActionInstanceDocument.get(id=p_action.es_action_id)
-        self.assertEqual(p_doc.status, ActionStatus.SUCCESS)
+        documents = sync_and_get_documents([p_action.id])
+        self.assertEqual(documents[p_action.id].status, ActionStatus.SUCCESS)
 
         # 再同步所有的子任务，此时不会更改主任务状态
-        sync_actions_sharding_task([last_a.id])
-        p_doc = ActionInstanceDocument.get(id=p_action.es_action_id)
-        self.assertEqual(p_doc.status, ActionStatus.SUCCESS)
+        documents = sync_and_get_documents([last_a.id])
+        self.assertEqual(set(documents), {last_a.id})
