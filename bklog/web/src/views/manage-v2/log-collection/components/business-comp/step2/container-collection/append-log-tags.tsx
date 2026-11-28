@@ -40,6 +40,8 @@ type IData = {
   extra_labels: IExtraLabel[];
   add_pod_label?: boolean;
   add_pod_annotation?: boolean;
+  pod_label_keys?: string[];
+  pod_annotation_keys?: string[];
 };
 export default defineComponent({
   name: 'AppendLogTags',
@@ -51,6 +53,8 @@ export default defineComponent({
         extra_labels: [],
         add_pod_label: false,
         add_pod_annotation: false,
+        pod_label_keys: [],
+        pod_annotation_keys: [],
       }),
     },
   },
@@ -65,6 +69,8 @@ export default defineComponent({
       extra_labels: [...props.config.extra_labels], // 深拷贝避免引用问题
       add_pod_label: props.config.add_pod_label,
       add_pod_annotation: props.config.add_pod_annotation,
+      pod_label_keys: [...(props.config.pod_label_keys || [])],
+      pod_annotation_keys: [...(props.config.pod_annotation_keys || [])],
     });
 
     /**
@@ -138,6 +144,8 @@ export default defineComponent({
         extra_labels: [...props.config.extra_labels],
         add_pod_label: props.config.add_pod_label,
         add_pod_annotation: props.config.add_pod_annotation,
+        pod_label_keys: [...(props.config.pod_label_keys || [])],
+        pod_annotation_keys: [...(props.config.pod_annotation_keys || [])],
       };
     };
     watch(
@@ -222,6 +230,54 @@ export default defineComponent({
             {t('自动添加 Pod 中的 annotation')}
           </bk-checkbox>
         </div>
+        {localData.value.add_pod_label && (
+          <div class='filter-keys-group'>
+            <span class='filter-keys-label'>
+              {t('指定 Label Key')}
+              <i
+                class='bk-icon icon-info-circle-shape filter-tip-icon'
+                v-bk-tooltips={t('仅采集指定 key 的 Pod label，为空则全量采集')}
+              />
+            </span>
+            <bk-tag-input
+              class='filter-keys-input'
+              allow-auto-match={true}
+              allow-create={true}
+              has-delete-icon={true}
+              placeholder={t('输入 label key 后回车，如 app，留空则全量采集')}
+              value={localData.value.pod_label_keys}
+              free-paste
+              on-change={(val: string[]) => {
+                localData.value.pod_label_keys = val || [];
+                handleChangeSubmit();
+              }}
+            />
+          </div>
+        )}
+        {localData.value.add_pod_annotation && (
+          <div class='filter-keys-group'>
+            <span class='filter-keys-label'>
+              {t('指定 Annotation Key')}
+              <i
+                class='bk-icon icon-info-circle-shape filter-tip-icon'
+                v-bk-tooltips={t('仅采集指定 key 的 Pod annotation，为空则全量采集')}
+              />
+            </span>
+            <bk-tag-input
+              class='filter-keys-input'
+              allow-auto-match={true}
+              allow-create={true}
+              has-delete-icon={true}
+              placeholder={t('输入 annotation key 后回车，如 app.kubernetes.io/name，留空则全量采集')}
+              value={localData.value.pod_annotation_keys}
+              free-paste
+              on-change={(val: string[]) => {
+                localData.value.pod_annotation_keys = val || [];
+                handleChangeSubmit();
+              }}
+            />
+          </div>
+        )}
       </div>
     );
   },
