@@ -20,7 +20,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from bkmonitor.aiops.alert.utils import AIOPSManager
-from bkmonitor.aiops.incident.graph_snapshot import edge_identity, graph_analysis, target_analysis
+from bkmonitor.aiops.incident.graph_snapshot import edge_identity, graph_analysis, has_snapshot_metrics, target_analysis
 from bkmonitor.aiops.incident.models import (
     IncidentGraphEdge,
     IncidentGraphEdgeType,
@@ -207,9 +207,14 @@ class IncidentBaseResource(Resource):
         nodes = []
         sub_combo_types = ("BcsWorkload", "BcsService")
 
+        def is_selectable_group(entity):
+            return self.is_topology_root(incident, entity) or has_snapshot_metrics(
+                snapshot.incident_snapshot_content, entity.entity_id
+            )
+
         for entity in entities:
-            # Root causes must remain selectable nodes, even when their type normally renders as a group.
-            if entity.entity_type in sub_combo_types and not self.is_topology_root(incident, entity):
+            # Roots and saved metrics need a selectable node, regardless of alert state.
+            if entity.entity_type in sub_combo_types and not is_selectable_group(entity):
                 continue
 
             dependency_parents = snapshot.get_entity_alert_parent(entity.entity_id, types=list(sub_combo_types))
@@ -217,7 +222,7 @@ class IncidentBaseResource(Resource):
             dependency_parent = None
             if dependency_parents:
                 for _dependency_parent in dependency_parents:
-                    if self.is_topology_root(incident, _dependency_parent):
+                    if is_selectable_group(_dependency_parent):
                         continue
                     _dependency_content = (
                         self.generate_entity_node_info(incident, snapshot, _dependency_parent)
