@@ -202,6 +202,98 @@ class TestTopologyGroupRoot(SimpleTestCase):
         self.assertEqual(result["sub_combos"], [])
         self.assertEqual(len(result["edges"]), 2)
 
+    def metric_content(self, entity_type="BcsWorkload", status="OK", data=None, on_alert=False):
+        content = self.make_content(entity_type, is_root=False, on_alert=on_alert)
+        content["graph_analysis"] = {
+            "protocol": "graph-rca-snapshot",
+            "version": "1",
+            "capabilities": {"realtime_metrics": False},
+            "evidence": [
+                {
+                    "evidence_id": name,
+                    "entity_ref": "parent",
+                    "evidence_type": "metric",
+                    "evidence_descriptor": {"kind": "system_metrics", "name": name},
+                    "response": {
+                        "meta": {"status": status},
+                        "data": [{"time": 1000, "value": 0.0}] if data is None else data,
+                    },
+                }
+                for name in ("cpu", "mem")
+            ],
+        }
+        return content
+
+    def test_metric_workload_and_service_are_selectable_without_alerts(self):
+        for entity_type in ("BcsWorkload", "BcsService"):
+            for aggregate in (False, True):
+                for status in ("OK", "PARTIAL"):
+                    with self.subTest(entity_type=entity_type, aggregate=aggregate, status=status):
+                        content = self.metric_content(entity_type, status)
+                        result = self.render(content, aggregate=aggregate)
+                        nodes = {node["id"]: node for node in result["nodes"]}
+                        parent = nodes["parent"]
+                        self.assertFalse(parent["is_on_alert"])
+                        self.assertFalse(parent["entity"]["is_root"])
+                        self.assertEqual(parent["graph_analysis"]["evidence"], content["graph_analysis"]["evidence"])
+                        self.assertEqual(result["sub_combos"], [])
+                        self.assertTrue(result["edges"])
+                        for edge in result["edges"]:
+                            self.assertIn(edge["source"], nodes)
+                            self.assertIn(edge["target"], nodes)
+                        for node in result["nodes"]:
+                            if node["id"] != "parent":
+                                self.assertEqual(node["graph_analysis"]["evidence"], [])
+
+    def test_metric_parent_without_children_keeps_an_entry(self):
+        content = self.metric_content()
+        content["incident_propagation_graph"]["entities"] = content["incident_propagation_graph"]["entities"][1:2]
+        content["incident_propagation_graph"]["edges"] = []
+        self.assertEqual([node["id"] for node in self.render(content)["nodes"]], ["parent"])
+
+    def test_alerting_metric_parent_is_not_also_a_group(self):
+        result = self.render(self.metric_content(on_alert=True))
+        self.assertEqual(len(result["nodes"]), 3)
+        self.assertEqual(result["sub_combos"], [])
+        self.assertEqual(len(result["edges"]), 2)
+
+    def test_linked_metric_ownership_is_respected(self):
+        content = self.metric_content()
+        for item in content["graph_analysis"]["evidence"]:
+            del item["entity_ref"]
+        content["graph_analysis"]["links"] = [{"entity_ref": "parent", "evidence_ref": "cpu"}]
+        result = self.render(content)
+        parent = next(node for node in result["nodes"] if node["id"] == "parent")
+        self.assertEqual([item["evidence_id"] for item in parent["graph_analysis"]["evidence"]], ["cpu"])
+
+    def test_empty_or_invalid_curves_do_not_change_legacy_grouping(self):
+        for status, data in (
+            ("NO_DATA", [{"time": 1000, "value": 1}]),
+            ("ERROR", [{"time": 1000, "value": 1}]),
+            ("OK", []),
+            ("OK", [{"time": 1000, "value": None}]),
+            ("OK", [{"time": 1000, "value": float("inf")}]),
+            ("OK", [{"time": "1000", "value": 1}]),
+            ("OK", [{"time": 1000, "value": True}]),
+        ):
+            with self.subTest(status=status, data=data):
+                result = self.render(self.metric_content(status=status, data=data, on_alert=True))
+                self.assertEqual({node["id"] for node in result["nodes"]}, {"pod-a", "pod-b"})
+                self.assertEqual([combo["id"] for combo in result["sub_combos"]], ["parent"])
+
+    def test_other_entity_edge_and_unsupported_protocol_do_not_add_entry(self):
+        for variant in ("other_entity", "edge", "unsupported"):
+            with self.subTest(variant=variant):
+                content = self.metric_content()
+                for item in content["graph_analysis"]["evidence"]:
+                    if variant == "other_entity":
+                        item["entity_ref"] = "pod-a"
+                    elif variant == "edge":
+                        item["edge_ref"] = "some-edge"
+                if variant == "unsupported":
+                    content["graph_analysis"]["version"] = "future"
+                self.assertEqual({node["id"] for node in self.render(content)["nodes"]}, {"pod-a", "pod-b"})
+
 
 class TestUnifiedGraphSnapshot(SimpleTestCase):
     def test_empty_graph_and_hierarchy_render_without_indexing_a_root(self):

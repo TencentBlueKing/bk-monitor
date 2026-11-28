@@ -2,6 +2,24 @@
 
 import copy
 import json
+import math
+
+
+def has_snapshot_metrics(content, entity_ref):
+    """Keep metric-bearing entities selectable even when their type normally renders as a group."""
+    analysis = target_analysis(content, entity_ref=entity_ref)
+    if not analysis:
+        return False
+    for item in analysis.get("evidence", []):
+        if item.get("evidence_type") != "metric" or item.get("edge_ref"):
+            continue
+        response = item.get("response") or {}
+        if response.get("meta", {}).get("status") not in ("OK", "PARTIAL"):
+            continue
+        for point in response.get("data") or []:
+            if all(type(point.get(key)) in (int, float) and math.isfinite(point[key]) for key in ("time", "value")):
+                return True
+    return False
 
 
 def graph_analysis(content):
