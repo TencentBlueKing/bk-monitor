@@ -267,7 +267,11 @@ class BkLogRegexpEtlStorage(EtlStorage):
             {
                 "input_id": "iter_string",
                 "output_id": "bk_separator_object",
-                "operator": {"type": "regex", "regex": etl_params.get("separator_regexp", "")},
+                "operator": {
+                    "type": "regex",
+                    "regex": etl_params.get("separator_regexp", ""),
+                    "error_strategy": self.get_v4_parse_error_strategy(etl_params),
+                },
             }
         )
 
