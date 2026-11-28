@@ -128,6 +128,8 @@ export interface SourceAnalysisLatest {
   analysis_id: string;
   /** 尝试次数（首次/重新分析为 1，失败重试递增） */
   attempt: number;
+  /** 上游执行定位信息；兼容尚未返回该字段的服务端 */
+  execution_reference?: null | SourceAnalysisExecutionReference;
   /** 失败信息（仅 failed 非空） */
   failure: null | SourceAnalysisFailure;
   /** 失败阶段（仅 failed 非空） */

@@ -255,11 +255,16 @@ class TestIssueSourceAnalysisExecution(TestCase):
     def test_mark_success_clears_stage_and_active_key(self):
         execution = self.create_execution()
         execution.mark_running(SourceAnalysisStage.VALIDATING)
+        reference = {
+            "provider": "bkci",
+            "identifiers": {"project_id": "project-a", "pipeline_id": "pipeline-a", "build_id": "build-a"},
+        }
 
         execution.mark_success(
             result_type=SourceAnalysisResultType.INSUFFICIENT_EVIDENCE,
             result_payload={"schema_version": "1.0.0"},
             result_schema_version="1.0.0",
+            execution_reference=reference,
         )
 
         execution.refresh_from_db()
@@ -268,6 +273,7 @@ class TestIssueSourceAnalysisExecution(TestCase):
         self.assertIsNone(execution.active_key)
         self.assertIsNotNone(execution.finished_at)
         self.assertEqual(execution.result_payload, {"schema_version": "1.0.0"})
+        self.assertEqual(execution.execution_reference, reference)
 
     def test_mark_failed_records_failure_detail(self):
         execution = self.create_execution()
@@ -289,14 +295,29 @@ class TestIssueSourceAnalysisExecution(TestCase):
     def test_terminal_execution_rejects_further_transition(self):
         execution = self.create_execution()
         execution.mark_running(SourceAnalysisStage.ANALYZING)
+        reference = {
+            "provider": "bkci",
+            "identifiers": {"project_id": "project-a", "pipeline_id": "pipeline-a", "build_id": "build-a"},
+        }
         execution.mark_success(
             result_type=SourceAnalysisResultType.HIGH_CONFIDENCE,
             result_payload={},
             result_schema_version="1.0.0",
+            execution_reference=reference,
         )
 
         with self.assertRaises(SourceAnalysisInvalidStatusTransitionError):
             execution.mark_running(SourceAnalysisStage.ANALYZING)
+
+        with self.assertRaises(SourceAnalysisInvalidStatusTransitionError):
+            execution.mark_success(
+                result_type=SourceAnalysisResultType.HIGH_CONFIDENCE,
+                result_payload={},
+                result_schema_version="1.0.0",
+                execution_reference=None,
+            )
+        execution.refresh_from_db()
+        self.assertEqual(execution.execution_reference, reference)
 
     def test_concurrent_transition_loses_race(self):
         execution = self.create_execution()

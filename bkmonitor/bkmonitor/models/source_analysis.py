@@ -272,7 +272,13 @@ class IssueSourceAnalysisExecution(AbstractRecordModel):
             updates["started_at"] = timezone.now()
         self._transition(SourceAnalysisStatus.RUNNING, **updates)
 
-    def mark_success(self, result_type: str, result_payload: dict, result_schema_version: str) -> None:
+    def mark_success(
+        self,
+        result_type: str,
+        result_payload: dict,
+        result_schema_version: str,
+        execution_reference: dict | None = None,
+    ) -> None:
         """推进到成功终态。证据不足同样是成功，由 result_type 区分。"""
 
         self._transition(
@@ -281,6 +287,7 @@ class IssueSourceAnalysisExecution(AbstractRecordModel):
             result_type=result_type,
             result_payload=result_payload,
             result_schema_version=result_schema_version,
+            execution_reference=execution_reference,
             finished_at=timezone.now(),
         )
 

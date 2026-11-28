@@ -266,6 +266,7 @@ class TestSourceAnalysisFrontendResources(TestCase):
                 ),
             },
         )
+        self.assertEqual(result["execution_reference"], result["failure"]["execution_reference"])
 
     def test_failure_keeps_unknown_provider_reference_without_assuming_url(self):
         execution = self.create_execution(
